@@ -7,16 +7,21 @@ class CPU;
 #include "ppu.hpp"
 #include "apu.hpp"
 #include "common.hpp"
+#include "controller.hpp"
+#include "cartridge.hpp"
 
 class CPU {
 public:
 	CPU();
 	~CPU();
+
 	void setPPU(PPU* ppu);
 	void setAPU(APU* apu);
-	void setROM(Byte* data, unsigned int size);
+	void setCartridge(Cartridge* cartridge);
+	void setController(Controller* controller, unsigned int port);
+
 	void reset();
-	void clockTick();
+	bool clockTick();
 	void setNMI();
 	void setIRQ();
 	bool halted();
@@ -26,22 +31,19 @@ public:
 	void dumpStack();
 	void dumpState();
 
-	enum DebugOperationType {
-		BREAKPOINT,
-		DUMP,
-		DISPLAY_OPS
-	};
-
-	enum DebugOperationCondition {
+	enum BreakpointCondition {
 		PROGRAM_POSITION,
 		READ_FROM,
-		WRITE_TO
+		WRITE_TO,
+		NMI,
+		IRQ
 	};
 
-	void addDebugOperation(DebugOperationType type, DebugOperationCondition condition, Word address);
-	void clearDebugOperations();
+	void addBreakpoint(Word address, BreakpointCondition condition);
+	void clearBreakpoints();
 	
 	bool _break;
+	bool debug = false;
 
 private:
 	enum Instruction {
@@ -49,16 +51,16 @@ private:
 		AND, // bitwise and
 		ASL, // shift left one bit
 
-		BCC, // branch on carry clear
-		BCS, // branch on carry set
-		BEQ, // branch on result zero
+		BCC, // branch on carry clear (C = 0)
+		BCS, // branch on carry set (C = 1)
+		BEQ, // branch on equal to zero (Z = 1)
 		BIT, // test bits in memory with acc
-		BMI, // branch on result negative
-		BNE, // branch on result not positive
-		BPL, // branch on result positive
+		BMI, // branch on minus (N = 1)
+		BNE, // branch on not equal to zero (Z = 0)
+		BPL, // branch on plus (N = 0)
 		BRK, // force break
-		BVC, // branch on overflow clear
-		BVS, // branch on overflow set
+		BVC, // branch on overflow clear (V = 0)
+		BVS, // branch on overflow set (V = 1)
 
 		CLC, // clear carry flag
 		CLD, // clear decimal mode
@@ -244,9 +246,12 @@ private:
 
 	static const int OAM_DMA = 0x4014;
 
-	static const int APU_IO_START = 0x4000;
-	static const int APU_IO_SIZE = 0x0018;
-	static const int APU_IO_END = 0x4017;
+	static const int APU_START = 0x4000;
+	static const int APU_SIZE = 0x0016;
+	static const int APU_END = 0x4015;
+
+	static const int JOY1 = 0x4016;
+	static const int JOY2 = 0x4017;
 	/*
 	memory from 0x4018-0x401f is normally disabled
 	*/
@@ -264,6 +269,8 @@ private:
 
 	typedef void (CPU::*InstructionFunction)(CPU::AddressMode);
 
+	Controller* controllers[2];
+
 	enum ByteInterpretation {
 		RAW,
 		OPCODE,
@@ -275,10 +282,9 @@ private:
 
 	PPU* ppu;
 	APU* apu;
+	Cartridge* cartridge;
 
 	Byte ram[RAM_SIZE];
-	Byte* rom;
-	unsigned int rom_size;
 
 	Byte accumulator;
 	Byte x_register;
@@ -315,18 +321,21 @@ private:
 
 	
 
-	struct DebugOperation {
-		DebugOperationType type;
-		DebugOperationCondition condition;
+	int subroutine_depth = 0;
+
+	struct Breakpoint {
+		BreakpointCondition condition;
 		Word address;
 	};
-	int display_ops_cycles;
-	std::vector<DebugOperation> debug_operations;
+	std::vector<Breakpoint> breakpoints;
 
 	void debugReadOperation(Word address, Byte value);
 	void debugWriteOperation(Word address, Byte value);
 	void debugProgramPosition(Word address);
-	void executeDebugOperation(DebugOperationType type);
+	void debugInterrupt(BreakpointCondition condition);
+
+
+
 
 
 

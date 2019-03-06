@@ -1,6 +1,9 @@
 #ifndef DEBUGGING_HPP
 #define DEBUGGING_HPP
 
+#include <iostream>
+#include <iomanip>
+
 #define GET_MACRO(_1, _2, _3, MACRO_NAME, ...) MACRO_NAME
 
 #define toHex3(number, bytes, prefix) (prefix) << std::setfill('0') << std::setw((bytes) * 2) \
@@ -12,11 +15,9 @@
 
 #define DEBUG true
 
-#if(DEBUG)
-	#include <iomanip>
-	#include <iostream>
+#if (DEBUG)
 	#define dout(message) std::cout << "DEBUG: " << __FILE__ << " (" << __LINE__ << "): " << message << '\n'
-#elif
+#else
 	#define dout(message)
 #endif
 

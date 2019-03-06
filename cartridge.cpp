@@ -1,10 +1,10 @@
 #include <fstream>
 #include "cartridge.hpp"
 #include "debugging.hpp"
+#include "common.hpp"
 
 using namespace std;
 
-#define KB 1024
 #define inRange(value, low, high) ((value) >= (low) && (value) < (high))
 
 Cartridge::Cartridge() {
@@ -32,17 +32,25 @@ bool Cartridge::loadFile(const string filename) {
 
 	fin.read((char*)data, data_size);
 
-	dout("file size = " << toHex(data_size));
-	dout("PRG size = " << toHex(prgRomSize()));
-	dout("CHR size = " << toHex(chrRomSize()));
-	dout("PRG + CHR = " << toHex(prgRomSize() + chrRomSize()));
-
 	if (!fin.good() || fin.fail() || !verify()) {
 		freeData();
 		dout("failed to load file");
+		fin.close();
 		return false;
 	}
 
+	prg_size = prgRomSize();
+	chr_size = chrRomSize();
+
+	dout("file size = " << toHex(data_size));
+	dout("PRG size = " << toHex(prg_size));
+	dout("CHR size = " << toHex(chr_size));
+	dout("PRG + CHR = " << toHex(prg_size + chr_size));
+
+	prg_rom = data + prgRomStart();
+	chr_rom = data + chrRomStart();
+
+	fin.close();
 	return true;
 }
 
@@ -130,10 +138,18 @@ int Cartridge::chrRomStart() {
 	return prgRomStart() + prgRomSize();
 }
 
-Byte* Cartridge::getPrgRom() {
-	return data + prgRomStart();
+Byte Cartridge::readROM(Word address) {
+	return prg_rom[address % prg_size];
 }
 
-Byte* Cartridge::getChrRom() {
-	return data + chrRomStart();
+Byte Cartridge::readCHR(Word address) {
+	return chr_rom[address % chr_size];
+}
+
+void Cartridge::writeROM(Word address, Byte value) {
+	prg_rom[address % prg_size] = value;
+}
+
+void Cartridge::writeCHR(Word address, Byte value) {
+	chr_rom[address % chr_size] = value;
 }

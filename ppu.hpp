@@ -5,12 +5,13 @@ class PPU;
 
 #include "cpu.hpp"
 #include "common.hpp"
+#include "cartridge.hpp"
 
 class PPU {
 public:
 	PPU();
 	~PPU();
-	void setROM(Byte* data, unsigned int size);
+	void setCartridge(Cartridge* cartridge);
 	Byte readByte(Word address);
 	void writeByte(Word address, Byte value);
 	void clockTick();
@@ -18,7 +19,8 @@ public:
 	void setCPU(CPU* cpu);
 	const Pixel* getSurface();
 	bool readyToDraw();
-	void writeToOAM(Byte index, Byte value);
+	void writeToOAM(Byte value);
+	void dump();
 
 	static const int SCREEN_WIDTH = 256;
 	static const int SCREEN_HEIGHT = 240;
@@ -248,19 +250,44 @@ public:
 	};
 
 private:
-	template <class Boolean>
-	void setStatusFlag(int flag, Boolean value = Constant<bool, true>());
-	void incrementDot();
+	enum Scanline {
+		VISIBLE,
+		POSTRENDER,
+		PRERENDER,
+		VBLANK
+	};
+	template <Scanline s>
+	void scanlineCycle();
+
+	void setStatusFlag(int flag, bool value = true);
+	bool rendering();
+	int spriteHeight();
+
+	void clearOAM();
+
 	void incrementYComponent();
 	void incrementXComponent();
 	void incrementVRAMAddress();
-	Word getTileAddress();
-	Word getAttributeAddress();
+	void updateVRAMX();
+	void updateVRAMY();
+
+	Word nametableAddress();
+	Word attributeAddress();
+	Word backgroundAddress();
+
 	void writeToControl(Byte value);
 	void writeToScroll(Byte value);
 	void writeToAddress(Byte value);
 	void renderPixel();
 	void setVBlank();
+
+	Word nametableMirror(Word address);
+	Byte read(Word address);
+	void write(Word address, Byte value);
+
+	void loadShiftRegisters();
+	void loadSpritesOnScanline();
+	void loadSpriteRegisters();
 
 	static const int PRERENDER_SCANLINE = 261;
 	static const int MAX_SCANLINE = 261;
@@ -281,19 +308,48 @@ private:
 	*/
 	static const int MAX_CYCLE = 340;
 
-	static const int VRAM_SIZE = 2 * KB;
-	Byte vram[VRAM_SIZE];
-	static const int OAM_SIZE = 64 * 4;
-	Byte oam[OAM_SIZE];
+	static const int CHR_START = 0;
+	static const int CHR_END = 0x1fff;
+
+	static const int NAMETABLE_START = 0x2000;
+	static const int NAMETABLE_END = 0x3eff;
+	static const int NAMETABLE_SIZE = 0x800;
+
+	static const int PALETTE_START = 0x3f00;
+	static const int PALETTE_END = 0x3fff;
+	static const int PALETTE_SIZE = 0x20;
+
+	enum Object {
+		Y_POS,
+		TILE_INDEX,
+		ATTRIBUTES,
+		X_POS,
+
+		OBJECT_SIZE
+	};
+
+	enum ObjectAttribute {
+		SPR_PALETTE = 0x03, // 4 to 7
+		PRIORITY = BL(5), // 0: front, 1: back
+		FLIP_HOR = BL(6),
+		FLIP_VER = BL(7)
+	};
+
+	static const int PRIMARY_OAM_SIZE = 64 * OBJECT_SIZE;
+	static const int SECONDARY_OAM_SIZE = 8 * OBJECT_SIZE;
+
+
+	Byte nametable[NAMETABLE_SIZE];
+	Byte palette[PALETTE_SIZE];
+	Byte primary_oam[PRIMARY_OAM_SIZE];
+	Byte secondary_oam[SECONDARY_OAM_SIZE];
+
+	Cartridge::NameTableMirroring nt_mirror;
 
 	bool can_draw;
 
 	CPU* cpu;
-
-	Byte* chr_rom;
-	unsigned int chr_rom_size;
-	Byte* chr_ram;
-	unsigned int chr_ram_size;
+	Cartridge* cartridge;
 
 	static const int BOOTUP_CYCLES = 30000;
 	int wait_cycles;
@@ -303,23 +359,41 @@ private:
 	Byte mask;
 	Byte status;
 	Byte oam_address;
-	Word vram_address; // 15 bits: yyyNNYYYYYXXXXX (fine y scroll, nametable select, coarse Y scroll, coarse X scroll)
+	Word vram_address; // 15 bits: -yyyNNYYYYYXXXXX (fine y scroll, nametable select, coarse Y scroll, coarse X scroll)
 	Word temp_vram_address; // 15 bits
 	Byte fine_x_scroll; // 3 bits
 	bool in_vblank;
 	Byte oam_data_high;
 
-	Word tile_bitmap_shift_registers[2];
-	Byte palette_attribute_registers[2];
+	Byte bg_latch_low;
+	Byte bg_latch_high;
+	// VVV
+	Word bg_shift_low;
+	Word bg_shift_high;
 
-	Byte sprite_bitmap_registers[8];
-	Byte sprite_attribute_latches[8];
-	Byte sprite_x_counters[8];
+	Byte attribute_latch; // 2 bit latch
+	// VVV
+	bool attribute_latch_low;
+	bool attribute_latch_high;
+	// VVV
+	Byte attribute_shift_low;
+	Byte attribute_shift_high;
+
+	Byte nametable_latch;
+
+	Byte sprite_shift_low[8];
+	Byte sprite_shift_high[8];
+	Byte sprite_x_counter[8];
+	Byte sprite_attribute_latch[8];
+
+	bool sprite_zero_next_scanline;
+	bool sprite_zero_this_scanline;
 
 	int cycle;
 	int scanline;
-	int dot;
-	bool skip_cycle;
+	bool odd_frame;
+
+	static const int nes_palette[64];
 
 	Pixel surface[SCREEN_WIDTH * SCREEN_HEIGHT];
 };

@@ -1,22 +1,63 @@
 #include <iostream>
 #include <string>
 #include "debugging.hpp"
-#include "nes.hpp"
 #include "cpu.hpp"
+#include "ppu.hpp"
+#include "apu.hpp"
+#include "cartridge.hpp"
+#include "controller.hpp"
 
-#define TEST_FPS true
+#include <GL/gl.h>
+#include <GL/glu.h>
+#include "GL/glut.h"
 
-#define COMMANDS "\
-==========================\n\
- L: Load ROM\n\
- R: Reset\n\
- X: Execute\n\
- D: Add debug Operation\n\
- C: Clear debug operations\n\
- U: Dump\n\
- Q: Quit test\n\
-==========================\n\
-"
+bool good;
+
+Cartridge cartridge;
+CPU cpu;
+PPU ppu;
+APU apu;
+Controller controller1, controller2;
+
+const Pixel* surface;
+
+bool loadROM(const char* filename) {
+	bool ok = false;
+	if (cartridge.loadFile(filename)) {
+		cpu.setCartridge(&cartridge);
+		ppu.setCartridge(&cartridge);
+
+		cpu.setController(&controller1, 0);
+		cpu.setController(&controller2, 1);
+
+		ok = true;
+	} else {
+		dout("NES could not load " << filename);
+	}
+	return ok;
+}
+
+void reset() {
+	cpu.reset();
+	ppu.reset();
+}
+
+void step() {
+	if (cpu.halted()) {
+		std::cout << "HALTED\n";
+	} else if (cpu.breaked()) {
+		std::cout << "BREAKED\n";
+	} else {
+		bool executed_instruction = false;
+		while (!executed_instruction) {
+			executed_instruction = cpu.clockTick();
+
+			ppu.clockTick();
+			ppu.clockTick();
+			ppu.clockTick();
+		} 
+	}
+}
 
 int readAddress() {
 	std::string raw;
@@ -24,110 +65,151 @@ int readAddress() {
 	return std::stoi(raw, NULL, 16);
 }
 
-int main(int argc, char** argv) {
-	NES nes;
+#define HELP "\
+====== HELP ======\n\
+  x - execute\n\
+  r - reset\n\
+  b - break\n\
+  s - step\n\
+  k - breakpoint\n\
+  d - dump\n\
+  t - dump state\n\
+  p - dump ppu\n\
+  h - help\n\
+==================\n"
 
-	CPU* cpu = nes.getCPU();
+void keyboard(unsigned char key, int x, int y)  {
+	switch(key) {
+		case 'x': // execute
+			cpu._break = false;
+			cpu.debug = false;
+			break;
+
+		case 'r': // reset ROM
+			reset();
+			break;
+
+		case 'b': // break
+			cpu._break = true;
+			break;
+
+		case 's': // step
+			cpu.debug = true;
+			cpu._break = true;
+			step();
+			break;
+
+		case 'k': { // set breakpoint
+			int address = 0;
+			char type;
+			std::cout << "breakpoint:\n";
+			std::cout << "type (<r>ead, <w>rite, <p>osition, <n>mi, <i>rq): ";
+			std::cin >> type;
+			CPU::BreakpointCondition condition;
+			switch(type) {
+				case 'r': condition = CPU::READ_FROM; break;
+				case 'w': condition = CPU::WRITE_TO; break;
+				case 'p': condition = CPU::PROGRAM_POSITION; break;
+				case 'n': condition = CPU::NMI; break;
+				case 'i': condition = CPU::IRQ; break;
+				default: std::cout << "invalid condition\n";
+					return;
+			}
+			if (condition != CPU::NMI && condition != CPU::IRQ) {
+				std::cout << "address: ";
+				address = readAddress();
+			}
+			cpu.addBreakpoint(address, condition);
+		} break;
+
+		case 'd': // dump
+			std::cout << "dump address: ";
+			cpu.dump(readAddress());
+			break;
+
+		case 't': // dump stack/state
+			cpu.dumpState();
+			cpu.dumpStack();
+			break;
+
+		case 'p':
+			ppu.dump();
+			break;
+
+		case 'h':
+			std::cout << HELP;
+			break;
+
+		default:
+			controller1.pressKey(key);
+			controller2.pressKey(key);
+	}
+}
+
+void specialKeyboard(int key, int x, int y) {
+	controller1.pressKey(key);
+	controller2.pressKey(key);
+}
+
+void renderScene(void)  {
+	while(!cpu.breaked() && !cpu.halted() && !cpu._break && !ppu.readyToDraw()) {
+		cpu.clockTick();
+
+		ppu.clockTick();
+		ppu.clockTick();
+		ppu.clockTick();
+	}
+	glDrawPixels(PPU::SCREEN_WIDTH, PPU::SCREEN_HEIGHT,  GL_RGB, GL_UNSIGNED_BYTE, surface);
+	glutSwapBuffers();
+}
+
+int main(int argc, char* argv[]) {
+	surface = ppu.getSurface();
+
+	cpu.setPPU(&ppu);
+	cpu.setAPU(&apu);
+	ppu.setCPU(&cpu);
+
+	controller1.keymap[Controller::A] = 'v';
+	controller1.keymap[Controller::B] = 'c';
+	controller1.keymap[Controller::START] = 0x13;
+	controller1.keymap[Controller::SELECT] = ' ';
+	controller1.keymap[Controller::RIGHT] = GLUT_KEY_RIGHT;
+	controller1.keymap[Controller::LEFT] = GLUT_KEY_LEFT;
+	controller1.keymap[Controller::UP] = GLUT_KEY_UP;
+	controller1.keymap[Controller::DOWN] = GLUT_KEY_DOWN;
 
 	std::string filename;
 	if (argc > 1) {
 		filename = argv[1];
-		if (nes.loadFile(filename.c_str())) {
-			nes.reset();
+		if (loadROM(filename.c_str())) {
+			reset();
 			std::cout << "Loaded " << filename << '\n';
 		} else {
 			std::cout << "Could not load " << filename << '\n';
+			return 1;
 		}
+	} else {
+		std::cout << "requires ROM filename\n";
+		return 1;
 	}
 
-	char command;
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGB);
+
+	glutInitWindowPosition(100,100);
+	glutInitWindowSize(PPU::SCREEN_WIDTH, PPU::SCREEN_HEIGHT);
+	glutCreateWindow("NES emulator test");
+
+	glViewport(0, 0, PPU::SCREEN_WIDTH, PPU::SCREEN_HEIGHT);
+
+	glutDisplayFunc(renderScene);
+	glutIdleFunc(renderScene);
+
+	glutKeyboardFunc(keyboard);
+	glutSpecialFunc(specialKeyboard);
 	
-	CPU::DebugOperationType type;
-	CPU::DebugOperationCondition condition;
-	Word address;
-	
-	do {
-		std::cin >> command;
-		switch(command) {
-			case 'l':
-			case 'L':
-				std::cin >> filename;
-				if (nes.loadFile(filename.c_str())) {
-					nes.reset();
-				} else {
-					std::cout << "Could not load " << filename << '\n';
-				}
-				break;
-
-			case 'r':
-			case 'R':
-				nes.reset();
-				break;
-
-			case 'x':
-			case 'X':
-				std::cout << "executing\n";
-
-				if (nes.execute()) {
-					std::cout << "breaked\n";
-				} else {
-					std::cout << "crashed\n";
-				}
-
-				break;
-
-			case 'd':
-			case 'D':
-				std::cout << "type: <b>reakpoint, <d>ump, d<i>splay ops: ";
-				std::cin >> command;
-				switch(command) {
-					default:
-					case 'b': type = CPU::BREAKPOINT; break;
-					case 'd': type = CPU::DUMP; break;
-					case 'i': type = CPU::DISPLAY_OPS; break;
-				}
-				std::cout << "condition: <p>rogram counter, <r>ead, <w>rite: ";
-				std::cin >> command;
-				switch(command) {
-					default:
-					case 'p': condition = CPU::PROGRAM_POSITION; break;
-					case 'r': condition = CPU::READ_FROM; break;
-					case 'w': condition = CPU::WRITE_TO; break;
-				}
-				std::cout << "address: ";
-				address = readAddress();
-				cpu->addDebugOperation(type, condition, address);
-				break;
-
-			case 'c':
-			case 'C':
-				cpu->clearDebugOperations();
-				std::cout << "Cleared debug operations\n";
-				break;
-
-			case 'u':
-			case 'U':
-				std::cout << "address: ";
-				address = readAddress();
-				cpu->dumpState();
-				cpu->dumpStack();
-				cpu->dump(address);
-				break;
-
-			case 'q':
-			case 'Q':
-				std::cout << "Goodbye\n";
-				break;
-
-			case 'h':
-			case 'H':
-				std::cout << COMMANDS;
-				break;
-
-			default:
-				std::cout << "Invalid command\n";
-		}
-	}while(command != 'q' && command != 'Q');
+	glutMainLoop();
 
 	return 0;
 }

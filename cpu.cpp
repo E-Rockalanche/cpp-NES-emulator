@@ -17,8 +17,9 @@
 #define DEBUG_VALUES true
 
 #if (DEBUG_OPERATION)
-	#define debugOperation(pc, opcode) if (display_ops_cycles > 0) std::cout << "[" << toHex(pc, 2) \
-		<< "] opcode: " << toHex(opcode, 1) << ", " \
+	#define debugOperation(pc, opcode) if (debug) std::cout \
+		<< std::string(subroutine_depth, ' ') << "[" << toHex(pc, 2) \
+		<< "] op: " << toHex(opcode, 1) << ", " \
 		<< instruction_names[operations[opcode].instruction] << ' ' \
 		<< ((operations[opcode].address_mode != IMPLIED) \
 			? address_mode_names[operations[opcode].address_mode] \
@@ -29,8 +30,11 @@
 #endif
 
 #if (DEBUG_VALUES)
-	#define debugSpecific(message) if (display_ops_cycles > 0) std::cout << message << '\n'
-	#define debugStatus(flag) if (display_ops_cycles > 0) std::cout << #flag << ": " << getStatusFlag(flag) << '\n'
+	#define debugSpecific(message) if (debug) std::cout \
+		<< std::string(subroutine_depth, ' ') << message << '\n'
+	#define debugStatus(flag) if (debug) std::cout \
+		<< std::string(subroutine_depth, ' ') << #flag << ": " \
+		<< getStatusFlag(flag) << '\n'
 #else
 	#define debugSpecific(message)
 	#define debugStatus(flag)
@@ -132,6 +136,9 @@ CPU::CPU() {
 	for(unsigned int i = 0; i < 256; i++) {
 		setOperation(i, ILL, IMPLIED, 0);
 	}
+
+	controllers[0] = NULL;
+	controllers[1] = NULL;
 
 	setOperation(0x69, ADC, IMMEDIATE, 2);
 	setOperation(0x65, ADC, ZERO_PAGE, 3);
@@ -411,10 +418,14 @@ void CPU::setAPU(APU* apu) {
 	this->apu = apu;
 }
 
-void CPU::setROM(Byte* data, unsigned int size) {
-	assert(data != NULL, "CPU::setROM() data is null");
-	rom = data;
-	rom_size = size;
+void CPU::setCartridge(Cartridge* cartridge) {
+	assert(cartridge != NULL, "CPU::setCartridge() cartridge is null");
+	this->cartridge = cartridge;
+}
+
+void CPU::setController(Controller* controller, unsigned int port) {
+	assert(port < 2, "CPU::setController() invalid port");
+	controllers[port] = controller;
 }
 
 bool CPU::halted() {
@@ -428,6 +439,8 @@ bool CPU::breaked() {
 void CPU::reset() {
 	dout("CPU::reset()");
 	assert(ppu != NULL, "CPU::reset() ppu is null");
+	assert(cartridge != NULL, "CPU::reset() cartridge is null");
+
 	program_counter = readWord(RESET_VECTOR);
 	stack_pointer = STACK_START;
 	status = STATUS_START;
@@ -444,7 +457,6 @@ void CPU::reset() {
 	}
 
 	_break = false;
-	display_ops_cycles = 0;
 }
 
 void CPU::setNMI() {
@@ -465,21 +477,40 @@ Byte CPU::readByte(Word address) {
 			assert(actual_address < RAM_SIZE, "READ ram address " << toHex(actual_address, 2) << " out of bounds " << toHex(RAM_SIZE));
 			value = ram[actual_address];
 			break;
+		
 		case PPU_START ... PPU_END:
 			value = ppu->readByte(address);
 			break;
-		case APU_IO_START ... APU_IO_END:
+
+		case APU_START ... APU_END:
+			if (address == PPU::OAM_DMA) {
+				dout("trying to read from OAM_DMA");
+				break;
+			}
+
 			value = apu->readByte(address);
 			dout("apu->readByte(" << toHex(address, 2) << ")");
 			break;
+
+		case JOY1 ... JOY2:
+			{
+				Controller* controller = controllers[address - JOY1];
+				if (controller) value = controller->read();
+			}
+			break;
+
 		case SRAM_START ... SRAM_END:
 			dout("sram->readByte(" << toHex(address, 2) << ")");
 			break;
+
 		case ROM_START ... ROM_END:
-			actual_address = (address - ROM_START) % rom_size;
-			assert(actual_address < rom_size, "READ rom address " << toHex(actual_address, 2) << " out of bounds " << toHex(rom_size));
-			value = rom[actual_address];
+			value = cartridge->readROM(address);
 			break;
+
+		case 0x4018 ... 0x401f:
+			dout("disabled");
+			break;
+
 		default:
 			dout("read from " << toHex(address, 2) << " did not map");
 			break;
@@ -501,54 +532,59 @@ void CPU::writeByte(Word address, Byte value) {
 			assert(index < RAM_SIZE, "WRITE ram address " << toHex(index, 2) << " out of bounds " << toHex(RAM_SIZE));
 			ram[index] = value;
 			break;
+
 		case PPU_START ... PPU_END:
 			ppu->writeByte(address, value);
 			break;
-		case APU_IO_START ... APU_IO_END:
+
+		case APU_START ... APU_END:
 			if (address == OAM_DMA) {
-				dout("OAM DMA transfer");
 				oamDmaTransfer(value);
 			} else {
-				dout("apu->writeByte(" << toHex(address, 2) << ")");
-				index = mirrorAddress(address, APU_IO_START, APU_IO_SIZE);
+				index = mirrorAddress(address, APU_START, APU_SIZE);
 				apu->writeByte(index, value);
 			}
 			break;
+
+		case JOY1 ... JOY2:
+			{
+				Controller* controller = controllers[address - JOY1];
+				if (controller) controller->write(value);
+			}
+			break;
+
 		case SRAM_START ... SRAM_END:
 			dout("sram->writeByte(" << toHex(address, 2) << ")");
 			break;
+
+		case ROM_START ... ROM_END:
+			cartridge->writeROM(address, value);
+			break;
+
 		default:
 			dout("write to " << toHex(address, 2) << " did not map");
 	}
 }
 
-void CPU::clockTick() {
-	if (_halt) return;
-
-	display_ops_cycles -= (display_ops_cycles > 0);
+bool CPU::clockTick() {
+	bool executed_instruction = false;
 	
-	assert(wait_cycles >= 0, "wait cycles below 0");
+	if (!_halt) {
+		assert(wait_cycles >= 0, "wait cycles below 0");
 
-	if (wait_cycles <= 0) {
-		bool do_interrupts = !getStatusFlag(DISABLE_INTERRUPTS);
+		if (wait_cycles == 0) {
+			bool do_interrupts = !getStatusFlag(DISABLE_INTERRUPTS);
+			_irq = _irq && do_interrupts;
 
-		// if (_nmi && !do_interrupts) dout("skipping nmi");
+			executed_instruction = true;
 
-		_nmi = _nmi && do_interrupts;
-		_irq = _irq && do_interrupts;
-
-		if (_nmi) {
-			_nmi = false;
-			nmi();
-		} else if (_irq) {
-			_irq = false;
-			irq();
-		} else {
-			debugSpecific("\npc: " << toHex(program_counter, 2));
-
-			debugProgramPosition(program_counter);
-
-			if (!_break) {
+			if (_nmi) {
+				_nmi = false;
+				nmi();
+			} else if (_irq) {
+				_irq = false;
+				irq();
+			} else {
 				Byte opcode = readByte(program_counter++);
 				Operation op = operations[opcode];
 				wait_cycles = op.clock_cycles;
@@ -558,31 +594,36 @@ void CPU::clockTick() {
 				InstructionFunction function = instruction_functions[op.instruction];
 				(this->*function)(op.address_mode);
 			}
+
+			debugProgramPosition(program_counter);
+
 		}
+		wait_cycles--;
+		odd_cycle = !odd_cycle;
 	}
-	wait_cycles--;
-	odd_cycle = !odd_cycle;
+
+	return executed_instruction;
 }
 
 void CPU::nmi() {
-	dout("CPU::nmi()");
 	wait_cycles = 7;
 	pushWordToStack(program_counter);
 	pushByteToStack(status);
 	setStatusFlag(DISABLE_INTERRUPTS, Constant<bool, true>());
 	program_counter = readWord(NMI_VECTOR);
-	dout("pc = " << toHex(program_counter));
+
+	debugInterrupt(CPU::NMI);
 }
 
 void CPU::irq() {
-	dout("CPU::irq()");
 	wait_cycles = 7;
 	setStatusFlag(BREAK, Constant<bool, false>());
 	pushWordToStack(program_counter);
 	pushByteToStack(status);
 	setStatusFlag(DISABLE_INTERRUPTS, Constant<bool, true>());
 	program_counter = readWord(IRQ_VECTOR);
-	dout("pc = " << toHex(program_counter));
+
+	debugInterrupt(CPU::IRQ);
 }
 
 Word CPU::getAddress(CPU::AddressMode address_mode) {
@@ -706,8 +747,6 @@ bool CPU::getStatusFlag(int bit) {
 
 template <class Boolean>
 void CPU::setStatusFlag(int bit, Boolean value) {
-	if (bit == DISABLE_INTERRUPTS) dout("Setting interrupt disable to " << value);
-
 	if (value) {
 		status |= (1 << bit);
 	} else {
@@ -1050,6 +1089,8 @@ void CPU::jumpToSubroutine(CPU::AddressMode address_mode) {
 	debugSpecific("return addr-1 = " << toHex(program_counter + 1, 2));
 	program_counter = readWord(program_counter);
 	debugSpecific("pc = " << toHex(program_counter));
+
+	subroutine_depth++;
 }
 
 void CPU::loadAcc(CPU::AddressMode address_mode) {
@@ -1226,6 +1267,8 @@ void CPU::returnFromSubroutine(CPU::AddressMode address_mode) {
 	}
 	program_counter = popWordFromStack() + 1;
 	debugSpecific("pc = " << toHex(program_counter));
+
+	subroutine_depth--;
 }
 
 void CPU::subtractFromAcc(CPU::AddressMode address_mode) {
@@ -1349,6 +1392,15 @@ void CPU::illegalOpcode(CPU::AddressMode address_mode) {
 	halt();
 }
 
+void CPU::oamDmaTransfer(Byte high) {
+	Word address = high << 8;
+	dout("oam dma transfer from " << toHex(address, 2));
+	for(int index = 0; index < 256; index++) {
+		ppu->writeToOAM(readByte(address + index));
+	}
+	wait_cycles += 513 + odd_cycle;
+}
+
 void CPU::dump(Word address) {
 	address &= 0xfff0;
 
@@ -1420,71 +1472,58 @@ void CPU::dumpState() {
 	std::cout << "        " << std::bitset<8>(status) << '\n';
 }
 
-void CPU::addDebugOperation(CPU::DebugOperationType type, CPU::DebugOperationCondition condition, Word address) {
-	debug_operations.push_back({
-		type,
+void CPU::addBreakpoint(Word address, CPU::BreakpointCondition condition) {
+	breakpoints.push_back({
 		condition,
 		address
 	});
 }
 
-void CPU::clearDebugOperations() {
-	debug_operations.clear();
+void CPU::clearBreakpoints() {
+	breakpoints.clear();
 }
 
 void CPU::debugReadOperation(Word address, Byte value) {
-	for(unsigned int n = 0; n < debug_operations.size(); n++) {
-		DebugOperation op = debug_operations[n];
+	for(unsigned int n = 0; n < breakpoints.size(); n++) {
+		Breakpoint op = breakpoints[n];
 		if (op.condition == READ_FROM && op.address == address) {
 			std::cout << "read " << toHex(value, 1) << " from " << toHex(address, 2) << '\n';
-			executeDebugOperation(op.type);
+			_break = true;
 		}
 	}
 }
 
 void CPU::debugWriteOperation(Word address, Byte value) {
-	for(unsigned int n = 0; n < debug_operations.size(); n++) {
-		DebugOperation op = debug_operations[n];
+	for(unsigned int n = 0; n < breakpoints.size(); n++) {
+		Breakpoint op = breakpoints[n];
 		if (op.condition == WRITE_TO && op.address == address) {
 			std::cout << "wrote " << toHex(value, 1) << " to " << toHex(address, 2) << '\n';
-			executeDebugOperation(op.type);
+			_break = true;
 		}
 	}
 }
 
 void CPU::debugProgramPosition(Word address) {
-	for(unsigned int n = 0; n < debug_operations.size(); n++) {
-		DebugOperation op = debug_operations[n];
+	for(unsigned int n = 0; n < breakpoints.size(); n++) {
+		Breakpoint op = breakpoints[n];
 		if (op.condition == PROGRAM_POSITION && op.address == address) {
 			std::cout << "reached PC " << toHex(address, 2) << '\n';
-			executeDebugOperation(op.type);
+			_break = true;
 		}
 	}
 }
 
-void CPU::executeDebugOperation(CPU::DebugOperationType type) {
-	switch(type) {
-		case BREAKPOINT:
+void CPU::debugInterrupt(BreakpointCondition condition) {
+	for(unsigned int n = 0; n < breakpoints.size(); n++) {
+		Breakpoint op = breakpoints[n];
+		if (op.condition == condition) {
+			std::string name;
+			switch(condition) {
+				case CPU::IRQ: name = "IRQ"; break;
+				case CPU::NMI: name = "NMI"; break;
+			}
+			std::cout << name << ", PC: " << toHex(program_counter, 2) << '\n';
 			_break = true;
-			break;
-
-		case DISPLAY_OPS:
-			display_ops_cycles = 10;
-			break;
-
-		case DUMP:
-			dumpState();
-			dumpStack();
-			dump(program_counter);
-			break;
+		}
 	}
-}
-
-void CPU::oamDmaTransfer(Byte high) {
-	dout("OAM DMA TRANSFER");
-	Word address = high << 8;
-	for(int index = 0; index < 256; index++) {
-		ppu->writeToOAM(index, readByte(address + index));
-	}
-	wait_cycles += 513 + odd_cycle;
 }

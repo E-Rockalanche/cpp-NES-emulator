@@ -1,23 +1,29 @@
-PROGRAM=test.exe
+TARGET := test.exe
+CXX := g++
 
-CXX = g++
-CFLAGS = -Wall -Wextra -std=c++11 -c
-LFLAGS = -std=c++11 -static
-MAKE_OBJ = $(CXX) $(CFLAGS) $< -o $@
+ifeq ($(OS), windows)
+	LFLAGS := -static -lm -lglut32cu -lglu32 -lopengl32
+	CLEAN := del *.o $(TARGET)
+else
+	LFLAGS := -lm -lGL -lGLU -lglut
+	CLEAN := rm *.o $(TARGET)
+endif
 
-$(PROGRAM):	test_cpu.o cpu.o ppu.o apu.o cartridge.o nes.o
-	$(CXX) $(LFLAGS) $^ -o $@
+CFLAGS := -c -Wall -Wextra -std=c++17
 
-test_cpu.o:	test_cpu.cpp nes.hpp cpu.hpp common.hpp
+MAKE_OBJ = $(CXX) $< -o $@ $(CFLAGS)
+MAKE_EXE = $(CXX) $^ -o $@ $(LFLAGS)
+
+$(TARGET):	test_cpu.o cpu.o ppu.o apu.o cartridge.o controller.o
+	$(MAKE_EXE)
+
+test_cpu.o:	test_cpu.cpp cpu.hpp ppu.hpp apu.hpp debugging.hpp common.hpp controller.hpp
 	$(MAKE_OBJ)
 
-nes.o:	nes.cpp nes.hpp cpu.hpp ppu.hpp apu.hpp debugging.hpp
+cpu.o:	cpu.cpp cpu.hpp ppu.hpp cartridge.hpp controller.hpp debugging.hpp common.hpp
 	$(MAKE_OBJ)
 
-cpu.o:	cpu.cpp cpu.hpp debugging.hpp common.hpp
-	$(MAKE_OBJ)
-
-ppu.o:	ppu.cpp ppu.hpp debugging.hpp cpu.hpp common.hpp
+ppu.o:	ppu.cpp ppu.hpp cpu.hpp debugging.hpp common.hpp
 	$(MAKE_OBJ)
 
 apu.o:	apu.cpp apu.hpp common.hpp debugging.hpp
@@ -26,5 +32,8 @@ apu.o:	apu.cpp apu.hpp common.hpp debugging.hpp
 cartridge.o:	cartridge.cpp cartridge.hpp debugging.hpp common.hpp
 	$(MAKE_OBJ)
 
+controller.o:	controller.cpp controller.hpp debugging.hpp common.hpp
+	$(MAKE_OBJ)
+
 clean:
-	del *.o
+	$(CLEAN)

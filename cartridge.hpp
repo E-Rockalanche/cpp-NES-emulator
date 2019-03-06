@@ -19,23 +19,14 @@ public:
 
 	int expectedSize();
 
-	int prgRomSize();
-	Byte* getPrgRom();
-	/*
-	program ROM
-	*/
+	Byte readROM(Word address);
+	void writeROM(Word address, Byte value);
 
-	int chrRomSize();
-	Byte* getChrRom();
-	/*
-	graphics ROM
-	*/
+	Byte readCHR(Word address);
+	void writeCHR(Word address, Byte value);
 
 	bool hasPrgRam();
 	int prgRamSize();
-	/*
-	battery backed RAM
-	*/
 
 	int mapperNumber();
 
@@ -83,11 +74,19 @@ private:
 	};
 
 	std::string filename;
+	
 	Byte* data;
+	Byte* prg_rom;
+	Byte* chr_rom;
+
 	int data_size;
+	int prg_size;
+	int chr_size;
 	
 	int prgRomStart();
 	int chrRomStart();
+	int prgRomSize();
+	int chrRomSize();
 	void allocateMemory(int size);
 	void freeData();
 };

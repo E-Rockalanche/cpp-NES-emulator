@@ -4,15 +4,18 @@
 #include <iostream>
 #include "debugging.hpp"
 
+#ifndef NULL
+	#define NULL 0
+#endif
+
 typedef unsigned char Byte;
 typedef unsigned short Word;
 
-#undef assert
-
 #define BL(bit) (1 << (bit))
 
-#define KB 1024
+#define KB 0x400
 
+#undef assert
 #define assert(condition, message) \
 	if (!(condition)) { \
 		std::cout << "ERROR: " << __FILE__ << " (" << __LINE__ << "): " << message << '\n'; \
@@ -27,17 +30,23 @@ struct Constant {
 	operator T() const { return V; }
 };
 
-#ifndef NULL
-	#define NULL 0
-#endif
-
 struct Pixel {
 	Byte red;
 	Byte green;
 	Byte blue;
-	Byte alpha;
-	Pixel(Byte red = 0, Byte green = 0, Byte blue = 0, Byte alpha = 255)
-		: red(red), green(green), blue(blue), alpha(alpha) {}
+
+	Pixel(Byte red, Byte green, Byte blue)
+		: red(red), green(green), blue(blue) {}
+		
+	Pixel(unsigned int rgb = 0) : red((rgb >> 16) & 0xff),
+						  green((rgb >> 8) & 0xff),
+						  blue(rgb & 0xff) {}
+
+	operator int() {
+		return red << 16 | green << 8 | blue;
+	}
 };
+
+#define testFlag(mask, flag) ((bool)((mask) & (flag)))
 
 #endif
