@@ -71,6 +71,10 @@ void PPU::reset() {
 			surface[x + y*SCREEN_WIDTH] = Pixel(0);
 		}
 	}
+
+	for(int n = 0; n < PALETTE_SIZE; n++) {
+		palette[n] = 0;
+	}
 }
 
 bool PPU::readyToDraw() {
@@ -245,30 +249,31 @@ void PPU::writeToControl(Byte value) {
 }
 
 void PPU::writeToScroll(Byte value) {
-	if (write_toggle) {
-		// second write
-		temp_vram_address = (temp_vram_address & 0x0c1f)
-			| ((value & 0x07) << 12) // fine Y
-			| ((value & 0xf8) << 2); // coarse Y
-	} else {
+	if (!write_toggle) {
 		// first write
-		temp_vram_address = (temp_vram_address & 0x7fe0)
-			| (value >> 3); // set coarse x
-		fine_x_scroll = value & 0x7;
+		fine_x_scroll = value & 0x7; // fine x
+		// coarse x
+		temp_vram_address = (temp_vram_address & 0x7fe0) | (value >> 3);
+	} else {
+		// second write
+		int fine_y = value & 0x7;
+		int coarse_y = value >> 3;
+		temp_vram_address = (temp_vram_address & 0x0c1f)
+			| (fine_y << 12) | (coarse_y << 5);
 	}
 	write_toggle = !write_toggle;
 }
 
 void PPU::writeToAddress(Byte value) {
-	if (write_toggle) {
-		// second write
-		temp_vram_address = (temp_vram_address & 0x7f00)
-			| (value); // set address low
-		vram_address = temp_vram_address;
-	} else {
+	if (!write_toggle) {
 		// first write
 		temp_vram_address = (temp_vram_address & 0x00ff)
 			| ((value & 0x3f) << 8); // set address high
+	} else {
+		// second write
+		temp_vram_address = (temp_vram_address & 0x7f00)
+			| (value & 0xff); // set address low
+		vram_address = temp_vram_address;
 	}
 	write_toggle = !write_toggle;
 }
@@ -310,10 +315,12 @@ void PPU::writeByte(Word address, Byte value) {
 }
 
 Byte PPU::readByte(Word address) {
+	static Byte buffer;
+
 	Byte value = 0;
 	switch(address) {
 		case PPU_STATUS:
-			value = status;
+			value = (value & 0x1f) | status;
 			setStatusFlag(VERTICAL_BLANK, false);
 			write_toggle = false;
 			break;
@@ -323,7 +330,14 @@ Byte PPU::readByte(Word address) {
 			break;
 
 		case PPU_DATA:
-			value = read(vram_address);
+			if (vram_address >= PALETTE_START) {
+				// no buffering for palette ram
+				buffer = read(vram_address);
+				value = buffer;
+			} else {
+				value = buffer;
+				buffer = read(vram_address);
+			}
 			incrementVRAMAddress();
 			break;
 
@@ -397,6 +411,7 @@ Word PPU::backgroundAddress() {
 }
 
 void PPU::incrementVRAMAddress() {
+	/*
 	if (renderingIsEnabled() && !in_vblank) {
 		// this will happen if PPU_DATA read/writes occur during rendering
 		dout("increment VRAM address outside vblank");
@@ -405,6 +420,8 @@ void PPU::incrementVRAMAddress() {
 	} else {
 		vram_address += testFlag(control, INCREMENT_MODE) ? 32 : 1;
 	}
+	*/
+	vram_address += testFlag(control, INCREMENT_MODE) ? 32 : 1;
 }
 
 void PPU::writeToOAM(Byte value) {

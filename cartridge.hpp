@@ -1,35 +1,11 @@
 #ifndef CARTRIDGE_HPP
 #define CARTRIDGE_HPP
 
-#include <string>
 #include "common.hpp"
+#include "debugging.hpp"
 
-class Cartridge {
+class Cartridge /* aka mapper0 */ {
 public:
-	Cartridge();
-	~Cartridge();
-
-	bool loadFile(const std::string filename);
-	bool loaded();
-
-	bool verify();
-	/*
-	returns true if data is correctly formatted
-	*/
-
-	int expectedSize();
-
-	Byte readROM(Word address);
-	void writeROM(Word address, Byte value);
-
-	Byte readCHR(Word address);
-	void writeCHR(Word address, Byte value);
-
-	bool hasPrgRam();
-	int prgRamSize();
-
-	int mapperNumber();
-
 	enum NameTableMirroring {
 		HORIZONTAL,
 		/*
@@ -45,50 +21,59 @@ public:
 		0x2800 A   B
 		*/
 	};
+
+	static Cartridge* loadFile(const char* filename);
+
+	Cartridge(Byte* data);
+	virtual ~Cartridge();
+
+	Byte readROM(Word address);
+	virtual void writeROM(Word address, Byte value) {}
+
+	Byte readCHR(Word address);
+	virtual void writeCHR(Word address, Byte value) {}
+
+	virtual void signal_scanline() {};
+
 	NameTableMirroring nameTableMirroring();
+
+protected:
+	enum HeaderSection {
+		NES,
+		ROM_SIZE = 4, // 16 KB units
+		CHR_SIZE, // 8 KB units. 0 implies this cartridge has PRG RAM
+		FLAGS_6,
+		FLAGS_7,
+		RAM_SIZE, // 8 KB units. 0 implies 8 KB for compatibility
+		FLAGS_9,
+		FLAGS_10,
+		/*
+		sections 11-15 should be zero-filled
+		*/
+		HEADER_SIZE = 16
+	};
 
 	enum Format {
 		ARCHAIC_INES,
 		INES,
 		NES2
 	};
-	Format getFormat();
 
-private:
-	enum HeaderSection {
-		N,
-		E,
-		S,
-		MSDOS_EOF,
-		PRG_ROM_SIZE, // 16 KB units
-		CHR_ROM_SIZE, // 8 KB units. 0 implies this cartridge has PRG RAM
-		FLAGS_6,
-		FLAGS_7,
-		PRG_RAM_SIZE, // 8 KB units. 0 implies 8 KB for compatibility
-		FLAGS_9,
-		FLAGS_10,
-		/*
-		sections 11-15 are zero-filled
-		*/
-		HEADER_SIZE = 16
-	};
-
-	std::string filename;
-	
 	Byte* data;
-	Byte* prg_rom;
-	Byte* chr_rom;
 
-	int data_size;
-	int prg_size;
+	Byte* rom;
+	int rom_size;
+
+	Byte* chr;
 	int chr_size;
-	
-	int prgRomStart();
-	int chrRomStart();
-	int prgRomSize();
-	int chrRomSize();
-	void allocateMemory(int size);
-	void freeData();
+	bool has_chr_ram = false;
+
+	Byte* ram;
+	int ram_size;
+
+	static Format getFormat(Byte* data);
+	static bool verifyHeader(Byte* data);
+	static int getMapperNumber(Byte* data);
 };
 
 #endif

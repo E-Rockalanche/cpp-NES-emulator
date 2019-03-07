@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <windows.h>
 #include "debugging.hpp"
 #include "cpu.hpp"
 #include "ppu.hpp"
@@ -13,7 +14,6 @@
 
 bool good;
 
-Cartridge cartridge;
 CPU cpu;
 PPU ppu;
 APU apu;
@@ -21,41 +21,40 @@ Controller controller1, controller2;
 
 const Pixel* surface;
 
-bool loadROM(const char* filename) {
-	bool ok = false;
-	if (cartridge.loadFile(filename)) {
-		cpu.setCartridge(&cartridge);
-		ppu.setCartridge(&cartridge);
+const unsigned int TARGET_FPS = 60;
+const double TIME_PER_FRAME = 1000.0 / TARGET_FPS;
+int g_start_time;
+int g_current_frame_number;
 
-		cpu.setController(&controller1, 0);
-		cpu.setController(&controller2, 1);
-
-		ok = true;
+bool loadFile(const char* filename) {
+	Cartridge* cartridge = Cartridge::loadFile(filename);
+	if (!cartridge) {
+		dout("could not load " << filename);
+		return false;
 	} else {
-		dout("NES could not load " << filename);
+		cpu.setCartridge(cartridge);
+		ppu.setCartridge(cartridge);
+		return true;
 	}
-	return ok;
 }
 
 void reset() {
 	cpu.reset();
 	ppu.reset();
 
-	cpu._break = true;
+	controller1.resetButtons();
+	controller2.resetButtons();
 }
 
 void step() {
 	if (cpu.halted()) {
 		std::cout << "HALTED\n";
 	} else {
-		bool executed_instruction = false;
-		while (!executed_instruction) {
-			executed_instruction = cpu.clockTick();
-
+		do {
 			ppu.clockTick();
 			ppu.clockTick();
 			ppu.clockTick();
-		} 
+		} while(!cpu.clockTick());
 	}
 }
 
@@ -161,7 +160,7 @@ void specialRelease(int key, int x, int y) {
 	controller2.releaseKey(key);
 }
 
-void renderScene(void)  {
+void renderScene()  {
 	while(!cpu.halted() && !cpu._break && !ppu.readyToDraw()) {
 		cpu.clockTick();
 
@@ -173,17 +172,36 @@ void renderScene(void)  {
 	glutSwapBuffers();
 }
 
+void idle() {
+    double end_frame_time, end_rendering_time, waste_time;
+    glutPostRedisplay();
+
+    // wait until it is time to draw the current frame
+    end_frame_time = g_start_time + (g_current_frame_number + 1) * TIME_PER_FRAME;
+    end_rendering_time = glutGet(GLUT_ELAPSED_TIME);
+    waste_time = end_frame_time - end_rendering_time;
+    if (waste_time > 0.0) {
+    	Sleep(waste_time / 1000.0);    // sleep parameter should be in seconds
+    }
+
+    // update frame number
+    g_current_frame_number = g_current_frame_number + 1;
+}
+
 int main(int argc, char* argv[]) {
 	surface = ppu.getSurface();
 
 	cpu.setPPU(&ppu);
 	cpu.setAPU(&apu);
 	ppu.setCPU(&cpu);
+	
+	cpu.setController(&controller1, 0);
+	cpu.setController(&controller2, 1);
 
 	controller1.keymap[Controller::A] = 'v';
 	controller1.keymap[Controller::B] = 'c';
-	controller1.keymap[Controller::START] = 13;
-	controller1.keymap[Controller::SELECT] = ' ';
+	controller1.keymap[Controller::START] = 13; // enter
+	controller1.keymap[Controller::SELECT] = ' '; // spacebar
 	controller1.keymap[Controller::RIGHT] = GLUT_KEY_RIGHT;
 	controller1.keymap[Controller::LEFT] = GLUT_KEY_LEFT;
 	controller1.keymap[Controller::UP] = GLUT_KEY_UP;
@@ -192,7 +210,7 @@ int main(int argc, char* argv[]) {
 	std::string filename;
 	if (argc > 1) {
 		filename = argv[1];
-		if (loadROM(filename.c_str())) {
+		if (loadFile(filename.c_str())) {
 			reset();
 			std::cout << "Loaded " << filename << '\n';
 		} else {
@@ -204,6 +222,9 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
+	g_start_time = glutGet(GLUT_ELAPSED_TIME);
+    g_current_frame_number = 0;
+
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGB);
 
@@ -214,7 +235,7 @@ int main(int argc, char* argv[]) {
 	glViewport(0, 0, PPU::SCREEN_WIDTH, PPU::SCREEN_HEIGHT);
 
 	glutDisplayFunc(renderScene);
-	glutIdleFunc(renderScene);
+	glutIdleFunc(idle);
 
 	glutKeyboardFunc(keyboard);
 	glutSpecialFunc(specialKeyboard);

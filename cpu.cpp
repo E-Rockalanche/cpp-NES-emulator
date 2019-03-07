@@ -501,7 +501,7 @@ Byte CPU::readByte(Word address) {
 			break;
 
 		case 0x4018 ... 0x401f:
-			// disabled
+			dout("read from disabled");
 			break;
 
 		case CARTRIDGE_START ... CARTRIDGE_END:
