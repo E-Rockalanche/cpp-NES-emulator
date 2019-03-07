@@ -9,7 +9,7 @@ else
 	CLEAN := rm *.o $(TARGET)
 endif
 
-CFLAGS := -c -Wall -Wextra -std=c++17
+CFLAGS := -c -Wall -Wextra -std=c++17 -Ofast
 
 MAKE_OBJ = $(CXX) $< -o $@ $(CFLAGS)
 MAKE_EXE = $(CXX) $^ -o $@ $(LFLAGS)
