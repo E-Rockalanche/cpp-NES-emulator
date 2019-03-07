@@ -37,7 +37,7 @@ public:
 	*/
 
 	enum Register {
-		PPU_CONTROL = 0x2000,
+		PPU_CONTROL,
 		/*
 		write
 		various flags controlling PPU operation
@@ -338,13 +338,10 @@ private:
 	static const int PRIMARY_OAM_SIZE = 64 * OBJECT_SIZE;
 	static const int SECONDARY_OAM_SIZE = 8 * OBJECT_SIZE;
 
-
 	Byte nametable[NAMETABLE_SIZE];
 	Byte palette[PALETTE_SIZE];
 	Byte primary_oam[PRIMARY_OAM_SIZE];
 	Byte secondary_oam[SECONDARY_OAM_SIZE];
-
-	Cartridge::NameTableMirroring nt_mirror;
 
 	bool can_draw;
 
@@ -392,6 +389,8 @@ private:
 	int cycle;
 	int scanline;
 	bool odd_frame;
+	
+	Cartridge::NameTableMirroring nt_mirror;
 
 	static const int nes_palette[64];
 

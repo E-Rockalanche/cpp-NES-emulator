@@ -40,13 +40,13 @@ bool loadROM(const char* filename) {
 void reset() {
 	cpu.reset();
 	ppu.reset();
+
+	cpu._break = true;
 }
 
 void step() {
 	if (cpu.halted()) {
 		std::cout << "HALTED\n";
-	} else if (cpu.breaked()) {
-		std::cout << "BREAKED\n";
 	} else {
 		bool executed_instruction = false;
 		while (!executed_instruction) {
@@ -151,8 +151,18 @@ void specialKeyboard(int key, int x, int y) {
 	controller2.pressKey(key);
 }
 
+void keyboardRelease(unsigned char key, int x, int y) {
+	controller1.releaseKey(key);
+	controller2.releaseKey(key);
+}
+
+void specialRelease(int key, int x, int y) {
+	controller1.releaseKey(key);
+	controller2.releaseKey(key);
+}
+
 void renderScene(void)  {
-	while(!cpu.breaked() && !cpu.halted() && !cpu._break && !ppu.readyToDraw()) {
+	while(!cpu.halted() && !cpu._break && !ppu.readyToDraw()) {
 		cpu.clockTick();
 
 		ppu.clockTick();
@@ -172,7 +182,7 @@ int main(int argc, char* argv[]) {
 
 	controller1.keymap[Controller::A] = 'v';
 	controller1.keymap[Controller::B] = 'c';
-	controller1.keymap[Controller::START] = 0x13;
+	controller1.keymap[Controller::START] = 13;
 	controller1.keymap[Controller::SELECT] = ' ';
 	controller1.keymap[Controller::RIGHT] = GLUT_KEY_RIGHT;
 	controller1.keymap[Controller::LEFT] = GLUT_KEY_LEFT;
@@ -208,6 +218,10 @@ int main(int argc, char* argv[]) {
 
 	glutKeyboardFunc(keyboard);
 	glutSpecialFunc(specialKeyboard);
+	glutKeyboardUpFunc(keyboardRelease);
+	glutSpecialUpFunc(specialRelease);
+
+	glutIgnoreKeyRepeat(GLUT_DEVICE_IGNORE_KEY_REPEAT);
 	
 	glutMainLoop();
 

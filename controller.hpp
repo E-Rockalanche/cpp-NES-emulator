@@ -24,6 +24,7 @@ public:
 	bool read();
 	void write(Byte value);
 	void pressKey(int key);
+	void releaseKey(int key);
 	void resetButtons();
 
 private:

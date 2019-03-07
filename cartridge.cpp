@@ -91,11 +91,11 @@ bool Cartridge::verify() {
 }
 
 int Cartridge::prgRomSize() {
-	return data[PRG_ROM_SIZE] * 16 * KB;
+	return data[PRG_ROM_SIZE] * 0x4000;
 }
 
 int Cartridge::chrRomSize() {
-	return data[CHR_ROM_SIZE] * 8 * KB;
+	return data[CHR_ROM_SIZE] * 0x2000;
 }
 
 int Cartridge::expectedSize() {
@@ -127,7 +127,7 @@ Cartridge::Format Cartridge::getFormat() {
 }
 
 int Cartridge::prgRamSize() {
-	return data[PRG_RAM_SIZE] * 8 * KB;
+	return data[PRG_RAM_SIZE] ? (data[PRG_RAM_SIZE] * 0x2000) : 0x2000;
 }
 
 int Cartridge::prgRomStart() {
@@ -139,17 +139,18 @@ int Cartridge::chrRomStart() {
 }
 
 Byte Cartridge::readROM(Word address) {
-	return prg_rom[address % prg_size];
+	return prg_rom[(address - 0x8000) % prg_size];
+}
+
+void Cartridge::writeROM(Word address, Byte value) {
+	if (address >= 0x4018) dout("writing " << (int)value << " to ROM at "
+		<< toHex(address, 2));
 }
 
 Byte Cartridge::readCHR(Word address) {
 	return chr_rom[address % chr_size];
 }
 
-void Cartridge::writeROM(Word address, Byte value) {
-	prg_rom[address % prg_size] = value;
-}
-
 void Cartridge::writeCHR(Word address, Byte value) {
-	chr_rom[address % chr_size] = value;
+	dout("writing to CHR");
 }

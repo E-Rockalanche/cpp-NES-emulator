@@ -9,9 +9,10 @@
 	operations[(address)] = { (instruction), (mode), (cycles) };
 #define setInstructionFunction(instruction, function) instruction_functions[(instruction)] = (function);
 #define isNegative(byte) ((bool)((byte) & 0x80))
-#define twosComp(byte) (1 + ~(byte))
+#define twosComp(byte) ((Byte)(1 + ~(byte)))
 #define inRange(value, low, high) ((value) >= (low) && (value) <= (high))
-#define mirrorAddress(value, start, size) (((value) - (start)) % (size))
+#define setOverflow(reg, value, result) \
+	setStatusFlag(OVERFLOW, ~((reg) ^ (value)) & ((reg) ^ (result)) & 0x80)
 
 #define DEBUG_OPERATION true
 #define DEBUG_VALUES true
@@ -452,11 +453,14 @@ void CPU::reset() {
 	_irq = false;
 	wait_cycles = 0;
 	odd_cycle = false;
+
 	for(int i = 0; i < RAM_SIZE; i++) {
 		ram[i] = 0xff;
 	}
 
 	_break = false;
+
+	dout("reset");
 }
 
 void CPU::setNMI() {
@@ -470,16 +474,13 @@ void CPU::setIRQ() {
 	
 Byte CPU::readByte(Word address) {
 	Byte value = 0;
-	Word actual_address;
 	switch(address) {
 		case RAM_START ... RAM_END:
-			actual_address = mirrorAddress(address, RAM_START, RAM_SIZE);
-			assert(actual_address < RAM_SIZE, "READ ram address " << toHex(actual_address, 2) << " out of bounds " << toHex(RAM_SIZE));
-			value = ram[actual_address];
+			value = ram[(address - RAM_START) % RAM_SIZE];
 			break;
 		
 		case PPU_START ... PPU_END:
-			value = ppu->readByte(address);
+			value = ppu->readByte((address - PPU_START) % PPU_SIZE);
 			break;
 
 		case APU_START ... APU_END:
@@ -488,7 +489,7 @@ Byte CPU::readByte(Word address) {
 				break;
 			}
 
-			value = apu->readByte(address);
+			value = apu->readByte(address - APU_START);
 			dout("apu->readByte(" << toHex(address, 2) << ")");
 			break;
 
@@ -499,20 +500,16 @@ Byte CPU::readByte(Word address) {
 			}
 			break;
 
-		case SRAM_START ... SRAM_END:
-			dout("sram->readByte(" << toHex(address, 2) << ")");
+		case 0x4018 ... 0x401f:
+			// disabled
 			break;
 
-		case ROM_START ... ROM_END:
+		case CARTRIDGE_START ... CARTRIDGE_END:
 			value = cartridge->readROM(address);
 			break;
 
-		case 0x4018 ... 0x401f:
-			dout("disabled");
-			break;
-
 		default:
-			dout("read from " << toHex(address, 2) << " did not map");
+			assert(false, "invalid address");
 			break;
 	}
 
@@ -525,44 +522,42 @@ void CPU::writeByte(Word address, Byte value) {
 
 	debugWriteOperation(address, value);
 
-	Word index;
 	switch(address) {
 		case RAM_START ... RAM_END:
-			index = mirrorAddress(address, RAM_START, RAM_SIZE);
-			assert(index < RAM_SIZE, "WRITE ram address " << toHex(index, 2) << " out of bounds " << toHex(RAM_SIZE));
-			ram[index] = value;
+			ram[(address - RAM_START) % RAM_SIZE] = value;
 			break;
 
 		case PPU_START ... PPU_END:
-			ppu->writeByte(address, value);
+			ppu->writeByte((address - PPU_START) % PPU_SIZE, value);
 			break;
 
 		case APU_START ... APU_END:
+		case JOY2:
 			if (address == OAM_DMA) {
 				oamDmaTransfer(value);
 			} else {
-				index = mirrorAddress(address, APU_START, APU_SIZE);
-				apu->writeByte(index, value);
+				apu->writeByte(address - APU_START, value);
 			}
 			break;
 
-		case JOY1 ... JOY2:
+		case JOY1:
 			{
 				Controller* controller = controllers[address - JOY1];
 				if (controller) controller->write(value);
 			}
 			break;
 
-		case SRAM_START ... SRAM_END:
-			dout("sram->writeByte(" << toHex(address, 2) << ")");
+		case 0x4018 ... 0x401f:
+			// disabled
 			break;
 
-		case ROM_START ... ROM_END:
+		case CARTRIDGE_START ... CARTRIDGE_END:
 			cartridge->writeROM(address, value);
 			break;
 
 		default:
-			dout("write to " << toHex(address, 2) << " did not map");
+			assert(false, "invalid address");
+			break;
 	}
 }
 
@@ -616,6 +611,7 @@ void CPU::nmi() {
 }
 
 void CPU::irq() {
+	dout("irq");
 	wait_cycles = 7;
 	setStatusFlag(BREAK, Constant<bool, false>());
 	pushWordToStack(program_counter);
@@ -643,11 +639,11 @@ Word CPU::getAddress(CPU::AddressMode address_mode) {
 			break;
 
 		case ZERO_PAGE_X:
-			address = (readByte(program_counter) + x_register) & 255;
+			address = (readByte(program_counter) + x_register) & 0xff;
 			break;
 
 		case ZERO_PAGE_Y:
-			address = (readByte(program_counter) + y_register) & 255;
+			address = (readByte(program_counter) + y_register) & 0xff;
 			break;
 
 		case INDEXED_X:
@@ -671,7 +667,7 @@ Word CPU::getAddress(CPU::AddressMode address_mode) {
 			break;
 
 		case PRE_INDEXED:
-			address = readWordBug((readByte(program_counter) + x_register) & 255);
+			address = readWordBug((readByte(program_counter) + x_register) & 0xff);
 			break;
 
 		case POST_INDEXED:
@@ -775,13 +771,14 @@ void CPU::conditionalBranch(bool branch) {
 	}
 }
 
-void CPU::compareWithValue(CPU::AddressMode address_mode, Byte value) {
-	Byte memory_value = readByte(getAddress(address_mode));
-	int result = value + twosComp(memory_value);
-	setStatusFlag(CARRY, result >= 256);
-	setArithmeticFlags(result & 255);
+void CPU::compareWithValue(CPU::AddressMode address_mode, Byte reg) {
+	Byte value = readByte(getAddress(address_mode));
+	int result = reg + twosComp(value);
+	setStatusFlag(CARRY, reg >= value);
+	setArithmeticFlags(result & 0xff);
 	incrementProgramCounter(address_mode);
-	debugSpecific("compare " << (int)memory_value << " with " << (int)value);
+
+	debugSpecific("compare " << (int)value << " with " << (int)reg);
 	debugStatus(NEGATIVE);
 	debugStatus(OVERFLOW);
 	debugStatus(ZERO);
@@ -811,15 +808,11 @@ Word CPU::popWordFromStack() {
 }
 
 void CPU::addValueToAcc(Byte value) {
-	int result = accumulator + value + getStatusFlag(CARRY);
-
-	bool carry = result & 0x100;
-	bool overflow = (isNegative(value) == isNegative(accumulator))
-		&& (isNegative(value) != isNegative(result));
+	unsigned int result = accumulator + value + getStatusFlag(CARRY);
+	bool carry = result > 0xff;
+	setOverflow(accumulator, value, result);
 	setStatusFlag(CARRY, carry);
-	setStatusFlag(OVERFLOW, overflow);
-
-	accumulator = result & 255;
+	accumulator = result & 0xff;
 	setArithmeticFlags(accumulator);
 }
 
@@ -827,7 +820,9 @@ void CPU::addWithCarry(CPU::AddressMode address_mode) {
 	Byte value = readByte(getAddress(address_mode));
 	addValueToAcc(value);
 	incrementProgramCounter(address_mode);
-	debugSpecific("acc + " << (int)value << " + " << getStatusFlag(CARRY) << " = " << (int)accumulator);
+
+	debugSpecific("acc + " << (int)value << " + " << getStatusFlag(CARRY)
+		<< " = " << (int)accumulator);
 	debugStatus(NEGATIVE);
 	debugStatus(OVERFLOW);
 	debugStatus(ZERO);
@@ -849,17 +844,17 @@ void CPU::bitwiseAnd(CPU::AddressMode address_mode) {
 void CPU::shiftLeft(CPU::AddressMode address_mode) {
 	int result;
 	if (address_mode == ACCUMULATOR) {
-		result = (int)accumulator << 1;
-		accumulator = result & 255;
-		debugSpecific("acc << 1 = " << (int)accumulator);
+		result = accumulator << 1;
+		accumulator = result & 0xff;
+		debugSpecific("acc << 1 = " << toHex(accumulator));
 	} else {
 		Word address = getAddress(address_mode);
-		result = (int)readByte(address) << 1;
-		writeByte(address, result & 255);
+		result = readByte(address) << 1;
+		writeByte(address, result & 0xff);
 		debugSpecific("mem[" << toHex(address) << "] << 1 = " << (int)result);
 	}
-	setStatusFlag(CARRY, result >= 256);
-	setArithmeticFlags(result & 255);
+	setArithmeticFlags(result & 0xff);
+	setStatusFlag(CARRY, result & 0x100);
 
 	incrementProgramCounter(address_mode);
 }
@@ -890,10 +885,11 @@ void CPU::branchOnZero(CPU::AddressMode address_mode) {
 
 void CPU::testBits(CPU::AddressMode address_mode) {
 	Byte value = readByte(getAddress(address_mode));
-	setStatusFlag(NEGATIVE, value & 0x80);
-	setStatusFlag(OVERFLOW, value & 0x40);
-	setStatusFlag(ZERO, value & accumulator);
+	setStatusFlag(NEGATIVE, value & (1 << NEGATIVE));
+	setStatusFlag(OVERFLOW, value & (1 << OVERFLOW));
+	setStatusFlag(ZERO, (value & accumulator) == 0);
 	incrementProgramCounter(address_mode);
+
 	debugSpecific("test " << (int)value);
 	debugStatus(NEGATIVE);
 	debugStatus(OVERFLOW);
@@ -925,7 +921,7 @@ void CPU::branchOnPositive(CPU::AddressMode address_mode) {
 }
 
 void CPU::forceBreak(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
@@ -954,7 +950,7 @@ void CPU::branchOnOverflowSet(CPU::AddressMode address_mode) {
 }
 
 void CPU::clearCarryFlag(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
@@ -963,7 +959,7 @@ void CPU::clearCarryFlag(CPU::AddressMode address_mode) {
 }
 
 void CPU::clearDecimalFlag(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
@@ -972,7 +968,7 @@ void CPU::clearDecimalFlag(CPU::AddressMode address_mode) {
 }
 
 void CPU::clearInterruptDisableFlag(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
@@ -981,7 +977,7 @@ void CPU::clearInterruptDisableFlag(CPU::AddressMode address_mode) {
 }
 
 void CPU::clearOverflowFlag(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
@@ -1011,7 +1007,7 @@ void CPU::decrement(CPU::AddressMode address_mode) {
 }
 
 void CPU::decrementX(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
@@ -1022,7 +1018,7 @@ void CPU::decrementX(CPU::AddressMode address_mode) {
 }
 
 void CPU::decrementY(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
@@ -1050,7 +1046,7 @@ void CPU::increment(CPU::AddressMode address_mode) {
 }
 
 void CPU::incrementX(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
@@ -1061,7 +1057,7 @@ void CPU::incrementX(CPU::AddressMode address_mode) {
 }
 
 void CPU::incrementY(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
@@ -1072,11 +1068,7 @@ void CPU::incrementY(CPU::AddressMode address_mode) {
 }
 
 void CPU::jump(CPU::AddressMode address_mode) {
-	if (!(address_mode == ABSOLUTE_MODE)) {
-		dout("addressing mode not ABSOLUTE_MODE at " << toHex(program_counter-1, 2));
-		halt();
-	}
-	program_counter = readWord(program_counter);
+	program_counter = getAddress(address_mode);
 	debugSpecific("pc = " << toHex(program_counter));
 }
 
@@ -1086,7 +1078,7 @@ void CPU::jumpToSubroutine(CPU::AddressMode address_mode) {
 		halt();
 	}
 	pushWordToStack(program_counter + 1);
-	debugSpecific("return addr-1 = " << toHex(program_counter + 1, 2));
+	debugSpecific("return addr = " << toHex(program_counter + 2, 2));
 	program_counter = readWord(program_counter);
 	debugSpecific("pc = " << toHex(program_counter));
 
@@ -1118,29 +1110,34 @@ void CPU::loadY(CPU::AddressMode address_mode) {
 }
 
 void CPU::shiftRight(CPU::AddressMode address_mode) {
-	Byte before;
-	Byte after;
+	Byte result = 0;
+	bool carry = false;
 	if (address_mode == ACCUMULATOR) {
-		before = accumulator;
-		accumulator = accumulator >> 1;
-		after = accumulator;
-		debugSpecific("acc >> 1 = " << (int)accumulator);
+		carry = accumulator & 1;
+		accumulator >>= 1;
+		result = accumulator;
+
+		debugSpecific("acc >> 1 = " << toHex(accumulator));
 	} else {
 		Word address = getAddress(address_mode);
-		before = readByte(address);
-		after = before >> 1;
-		writeByte(address, after);
-		debugSpecific("mem[" << toHex(address) << "] >> 1 = " << (int)after);
+		Byte value = readByte(address);
+		carry = value & 1;
+		result = value >> 1;
+		writeByte(address, result);
+
+		debugSpecific("mem[" << toHex(address) << "] >> 1 = " << toHex(result));
 	}
-	setStatusFlag(CARRY, before & 1);
-	setStatusFlag(ZERO, after == 0);
+
+	setStatusFlag(CARRY, carry);
+	setArithmeticFlags(result);
 	incrementProgramCounter(address_mode);
+
 	debugStatus(ZERO);
 	debugStatus(CARRY);
 }
 
 void CPU::noOperation(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
@@ -1158,7 +1155,7 @@ void CPU::bitwiseOr(CPU::AddressMode address_mode) {
 }
 
 void CPU::pushAcc(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
@@ -1166,15 +1163,15 @@ void CPU::pushAcc(CPU::AddressMode address_mode) {
 }
 
 void CPU::pushStatus(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
-	pushByteToStack(status);
+	pushByteToStack(status | 0x30);
 }
 
 void CPU::popAcc(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
@@ -1187,11 +1184,11 @@ void CPU::popAcc(CPU::AddressMode address_mode) {
 }
 
 void CPU::popStatus(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
-	status = popByteFromStack();
+	status = (popByteFromStack() & ~0x30) | (status & 0x30);
 	debugStatus(NEGATIVE);
 	debugStatus(OVERFLOW);
 	debugStatus(BREAK);
@@ -1208,11 +1205,15 @@ void CPU::rotateLeft(CPU::AddressMode address_mode) {
 		before = accumulator;
 		accumulator = (accumulator << 1) | getStatusFlag(CARRY);
 		after = accumulator;
+
+		debugSpecific("acc <<= 1 = " << (int)accumulator);
 	} else {
 		Word address = getAddress(address_mode);
 		before = readByte(address);
 		after = (before << 1) | getStatusFlag(CARRY);
 		writeByte(address, after);
+
+		debugSpecific("[" << toHex(address, 2) << "] <<= 1 = " << (int)after);
 	}
 	setStatusFlag(CARRY, before & 0x80);
 	setArithmeticFlags(after);
@@ -1229,11 +1230,15 @@ void CPU::rotateRight(CPU::AddressMode address_mode) {
 		before = accumulator;
 		accumulator = (accumulator >> 1) | (getStatusFlag(CARRY) ? 0x80 : 0);
 		after = accumulator;
+		
+		debugSpecific("acc >>= 1 = " << (int)accumulator);
 	} else {
 		Word address = getAddress(address_mode);
 		before = readByte(address);
 		after =  (before >> 1) | (getStatusFlag(CARRY) ? 0x80 : 0);
 		writeByte(address, after);
+
+		debugSpecific("[" << toHex(address, 2) << "] >>= 1 = " << (int)after);
 	}
 	setStatusFlag(CARRY, before & 1);
 	setArithmeticFlags(after);
@@ -1244,11 +1249,11 @@ void CPU::rotateRight(CPU::AddressMode address_mode) {
 }
 
 void CPU::returnFromInterrupt(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
-	status = popByteFromStack();
+	status = (popByteFromStack() & ~0x30) | (status & 0x30);
 	program_counter = popWordFromStack();
 	debugSpecific("pc = " << toHex(program_counter));
 	debugStatus(NEGATIVE);
@@ -1261,7 +1266,7 @@ void CPU::returnFromInterrupt(CPU::AddressMode address_mode) {
 }
 
 void CPU::returnFromSubroutine(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
@@ -1273,15 +1278,16 @@ void CPU::returnFromSubroutine(CPU::AddressMode address_mode) {
 
 void CPU::subtractFromAcc(CPU::AddressMode address_mode) {
 	Byte value = readByte(getAddress(address_mode));
-	addValueToAcc(~value + 1);
+	addValueToAcc(~value);
 
-	debugSpecific("acc - " << (int)value << " - " << getStatusFlag(CARRY) << " = " << (int)accumulator);
+	debugSpecific("acc - " << (int)value << " - " << getStatusFlag(CARRY)
+		<< " = " << (int)accumulator);
 
 	incrementProgramCounter(address_mode);
 }
 
 void CPU::setCarryFlag(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
@@ -1290,7 +1296,7 @@ void CPU::setCarryFlag(CPU::AddressMode address_mode) {
 }
 
 void CPU::setDecimalFlag(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
@@ -1299,7 +1305,7 @@ void CPU::setDecimalFlag(CPU::AddressMode address_mode) {
 }
 
 void CPU::setInterruptDisableFlag(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
@@ -1329,7 +1335,7 @@ void CPU::storeY(CPU::AddressMode address_mode) {
 }
 
 void CPU::transferAccToX(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
@@ -1339,7 +1345,7 @@ void CPU::transferAccToX(CPU::AddressMode address_mode) {
 }
 
 void CPU::transferAccToY(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
@@ -1349,17 +1355,18 @@ void CPU::transferAccToY(CPU::AddressMode address_mode) {
 }
 
 void CPU::transferStackPointerToX(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
 	x_register = stack_pointer;
 	setArithmeticFlags(x_register);
+
 	debugSpecific("x = " << toHex(x_register) << " (" << (int)(0xff - x_register) << ')');
 }
 
 void CPU::transferXToAcc(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
@@ -1369,16 +1376,17 @@ void CPU::transferXToAcc(CPU::AddressMode address_mode) {
 }
 
 void CPU::transferXToStackPointer(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
 	stack_pointer = x_register;
+
 	debugSpecific("sp = " << toHex(stack_pointer) << " (" << (int)(0xff - stack_pointer) << ')');
 }
 
 void CPU::transferYToAcc(CPU::AddressMode address_mode) {
-	if (!(address_mode == IMPLIED)) {
+	if (address_mode != IMPLIED) {
 		dout("addressing mode not implied at " << toHex(program_counter-1, 2));
 		halt();
 	}
@@ -1389,12 +1397,12 @@ void CPU::transferYToAcc(CPU::AddressMode address_mode) {
 
 void CPU::illegalOpcode(CPU::AddressMode address_mode) {
 	dout("illegal opcode at " << toHex(program_counter-1, 2));
+	dout("address mode: " << address_mode);
 	halt();
 }
 
 void CPU::oamDmaTransfer(Byte high) {
 	Word address = high << 8;
-	dout("oam dma transfer from " << toHex(address, 2));
 	for(int index = 0; index < 256; index++) {
 		ppu->writeToOAM(readByte(address + index));
 	}
@@ -1521,6 +1529,9 @@ void CPU::debugInterrupt(BreakpointCondition condition) {
 			switch(condition) {
 				case CPU::IRQ: name = "IRQ"; break;
 				case CPU::NMI: name = "NMI"; break;
+				default:
+					assert(false, "interrupt breakpoint not an interrupt");
+					break;
 			}
 			std::cout << name << ", PC: " << toHex(program_counter, 2) << '\n';
 			_break = true;

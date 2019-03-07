@@ -256,13 +256,8 @@ private:
 	memory from 0x4018-0x401f is normally disabled
 	*/
 
-	static const int SRAM_START = 0x6000;
-	static const int SRAM_SIZE = 0x2000;
-	static const int SRAM_END = 0x7fff;
-
-	static const int ROM_START = 0x8000;
-	static const int ROM_SIZE = 0x8000;
-	static const int ROM_END = 0xffff;
+	static const int CARTRIDGE_START = 0x4020;
+	static const int CARTRIDGE_END = 0xffff;
 
 	static const char* address_mode_names[CPU::NUM_ADDRESS_MODES];
 	static const char* instruction_names[CPU::NUM_INSTRUCTIONS];

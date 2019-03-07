@@ -19,8 +19,10 @@ Controller::Controller() {
 }
 
 bool Controller::read() {
-	return buttons[current_button];
-	current_button = strobe ? 0 : ((current_button + 1) % NUM_BUTTONS);
+	return buttons[current_button++];
+	if (strobe) {
+		current_button = 0;
+	}
 }
 
 void Controller::write(Byte value) {
@@ -34,7 +36,14 @@ void Controller::pressKey(int key) {
 	for(int n = 0; n < 8; n++) {
 		if (keymap[n] == key) {
 			buttons[n] = true;
-			dout("pressed button " << key_names[n]);
+		}
+	}
+}
+
+void Controller::releaseKey(int key) {
+	for(int n = 0; n < 8; n++) {
+		if (keymap[n] == key) {
+			buttons[n] = false;
 		}
 	}
 }

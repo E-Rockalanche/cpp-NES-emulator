@@ -19,11 +19,6 @@ const int PPU::nes_palette[] = {
 
 PPU::PPU() {
 	dout("PPU()");
-	for(int x = 0; x < SCREEN_WIDTH; x++) {
-		for(int y = 0; y < SCREEN_HEIGHT; y++) {
-			surface[x + y*SCREEN_WIDTH] = Pixel(255, 0, 0);
-		}
-	}
 }
 
 PPU::~PPU() {
@@ -39,6 +34,7 @@ void PPU::setCartridge(Cartridge* cartridge) {
 	assert(cartridge != NULL, "PPU::setCartridge() cartridge is null");
 	this->cartridge = cartridge;
 	nt_mirror = cartridge->nameTableMirroring();
+	dout("nametable mirroring: " << nt_mirror);
 }
 
 void PPU::reset() {
@@ -51,13 +47,29 @@ void PPU::reset() {
 	scanline = 0;
 	odd_frame = false;
 	wait_cycles = BOOTUP_CYCLES;
+	control = 0;
+	mask = 0;
+	status = 0;
+	write_toggle = false;
+	oam_address = 0;
+	vram_address = 0;
+	temp_vram_address = 0;
+	fine_x_scroll = 0;
 	in_vblank = false;
+	oam_data_high = 0;
 
 	for(int n = 0; n < NAMETABLE_SIZE; n++) {
 		nametable[n] = 0xff;
 	}
+
 	for(int n = 0; n < PRIMARY_OAM_SIZE; n++) {
-		primary_oam[n] = 0;
+		primary_oam[n] = 0xff;
+	}
+
+	for(int x = 0; x < SCREEN_WIDTH; x++) {
+		for(int y = 0; y < SCREEN_HEIGHT; y++) {
+			surface[x + y*SCREEN_WIDTH] = Pixel(0);
+		}
 	}
 }
 
@@ -396,6 +408,7 @@ void PPU::incrementVRAMAddress() {
 }
 
 void PPU::writeToOAM(Byte value) {
+	assert(oam_address < PRIMARY_OAM_SIZE, "primary oam address out of bounds");
 	primary_oam[oam_address++] = value;
 }
 
@@ -411,7 +424,7 @@ Word PPU::nametableMirror(Word address) {
 			break;
 
 		default:
-			assert(false, "invalid nametable mirroring");
+			assert(false, "invalid nametable mirroring: " << (int)nt_mirror);
 			break;
 	}
 	return new_address;
@@ -425,9 +438,12 @@ Byte PPU::read(Word address) {
 			value = cartridge->readCHR(address);
 			break;
 
-		case NAMETABLE_START ... NAMETABLE_END:
-			value = nametable[nametableMirror(address)];
+		case NAMETABLE_START ... NAMETABLE_END: {
+			Word nt_index = nametableMirror(address);
+			assert(nt_index < NAMETABLE_SIZE, "read nametable index out of bounds");
+			value = nametable[nt_index];
 			break;
+		}
 
 		case PALETTE_START ... PALETTE_END:
 			if ((address & 0x13) == 0x10) address &= ~0x10;
@@ -449,9 +465,12 @@ void PPU::write(Word address, Byte value) {
 			cartridge->writeCHR(address, value);
 			break;
 
-		case NAMETABLE_START ... NAMETABLE_END:
-			nametable[nametableMirror(address)] = value;
+		case NAMETABLE_START ... NAMETABLE_END: {
+			Word nt_index = nametableMirror(address);
+			assert(nt_index < NAMETABLE_SIZE, "write nametable index out of bounds");
+			nametable[nt_index] = value;
 			break;
+		}
 
 		case PALETTE_START ... PALETTE_END:
 			if ((address & 0x13) == 0x10) address &= ~0x10;
@@ -473,6 +492,7 @@ void PPU::loadSpritesOnScanline() {
 	sprite_zero_next_scanline = false;
 	int j = 0;
 	for(int i = 0; i < 64; i++) {
+		assert(i * OBJECT_SIZE < PRIMARY_OAM_SIZE, "primary oam index out of bounds");
 		Byte* object = primary_oam + i * OBJECT_SIZE;
 		int line = ((scanline == 261) ? -1 : scanline)
 			- object[Y_POS];
@@ -483,6 +503,7 @@ void PPU::loadSpritesOnScanline() {
 				sprite_zero_next_scanline = true;
 			}
 
+			assert(j * OBJECT_SIZE < SECONDARY_OAM_SIZE, "sec oam index out of bounds. j = " << j);
 			Byte* secondary_object = secondary_oam + j * OBJECT_SIZE;
 
 			// copy sprite data
@@ -491,7 +512,7 @@ void PPU::loadSpritesOnScanline() {
 			}
 
 			// increment secondary OAM index
-			if (++j > 8) {
+			if (++j >= 8) {
 				setStatusFlag(SPRITE_OVERFLOW);
 				break;
 			}
