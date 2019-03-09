@@ -166,6 +166,7 @@ private:
 		*/
 
 		INDEXED_X,
+		INDEXED_X_STORE, // always an extra cycle regardless of page cross
 		/*
 		address given added to value in x index
 		ex) LDA $31f6, x
