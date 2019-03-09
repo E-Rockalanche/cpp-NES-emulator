@@ -42,6 +42,8 @@ void reset() {
 	cpu.reset();
 	ppu.reset();
 
+	cpu._break = true;
+
 	controller1.resetButtons();
 	controller2.resetButtons();
 }

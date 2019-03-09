@@ -352,7 +352,6 @@ private:
 	Byte popByteFromStack();
 	Word popWordFromStack();
 	void addValueToAcc(Byte value);
-	void incrementProgramCounter(CPU::AddressMode address_mode);
 	void setArithmeticFlags(Byte value);
 	void halt();
 	void nmi();
