@@ -27,20 +27,18 @@ public:
 	Cartridge(Byte* data);
 	virtual ~Cartridge();
 
-	Byte readROM(Word address);
-	virtual void writeROM(Word address, Byte value) {}
+	Byte readPRG(Word address);
+	virtual void writePRG(Word address, Byte value) {}
 
 	Byte readCHR(Word address);
 	virtual void writeCHR(Word address, Byte value) {}
-
-	virtual void signal_scanline() {};
 
 	NameTableMirroring nameTableMirroring();
 
 protected:
 	enum HeaderSection {
 		NES,
-		ROM_SIZE = 4, // 16 KB units
+		PRG_SIZE = 4, // 16 KB units
 		CHR_SIZE, // 8 KB units. 0 implies this cartridge has PRG RAM
 		FLAGS_6,
 		FLAGS_7,
@@ -59,10 +57,16 @@ protected:
 		NES2
 	};
 
+	static const int RAM_START = 0x6000;
+	static const int PRG_START = 0x8000;
+
+	static const int MIN_PRG_BANK_SIZE = 0x2000;
+	static const int MIN_CHR_BANK_SIZE = 0x0400;
+
 	Byte* data;
 
-	Byte* rom;
-	int rom_size;
+	Byte* prg;
+	int prg_size;
 
 	Byte* chr;
 	int chr_size;
@@ -71,9 +75,18 @@ protected:
 	Byte* ram;
 	int ram_size;
 
+	NameTableMirroring nt_mirroring;
+
+	// bank switching
+	int prg_map[4];
+	int chr_map[8];
+
 	static Format getFormat(Byte* data);
 	static bool verifyHeader(Byte* data);
 	static int getMapperNumber(Byte* data);
+
+	void setPRGBank(int slot, int bank, int bank_size);
+	void setCHRBank(int slot, int bank, int bank_size);
 };
 
 #endif

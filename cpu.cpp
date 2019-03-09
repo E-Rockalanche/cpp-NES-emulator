@@ -505,7 +505,7 @@ Byte CPU::readByte(Word address) {
 			break;
 
 		case CARTRIDGE_START ... CARTRIDGE_END:
-			value = cartridge->readROM(address);
+			value = cartridge->readPRG(address);
 			break;
 
 		default:
@@ -552,7 +552,7 @@ void CPU::writeByte(Word address, Byte value) {
 			break;
 
 		case CARTRIDGE_START ... CARTRIDGE_END:
-			cartridge->writeROM(address, value);
+			cartridge->writePRG(address, value);
 			break;
 
 		default:
@@ -586,8 +586,19 @@ bool CPU::clockTick() {
 
 				debugOperation(program_counter-1, opcode);
 
+				// dummy read for 1 byte opcodes
+				switch(op.address_mode) {
+					case IMPLIED:
+					case ACCUMULATOR:
+						readByte(program_counter);
+						break;
+					default: break;
+				}
+
 				InstructionFunction function = instruction_functions[op.instruction];
 				(this->*function)(op.address_mode);
+
+				if (_halt) dout("opcode: " << toHex(opcode));
 			}
 
 			debugProgramPosition(program_counter);

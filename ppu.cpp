@@ -17,6 +17,17 @@ const int PPU::nes_palette[] = {
 	0xFCFCFC, 0xA4E4FC, 0xB8B8F8, 0xD8B8F8, 0xF8B8F8, 0xF8A4C0, 0xF0D0B0, 0xFCE0A8,
 	0xF8D878, 0xD8F878, 0xB8F8B8, 0xB8F8D8, 0x00FCFC, 0xF8D8F8, 0x000000, 0x000000 };
 
+const char* PPU::register_names[] = {
+	"PPU CONTROL",
+	"PPU MASK",
+	"PPU STATUS",
+	"OAM ADDRESS",
+	"OAM DATA",
+	"PPU SCROLL",
+	"PPU ADDRESS",
+	"PPU DATA"
+};
+
 PPU::PPU() {
 	dout("PPU()");
 }
@@ -57,6 +68,7 @@ void PPU::reset() {
 	fine_x_scroll = 0;
 	in_vblank = false;
 	oam_data_high = 0;
+	open_bus = 0;
 
 	for(int n = 0; n < NAMETABLE_SIZE; n++) {
 		nametable[n] = 0xff;
@@ -87,6 +99,76 @@ bool PPU::readyToDraw() {
 
 const Pixel* PPU::getSurface() {
 	return surface;
+}
+
+void PPU::writeByte(Word address, Byte value) {
+	open_bus = value;
+	switch(address) {
+		case PPU_CONTROL:
+			writeToControl(value);
+			break;
+
+		case PPU_MASK:
+			mask = value;
+			break;
+
+		case OAM_ADDRESS:
+			oam_address = value;
+			break;
+
+		case OAM_DATA:
+			primary_oam[oam_address++] = value;
+			break;
+
+		case PPU_SCROLL:
+			writeToScroll(value);
+			break;
+
+		case PPU_ADDRESS:
+			writeToAddress(value);
+			break;
+
+		case PPU_DATA:
+			write(vram_address, value);
+			incrementVRAMAddress();
+			break;
+
+		default:
+			dout("writing to " << register_names[address]);
+	}
+}
+
+Byte PPU::readByte(Word address) {
+	static Byte buffer;
+
+	switch(address) {
+		case PPU_STATUS:
+			open_bus = (open_bus & 0x1f) | status;
+			setStatusFlag(VERTICAL_BLANK, false);
+			write_toggle = false;
+			break;
+
+		case OAM_DATA:
+			open_bus = primary_oam[oam_address];
+			break;
+
+		case PPU_DATA:
+			if (vram_address >= PALETTE_START) {
+				// no buffering for palette ram
+				buffer = read(vram_address);
+				open_bus = buffer;
+			} else {
+				open_bus = buffer;
+				buffer = read(vram_address);
+			}
+			incrementVRAMAddress();
+			break;
+
+		default:
+			dout("reading from " << register_names[address]);
+	}
+
+	return open_bus;
 }
 
 void PPU::setStatusFlag(int flag, bool value) {
@@ -278,75 +360,6 @@ void PPU::writeToAddress(Byte value) {
 	write_toggle = !write_toggle;
 }
 
-void PPU::writeByte(Word address, Byte value) {
-	switch(address) {
-		case PPU_CONTROL:
-			writeToControl(value);
-			break;
-
-		case PPU_MASK:
-			mask = value;
-			break;
-
-		case OAM_ADDRESS:
-			oam_address = value;
-			break;
-
-		case OAM_DATA:
-			primary_oam[oam_address++] = value;
-			break;
-
-		case PPU_SCROLL:
-			writeToScroll(value);
-			break;
-
-		case PPU_ADDRESS:
-			writeToAddress(value);
-			break;
-
-		case PPU_DATA:
-			write(vram_address, value);
-			incrementVRAMAddress();
-			break;
-
-		default:
-			dout("trying to write to PPU address " << toHex(address, 2));
-	}
-}
-
-Byte PPU::readByte(Word address) {
-	static Byte buffer;
-
-	Byte value = 0;
-	switch(address) {
-		case PPU_STATUS:
-			value = (value & 0x1f) | status;
-			setStatusFlag(VERTICAL_BLANK, false);
-			write_toggle = false;
-			break;
-
-		case OAM_DATA:
-			value = primary_oam[oam_address];
-			break;
-
-		case PPU_DATA:
-			if (vram_address >= PALETTE_START) {
-				// no buffering for palette ram
-				buffer = read(vram_address);
-				value = buffer;
-			} else {
-				value = buffer;
-				buffer = read(vram_address);
-			}
-			incrementVRAMAddress();
-			break;
-
-		default:
-			dout("trying to read from PPU address " << toHex(address, 2));
-	}
-	return value;
-}
-
 void PPU::incrementXComponent() {
 	if (!rendering()) return;
 
@@ -411,7 +424,7 @@ Word PPU::backgroundAddress() {
 }
 
 void PPU::incrementVRAMAddress() {
-	/*
+	
 	if (renderingIsEnabled() && !in_vblank) {
 		// this will happen if PPU_DATA read/writes occur during rendering
 		dout("increment VRAM address outside vblank");
@@ -420,8 +433,8 @@ void PPU::incrementVRAMAddress() {
 	} else {
 		vram_address += testFlag(control, INCREMENT_MODE) ? 32 : 1;
 	}
-	*/
-	vram_address += testFlag(control, INCREMENT_MODE) ? 32 : 1;
+	
+	// vram_address += testFlag(control, INCREMENT_MODE) ? 32 : 1;
 }
 
 void PPU::writeToOAM(Byte value) {
@@ -431,7 +444,7 @@ void PPU::writeToOAM(Byte value) {
 
 Word PPU::nametableMirror(Word address) {
 	Word new_address;
-	switch(nt_mirror) {
+	switch(cartridge->nameTableMirroring()) {
 		case Cartridge::HORIZONTAL:
 			new_address = ((address / 2) & 0x400) + (address % 0x400);
 			break;

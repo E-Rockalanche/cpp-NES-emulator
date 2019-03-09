@@ -14,7 +14,7 @@ CFLAGS := -c -Wall -Wextra -std=c++17 -Ofast
 MAKE_OBJ = $(CXX) $< -o $@ $(CFLAGS)
 MAKE_EXE = $(CXX) $^ -o $@ $(LFLAGS)
 
-$(TARGET):	test_cpu.o cpu.o ppu.o apu.o cartridge.o controller.o
+$(TARGET):	test_cpu.o cpu.o ppu.o apu.o cartridge.o controller.o mapper1.o
 	$(MAKE_EXE)
 
 test_cpu.o:	test_cpu.cpp cpu.hpp ppu.hpp apu.hpp debugging.hpp common.hpp controller.hpp
@@ -30,6 +30,9 @@ apu.o:	apu.cpp apu.hpp common.hpp debugging.hpp
 	$(MAKE_OBJ)
 
 cartridge.o:	cartridge.cpp cartridge.hpp debugging.hpp common.hpp
+	$(MAKE_OBJ)
+
+mapper1.o:	mappers/mapper1.cpp mappers/mapper1.hpp cartridge.hpp debugging.hpp common.hpp
 	$(MAKE_OBJ)
 
 controller.o:	controller.cpp controller.hpp debugging.hpp common.hpp

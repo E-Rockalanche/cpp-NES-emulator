@@ -1,4 +1,5 @@
 #include "cartridge.hpp"
+#include "mappers/mapper1.hpp"
 #include <fstream>
 
 using namespace std;
@@ -34,6 +35,7 @@ Cartridge* Cartridge::loadFile(const char* filename) {
 
 	if (data_size < (HEADER_SIZE + 8*KB)) {
 		dout("File size is too small to be a ROM");
+		dout("size: " << toHex(data_size));
 		delete[] data;
 		return NULL;
 	}
@@ -47,6 +49,7 @@ Cartridge* Cartridge::loadFile(const char* filename) {
 	int mapper_number = getMapperNumber(data);
 	switch(mapper_number) {
 		case 0: mapper = new Cartridge(data); break;
+		case 1: mapper = new Mapper1(data); break;
 		default: assert(false, "mapper " << mapper_number << " is not supported");
 	}
 
@@ -68,37 +71,44 @@ bool Cartridge::verifyHeader(Byte* data) {
 }
 
 int Cartridge::getMapperNumber(Byte* data) {
-	return  (data[FLAGS_6] >> 4)
-		| ((getFormat(data) == NES2) ? (data[FLAGS_7] & 0xf0) : 0);
+	int low = (data[FLAGS_6] >> 4);
+	int high = (getFormat(data) == NES2) ? (data[FLAGS_7] & 0xf0) : 0;
+	return high | low;
 }
 
 Cartridge::Format Cartridge::getFormat(Byte* data) {
-	Byte result = data[FLAGS_7] & 0x0c;
-	if (result == 0x08) {
-		return NES2;
-	} else if (result == 0) {
-		return INES;
-	} else {
-		return ARCHAIC_INES;
+	switch(data[FLAGS_7] & 0x0c) {
+		case 0: return INES;
+		case 8: return NES2;
+		default: return ARCHAIC_INES;
 	}
 }
 
 Cartridge::Cartridge(Byte* data) : data(data) {
-	rom_size = data[ROM_SIZE] * 0x4000;
+	dout("Cartridge()");
+
+	prg_size = data[PRG_SIZE] * 0x4000;
 	chr_size = data[CHR_SIZE] * 0x2000;
 	ram_size = data[RAM_SIZE] ? (data[RAM_SIZE] * 0x2000) : 0x2000;
 
 	ram = new Byte[ram_size];
-	rom = data + HEADER_SIZE;
+	for(int n = 0; n < ram_size; n++) ram[n] = 0;
+
+	prg = data + HEADER_SIZE;
 
 	if (chr_size) {
 		has_chr_ram = false;
-		chr = rom + rom_size;
+		chr = prg + prg_size;
 	} else {
 		has_chr_ram = true;
 		chr_size = 0x2000;
 		chr = new Byte[chr_size];
 	}
+
+	nt_mirroring = (data[FLAGS_6] & 1) ? VERTICAL : HORIZONTAL;
+
+	setPRGBank(0, 0, 0x8000);
+	setCHRBank(0, 0, 0x2000);
 }
 
 Cartridge::~Cartridge() {
@@ -108,18 +118,39 @@ Cartridge::~Cartridge() {
 }
 
 Cartridge::NameTableMirroring Cartridge::nameTableMirroring() {
-	return (data[FLAGS_6] & BL(0)) ? VERTICAL : HORIZONTAL;
+	return nt_mirroring;
 }
 
-Byte Cartridge::readROM(Word address) {
-	assert(address >= 0x6000, "prg rom invalid address: " << toHex(address, 2));
-	if (address >= 0x8000) {
-		return rom[(address - 0x8000) % rom_size];
+Byte Cartridge::readPRG(Word address) {
+	if (address >= PRG_START) {
+		int rom_address = address - PRG_START;
+		int offset = prg_map[rom_address / MIN_PRG_BANK_SIZE];
+		return prg[offset + (rom_address % MIN_PRG_BANK_SIZE)];
+
+	} else if (address >= RAM_START) {
+		return ram[address - RAM_START];
+
 	} else {
-		return ram[(address - 0x6000) % ram_size];
+		dout("cartridge read unmapped at " << toHex(address, 2));
+		return address >> 8; // unmapped
 	}
 }
 
 Byte Cartridge::readCHR(Word address) {
-	return chr[address % chr_size];
+	int offset = chr_map[address / MIN_CHR_BANK_SIZE];
+	return chr[offset + (address % MIN_CHR_BANK_SIZE)];
+}
+
+void Cartridge::setPRGBank(int slot, int bank, int bank_size) {
+	int map_size = bank_size / MIN_PRG_BANK_SIZE;
+	for(int i = 0; i < map_size; i++) {
+		prg_map[(slot * map_size) + i] = ((bank * bank_size) + (i * MIN_PRG_BANK_SIZE)) % prg_size;
+	}
+}
+
+void Cartridge::setCHRBank(int slot, int bank, int bank_size) {
+	int map_size = bank_size / MIN_CHR_BANK_SIZE;
+	for(int i = 0; i < map_size; i++) {
+		chr_map[(slot * map_size) + i] = ((bank * bank_size) + (i * MIN_CHR_BANK_SIZE)) % chr_size;
+	}
 }

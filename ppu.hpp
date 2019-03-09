@@ -127,6 +127,8 @@ public:
 		reload the scroll position afterwards in order to avoid wrong scrolling
 		*/
 
+		NUM_REGISTERS,
+
 		OAM_DMA = 0x4014
 		/*
 		write
@@ -143,6 +145,8 @@ public:
 		It is common to initialize oam address to 0 before DMA transfer
 		*/
 	};
+
+	static const char* register_names[NUM_REGISTERS];
 
 	enum ControlFlag {
 		NAMETABLE_0 = BL(0), // 1: x scroll += 256
@@ -350,6 +354,8 @@ private:
 
 	static const int BOOTUP_CYCLES = 30000;
 	int wait_cycles;
+
+	Byte open_bus;
 
 	bool write_toggle; // used to set x_scroll/y_scroll and vram_address
 	Byte control;

@@ -298,10 +298,10 @@ private:
 	static const int RESET_VECTOR = 0xfffc;
 	static const int IRQ_VECTOR = 0xfffe;
 
-	static const Byte STACK_START = 0xff;
+	static const Byte STACK_START = 0xfd;
 	static const int STACK_OFFSET = 0x0100;
 
-	static const Byte STATUS_START = 0;
+	static const Byte STATUS_START = 0x34;
 
 	struct Operation {
 		Instruction instruction;
