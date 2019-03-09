@@ -4,6 +4,10 @@ Mapper1::Mapper1(Byte* data) : Cartridge(data) {
 	dout("Mapper1()");
 
 	shift_register = SHIFT_REG_INIT;
+
+	// set initial banks
+	setPRGBank(0, 0, 16 * KB);
+	setPRGBank(1, 0x0f, 16 * KB);
 }
 
 void Mapper1::writePRG(Word address, Byte value) {
