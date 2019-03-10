@@ -41,8 +41,8 @@
 	#define debugStatus(flag)
 #endif
 
-int test_ticks = 0;
-#define ppuCycles() { test_ticks++; }
+#define clockTick() { odd_cycle = !odd_cycle;\
+	ppu->clockTick(); ppu->clockTick(); ppu->clockTick(); }
 
 #define cross(addr1, addr2) (((addr1) & 0xff00) != ((addr2) & 0xff00))
 
@@ -443,17 +443,25 @@ bool CPU::breaked() {
 	return status & (1 << BREAK);
 }
 
-void CPU::reset() {
-	dout("CPU::reset()");
+void CPU::power() {
+	dout("CPU::power()");
 	assert(ppu != NULL, "CPU::reset() ppu is null");
 	assert(cartridge != NULL, "CPU::reset() cartridge is null");
 
-	program_counter = readWord(RESET_VECTOR);
 	stack_pointer = STACK_START;
 	status = STATUS_START;
 	accumulator = 0;
 	x_register = 0;
 	y_register = 0;
+
+	writeByte(APU_STATUS, 0);
+	writeByte(APU_FRAME_COUNT, 0);
+	for(int n = 0; n < 16; n++) {
+		writeByte(APU_START + n, 0);
+	}
+
+	program_counter = readWord(RESET_VECTOR);
+
 	_halt = false;
 	_nmi = false;
 	_irq = false;
@@ -469,6 +477,22 @@ void CPU::reset() {
 	dout("reset");
 }
 
+void CPU::reset() {
+	stack_pointer -= 3;
+	setStatusFlag(DISABLE_INTERRUPTS, true);
+	writeByte(APU_STATUS, 0);
+	
+	program_counter = readWord(RESET_VECTOR);
+
+	_halt = false;
+	_nmi = false;
+	_irq = false;
+	wait_cycles = 0;
+	odd_cycle = false;
+
+	_break = false;
+}
+
 void CPU::setNMI() {
 	_nmi = true;
 }
@@ -479,7 +503,7 @@ void CPU::setIRQ() {
 	
 Byte CPU::readByte(Word address) {
 	Byte value = 0;
-	ppuCycles();
+	clockTick();
 	switch(address) {
 		case RAM_START ... RAM_END:
 			value = ram[(address - RAM_START) % RAM_SIZE];
@@ -525,7 +549,7 @@ Byte CPU::readByte(Word address) {
 }
 
 void CPU::writeByte(Word address, Byte value) {
-	ppuCycles();
+	clockTick();
 
 	debugWriteOperation(address, value);
 
@@ -568,82 +592,49 @@ void CPU::writeByte(Word address, Byte value) {
 	}
 }
 
-bool CPU::clockTick() {
-	bool executed_instruction = false;
-	
+void CPU::execute() {
 	if (!_halt) {
-		assert(wait_cycles >= 0, "wait cycles below 0");
 
-		if (wait_cycles == 0) {
-			test_ticks = 0;
+		bool do_interrupts = !getStatusFlag(DISABLE_INTERRUPTS);
+		_irq = _irq && do_interrupts;
 
-			bool do_interrupts = !getStatusFlag(DISABLE_INTERRUPTS);
-			_irq = _irq && do_interrupts;
+		if (_nmi) {
+			_nmi = false;
+			nmi();
+		} else if (_irq) {
+			_irq = false;
+			irq();
+		} else {
+			Byte opcode = readByte(program_counter++);
+			Operation op = operations[opcode];
+			wait_cycles = op.clock_cycles;
 
-			executed_instruction = true;
+			debugOperation(program_counter-1, opcode);
 
-			if (_nmi) {
-				_nmi = false;
-				nmi();
-				if (wait_cycles != test_ticks) {
-					std::cout << '\n';
-					dout("nmi");
-					dout("wait_cycles: " << wait_cycles);
-					dout("test_ticks: " << test_ticks);
-				}
-			} else if (_irq) {
-				_irq = false;
-				irq();
-				if (wait_cycles != test_ticks) {
-					std::cout << '\n';
-					dout("irq");
-					dout("wait_cycles: " << wait_cycles);
-					dout("test_ticks: " << test_ticks);
-				}
-			} else {
-				Byte opcode = readByte(program_counter++);
-				Operation op = operations[opcode];
-				wait_cycles = op.clock_cycles;
-
-				debugOperation(program_counter-1, opcode);
-
-				/*
-				// dummy read for 1 byte opcodes
-				switch(op.address_mode) {
-					case IMPLIED:
-					case ACCUMULATOR:
-						readByte(program_counter);
-						break;
-					default: break;
-				}
-				*/
-
-				InstructionFunction function = instruction_functions[op.instruction];
-				(this->*function)(op.address_mode);
-
-				if (_halt) dout("opcode: " << toHex(opcode));
-
-				if (wait_cycles != test_ticks) {
-					std::cout << '\n';
-					dout("instruction: " << instruction_names[op.instruction]);
-					dout("address mode: " << address_mode_names[op.address_mode]);
-					dout("wait_cycles: " << wait_cycles);
-					dout("test_ticks: " << test_ticks);
-				}
+			/*
+			// dummy read for 1 byte opcodes
+			switch(op.address_mode) {
+				case IMPLIED:
+				case ACCUMULATOR:
+					readByte(program_counter);
+					break;
+				default: break;
 			}
+			*/
 
-			debugProgramPosition(program_counter);
+			InstructionFunction function = instruction_functions[op.instruction];
+			(this->*function)(op.address_mode);
+
+			if (_halt) dout("opcode: " << toHex(opcode));
 		}
-		wait_cycles--;
-		odd_cycle = !odd_cycle;
-	}
 
-	return executed_instruction;
+		debugProgramPosition(program_counter);
+	}
 }
 
 void CPU::nmi() {
-	ppuCycles();
-	ppuCycles();
+	clockTick();
+	clockTick();
 	wait_cycles = 7;
 	pushWordToStack(program_counter);
 	pushByteToStack(status);
@@ -654,8 +645,8 @@ void CPU::nmi() {
 }
 
 void CPU::irq() {
-	ppuCycles();
-	ppuCycles();
+	clockTick();
+	clockTick();
 	wait_cycles = 7;
 	setStatusFlag(BREAK, Constant<bool, false>());
 	pushWordToStack(program_counter);
@@ -684,12 +675,12 @@ Word CPU::getAddress(CPU::AddressMode address_mode) {
 			break;
 
 		case ZERO_PAGE_X:
-			ppuCycles();
+			clockTick();
 			address = (readByte(program_counter++) + x_register) & 0xff;
 			break;
 
 		case ZERO_PAGE_Y:
-			ppuCycles();
+			clockTick();
 			address = (readByte(program_counter++) + y_register) & 0xff;
 			break;
 
@@ -699,7 +690,7 @@ Word CPU::getAddress(CPU::AddressMode address_mode) {
 			address = page1 + x_register;
 			if (cross(page1, address)) {
 				wait_cycles++;
-				ppuCycles();
+				clockTick();
 			}
 			break;
 
@@ -707,7 +698,7 @@ Word CPU::getAddress(CPU::AddressMode address_mode) {
 			page1 = readWord(program_counter);
 			program_counter += 2;
 			address = page1 + x_register;
-			ppuCycles();
+			clockTick();
 			break;
 
 		case INDEXED_Y:
@@ -716,7 +707,7 @@ Word CPU::getAddress(CPU::AddressMode address_mode) {
 			address = page1 + y_register;
 			if (cross(page1, address)) {
 				wait_cycles++;
-				ppuCycles();
+				clockTick();
 			}
 			break;
 
@@ -726,14 +717,13 @@ Word CPU::getAddress(CPU::AddressMode address_mode) {
 			break;
 
 		case PRE_INDEXED:
-			ppuCycles();
 			address = readWordBug((readByte(program_counter++) + x_register) & 0xff);
 			break;
 
 		case POST_INDEXED:
 			address = readWordBug(readByte(program_counter++)) + y_register;
 			if (cross(address - y_register, address)) {
-				ppuCycles();
+				clockTick();
 				wait_cycles++;
 			}
 			break;
@@ -790,7 +780,7 @@ void CPU::setArithmeticFlags(Byte value) {
 void CPU::conditionalBranch(bool branch) {
 	int offset = (signed char)readByte(program_counter++);
 	if (branch) {
-		ppuCycles();
+		clockTick();
 		wait_cycles++;
 		program_counter += offset;
 
@@ -881,13 +871,13 @@ void CPU::shiftLeft(CPU::AddressMode address_mode) {
 	if (address_mode == ACCUMULATOR) {
 		result = accumulator << 1;
 		accumulator = result & 0xff;
-		ppuCycles();
+		clockTick();
 
 		debugSpecific("acc << 1 = " << toHex(accumulator));
 	} else {
 		Word address = getAddress(address_mode);
 		result = readByte(address) << 1;
-		ppuCycles();
+		clockTick();
 		writeByte(address, result & 0xff);
 		debugSpecific("mem[" << toHex(address) << "] << 1 = " << (int)result);
 	}
@@ -932,6 +922,7 @@ void CPU::branchOnPositive(CPU::AddressMode address_mode) {
 }
 
 void CPU::forceBreak(CPU::AddressMode address_mode) {
+	readByte(program_counter); // dummy read
 	setStatusFlag(BREAK, Constant<bool, true>());
 	pushWordToStack(program_counter+1);
 	pushByteToStack(status);
@@ -950,25 +941,25 @@ void CPU::branchOnOverflowSet(CPU::AddressMode address_mode) {
 
 void CPU::clearCarryFlag(CPU::AddressMode address_mode) {
 	setStatusFlag(CARRY, Constant<bool, false>());
-	ppuCycles();
+	clockTick();
 	debugStatus(CARRY);
 }
 
 void CPU::clearDecimalFlag(CPU::AddressMode address_mode) {
 	setStatusFlag(DECIMAL, Constant<bool, false>());
-	ppuCycles();
+	clockTick();
 	debugStatus(DECIMAL);
 }
 
 void CPU::clearInterruptDisableFlag(CPU::AddressMode address_mode) {
 	setStatusFlag(DISABLE_INTERRUPTS, Constant<bool, false>());
-	ppuCycles();
+	clockTick();
 	debugStatus(DISABLE_INTERRUPTS);
 }
 
 void CPU::clearOverflowFlag(CPU::AddressMode address_mode) {
 	setStatusFlag(OVERFLOW, Constant<bool, false>());
-	ppuCycles();
+	clockTick();
 	debugStatus(OVERFLOW);
 }
 
@@ -988,7 +979,7 @@ void CPU::decrement(CPU::AddressMode address_mode) {
 	Word address = getAddress(address_mode);
 	Byte result = readByte(address) - 1;
 	setArithmeticFlags(result);
-	ppuCycles();
+	clockTick();
 	writeByte(address, result);
 
 	debugSpecific("mem[" << toHex(address) << "] - 1 = " << (int)result);
@@ -996,14 +987,14 @@ void CPU::decrement(CPU::AddressMode address_mode) {
 
 void CPU::decrementX(CPU::AddressMode address_mode) {
 	setArithmeticFlags(--x_register);
-	ppuCycles();
+	clockTick();
 
 	debugSpecific("x - 1 = " << (int)x_register);
 }
 
 void CPU::decrementY(CPU::AddressMode address_mode) {
 	setArithmeticFlags(--y_register);
-	ppuCycles();
+	clockTick();
 
 	debugSpecific("y - 1 = " << (int)y_register);
 }
@@ -1019,7 +1010,7 @@ void CPU::exclusiveOr(CPU::AddressMode address_mode) {
 void CPU::increment(CPU::AddressMode address_mode) {
 	Word address = getAddress(address_mode);
 	Byte result = readByte(address) + 1;
-	ppuCycles();
+	clockTick();
 	setArithmeticFlags(result);
 	writeByte(address, result);
 
@@ -1028,14 +1019,14 @@ void CPU::increment(CPU::AddressMode address_mode) {
 
 void CPU::incrementX(CPU::AddressMode address_mode) {
 	setArithmeticFlags(++x_register);
-	ppuCycles();
+	clockTick();
 
 	debugSpecific("x + 1 = " << (int)x_register);
 }
 
 void CPU::incrementY(CPU::AddressMode address_mode) {
 	setArithmeticFlags(++y_register);
-	ppuCycles();
+	clockTick();
 
 	debugSpecific("y + 1 = " << (int)y_register);
 }
@@ -1046,7 +1037,7 @@ void CPU::jump(CPU::AddressMode address_mode) {
 }
 
 void CPU::jumpToSubroutine(CPU::AddressMode address_mode) {
-	ppuCycles();
+	clockTick();
 	pushWordToStack(program_counter + 1);
 	debugSpecific("return addr = " << toHex(program_counter + 2, 2));
 	program_counter = readWord(program_counter);
@@ -1085,7 +1076,7 @@ void CPU::shiftRight(CPU::AddressMode address_mode) {
 	if (address_mode == ACCUMULATOR) {
 		carry = accumulator & 1;
 		accumulator >>= 1;
-		ppuCycles();
+		clockTick();
 		result = accumulator;
 
 		debugSpecific("acc >> 1 = " << toHex(accumulator));
@@ -1094,7 +1085,7 @@ void CPU::shiftRight(CPU::AddressMode address_mode) {
 		Byte value = readByte(address);
 		carry = value & 1;
 		result = value >> 1;
-		ppuCycles();
+		clockTick();
 		writeByte(address, result);
 
 		debugSpecific("mem[" << toHex(address) << "] >> 1 = " << toHex(result));
@@ -1108,7 +1099,7 @@ void CPU::shiftRight(CPU::AddressMode address_mode) {
 }
 
 void CPU::noOperation(CPU::AddressMode address_mode) {
-	ppuCycles();
+	clockTick();
 }
 
 
@@ -1123,18 +1114,18 @@ void CPU::bitwiseOr(CPU::AddressMode address_mode) {
 }
 
 void CPU::pushAcc(CPU::AddressMode address_mode) {
-	ppuCycles();
+	clockTick();
 	pushByteToStack(accumulator);
 }
 
 void CPU::pushStatus(CPU::AddressMode address_mode) {
-	ppuCycles();
+	clockTick();
 	pushByteToStack(status | 0x30);
 }
 
 void CPU::popAcc(CPU::AddressMode address_mode) {
-	ppuCycles();
-	ppuCycles();
+	clockTick();
+	clockTick();
 	accumulator = popByteFromStack();
 	setArithmeticFlags(accumulator);
 	debugSpecific("acc = " << (int)accumulator);
@@ -1144,8 +1135,8 @@ void CPU::popAcc(CPU::AddressMode address_mode) {
 }
 
 void CPU::popStatus(CPU::AddressMode address_mode) {
-	ppuCycles();
-	ppuCycles();
+	clockTick();
+	clockTick();
 	status = (popByteFromStack() & ~0x30) | (status & 0x30);
 	debugStatus(NEGATIVE);
 	debugStatus(OVERFLOW);
@@ -1162,7 +1153,7 @@ void CPU::rotateLeft(CPU::AddressMode address_mode) {
 	if (address_mode == ACCUMULATOR) {
 		carry = accumulator & 0x80;
 		accumulator = (accumulator << 1) | getStatusFlag(CARRY);
-		ppuCycles();
+		clockTick();
 		result = accumulator;
 
 		debugSpecific("acc <<= 1 = " << (int)accumulator);
@@ -1171,7 +1162,7 @@ void CPU::rotateLeft(CPU::AddressMode address_mode) {
 		result = readByte(address);
 		carry = result & 0x80;
 		result = (result << 1) | getStatusFlag(CARRY);
-		ppuCycles();
+		clockTick();
 		writeByte(address, result);
 
 		debugSpecific("[" << toHex(address, 2) << "] <<= 1 = " << toHex(result));
@@ -1190,7 +1181,7 @@ void CPU::rotateRight(CPU::AddressMode address_mode) {
 	if (address_mode == ACCUMULATOR) {
 		carry = accumulator & 1;
 		accumulator = (accumulator >> 1) | (getStatusFlag(CARRY) ? 0x80 : 0);
-		ppuCycles();
+		clockTick();
 		result = accumulator;
 		
 		debugSpecific("acc >>= 1 = " << toHex(accumulator));
@@ -1199,7 +1190,7 @@ void CPU::rotateRight(CPU::AddressMode address_mode) {
 		result = readByte(address);
 		carry = result & 1;
 		result =  (result >> 1) | (getStatusFlag(CARRY) ? 0x80 : 0);
-		ppuCycles();
+		clockTick();
 		writeByte(address, result);
 
 		debugSpecific("[" << toHex(address, 2) << "] >>= 1 = " << toHex(result));
@@ -1213,10 +1204,11 @@ void CPU::rotateRight(CPU::AddressMode address_mode) {
 }
 
 void CPU::returnFromInterrupt(CPU::AddressMode address_mode) {
-	ppuCycles();
-	ppuCycles();
+	readByte(program_counter); // dummy read
+	clockTick();
 	status = (popByteFromStack() & ~0x30) | (status & 0x30);
 	program_counter = popWordFromStack();
+
 	debugSpecific("pc = " << toHex(program_counter));
 	debugStatus(NEGATIVE);
 	debugStatus(OVERFLOW);
@@ -1228,10 +1220,10 @@ void CPU::returnFromInterrupt(CPU::AddressMode address_mode) {
 }
 
 void CPU::returnFromSubroutine(CPU::AddressMode address_mode) {
-	ppuCycles();
-	ppuCycles();
+	readByte(program_counter); // dummy read
+	clockTick();
 	program_counter = popWordFromStack() + 1;
-	ppuCycles();
+	clockTick();
 
 	debugSpecific("pc = " << toHex(program_counter));
 	subroutine_depth--;
@@ -1247,19 +1239,19 @@ void CPU::subtractFromAcc(CPU::AddressMode address_mode) {
 
 void CPU::setCarryFlag(CPU::AddressMode address_mode) {
 	setStatusFlag(CARRY, Constant<bool, true>());
-	ppuCycles();
+	clockTick();
 	debugStatus(CARRY);
 }
 
 void CPU::setDecimalFlag(CPU::AddressMode address_mode) {
 	setStatusFlag(DECIMAL, Constant<bool, true>());
-	ppuCycles();
+	clockTick();
 	debugStatus(DECIMAL);
 }
 
 void CPU::setInterruptDisableFlag(CPU::AddressMode address_mode) {
 	setStatusFlag(DISABLE_INTERRUPTS, Constant<bool, true>());
-	ppuCycles();
+	clockTick();
 	debugStatus(DISABLE_INTERRUPTS);
 }
 
@@ -1268,7 +1260,7 @@ void CPU::storeAcc(CPU::AddressMode address_mode) {
 		case POST_INDEXED:
 		case INDEXED_X:
 		case INDEXED_Y:
-			ppuCycles();
+			clockTick();
 			break;
 	}
 
@@ -1295,7 +1287,7 @@ void CPU::storeY(CPU::AddressMode address_mode) {
 void CPU::transferAccToX(CPU::AddressMode address_mode) {
 	x_register = accumulator;
 	setArithmeticFlags(x_register);
-	ppuCycles();
+	clockTick();
 
 	debugSpecific("x = " << (int)x_register);
 }
@@ -1303,7 +1295,7 @@ void CPU::transferAccToX(CPU::AddressMode address_mode) {
 void CPU::transferAccToY(CPU::AddressMode address_mode) {
 	y_register = accumulator;
 	setArithmeticFlags(y_register);
-	ppuCycles();
+	clockTick();
 	
 	debugSpecific("y = " << (int)y_register);
 }
@@ -1311,7 +1303,7 @@ void CPU::transferAccToY(CPU::AddressMode address_mode) {
 void CPU::transferStackPointerToX(CPU::AddressMode address_mode) {
 	x_register = stack_pointer;
 	setArithmeticFlags(x_register);
-	ppuCycles();
+	clockTick();
 	
 	debugSpecific("x = " << toHex(x_register) << " (" << (int)(0xff - x_register) << ')');
 }
@@ -1319,14 +1311,14 @@ void CPU::transferStackPointerToX(CPU::AddressMode address_mode) {
 void CPU::transferXToAcc(CPU::AddressMode address_mode) {
 	accumulator = x_register;
 	setArithmeticFlags(accumulator);
-	ppuCycles();
+	clockTick();
 	
 	debugSpecific("acc = " << (int)accumulator);
 }
 
 void CPU::transferXToStackPointer(CPU::AddressMode address_mode) {
 	stack_pointer = x_register;
-	ppuCycles();
+	clockTick();
 
 	debugSpecific("sp = " << toHex(stack_pointer) << " (" << (int)(0xff - stack_pointer) << ')');
 }
@@ -1334,7 +1326,7 @@ void CPU::transferXToStackPointer(CPU::AddressMode address_mode) {
 void CPU::transferYToAcc(CPU::AddressMode address_mode) {
 	accumulator = y_register;
 	setArithmeticFlags(accumulator);
-	ppuCycles();
+	clockTick();
 	
 	debugSpecific("acc = " << (int)y_register);
 }
@@ -1346,13 +1338,14 @@ void CPU::illegalOpcode(CPU::AddressMode address_mode) {
 }
 
 void CPU::oamDmaTransfer(Byte high) {
+	clockTick();
+	if (odd_cycle) clockTick();
+
 	Word address = high << 8;
 	for(int index = 0; index < 256; index++) {
-		ppuCycles();
+		clockTick();
 		ppu->writeToOAM(readByte(address + index));
 	}
-	wait_cycles += 512;
-	// wait_cycles += 513 + odd_cycle;
 }
 
 void CPU::dump(Word address) {

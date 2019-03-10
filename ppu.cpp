@@ -48,31 +48,29 @@ void PPU::setCartridge(Cartridge* cartridge) {
 	dout("nametable mirroring: " << nt_mirror);
 }
 
-void PPU::reset() {
-	dout("PPU::reset()");
+void PPU::power() {
+	dout("PPU::power()");
 
-	assert(cpu != NULL, "PPU::reset() cpu is null");
-	assert(cartridge != NULL, "PPU::reset() cpu is null");
+	assert(cpu != NULL, "PPU::power() cpu is null");
+	assert(cartridge != NULL, "PPU::power() cpu is null");
 
 	cycle = 0;
 	scanline = 0;
 	odd_frame = false;
-	wait_cycles = BOOTUP_CYCLES;
+
 	control = 0;
 	mask = 0;
-	status = 0;
-	write_toggle = false;
+	status = 0xc0;
 	oam_address = 0;
 	vram_address = 0;
 	temp_vram_address = 0;
 	fine_x_scroll = 0;
+
 	in_vblank = false;
-	oam_data_high = 0;
+	write_toggle = false;
 	open_bus = 0;
 
-	for(int n = 0; n < NAMETABLE_SIZE; n++) {
-		nametable[n] = 0xff;
-	}
+	can_draw = false;
 
 	for(int n = 0; n < PRIMARY_OAM_SIZE; n++) {
 		primary_oam[n] = 0xff;
@@ -83,9 +81,30 @@ void PPU::reset() {
 			surface[x + y*SCREEN_WIDTH] = Pixel(0);
 		}
 	}
+}
 
-	for(int n = 0; n < PALETTE_SIZE; n++) {
-		palette[n] = 0;
+void PPU::reset() {
+	dout("PPU::reset()");
+
+	assert(cpu != NULL, "PPU::reset() cpu is null");
+	assert(cartridge != NULL, "PPU::reset() cpu is null");
+
+	cycle = 0;
+	scanline = 0;
+	odd_frame = false;
+
+	control = 0;
+	mask = 0;
+
+	in_vblank = false;
+	write_toggle = false;
+
+	can_draw = false;
+
+	for(int x = 0; x < SCREEN_WIDTH; x++) {
+		for(int y = 0; y < SCREEN_HEIGHT; y++) {
+			surface[x + y*SCREEN_WIDTH] = Pixel(0);
+		}
 	}
 }
 
@@ -165,7 +184,8 @@ Byte PPU::readByte(Word address) {
 			break;
 
 		default:
-			dout("reading from " << register_names[address]);
+			// dout("reading from " << register_names[address]);
+		break;
 	}
 
 	return open_bus;
@@ -522,28 +542,30 @@ void PPU::loadSpritesOnScanline() {
 	sprite_zero_next_scanline = false;
 	int j = 0;
 	for(int i = 0; i < 64; i++) {
-		assert(i * OBJECT_SIZE < PRIMARY_OAM_SIZE, "primary oam index out of bounds");
 		Byte* object = primary_oam + i * OBJECT_SIZE;
 		int line = ((scanline == 261) ? -1 : scanline)
 			- object[Y_POS];
 
-		if (line >= 0 && line < spriteHeight()) {
+		if ((line >= 0) && (line < spriteHeight())) {
 			// sprite on scanline
 			if (i == 0) {
 				sprite_zero_next_scanline = true;
 			}
 
-			assert(j * OBJECT_SIZE < SECONDARY_OAM_SIZE, "sec oam index out of bounds. j = " << j);
-			Byte* secondary_object = secondary_oam + j * OBJECT_SIZE;
+			if (j < 8) {
+				Byte* secondary_object = secondary_oam + j * OBJECT_SIZE;
 
-			// copy sprite data
-			for(int a = 0; a < OBJECT_SIZE; a++) {
-				secondary_object[a] = object[a];
+				// copy sprite data
+				for(int a = 0; a < OBJECT_SIZE; a++) {
+					secondary_object[a] = object[a];
+				}
 			}
 
 			// increment secondary OAM index
-			if (++j >= 8) {
-				setStatusFlag(SPRITE_OVERFLOW);
+			if (++j > 8) {
+				if (renderingIsEnabled()) {
+					setStatusFlag(SPRITE_OVERFLOW);
+				}
 				break;
 			}
 		}

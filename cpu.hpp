@@ -21,7 +21,8 @@ public:
 	void setController(Controller* controller, unsigned int port);
 
 	void reset();
-	bool clockTick();
+	void power();
+	void execute();
 	void setNMI();
 	void setIRQ();
 	bool halted();
@@ -250,6 +251,9 @@ private:
 	static const int APU_START = 0x4000;
 	static const int APU_SIZE = 0x0016;
 	static const int APU_END = 0x4015;
+
+	static const int APU_STATUS = 0x4015;
+	static const int APU_FRAME_COUNT = 0x4017;
 
 	static const int JOY1 = 0x4016;
 	static const int JOY2 = 0x4017;

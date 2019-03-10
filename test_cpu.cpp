@@ -1,6 +1,9 @@
 #include <iostream>
 #include <string>
 #include <windows.h>
+#include <cstdlib>
+#include <ctime>
+
 #include "debugging.hpp"
 #include "cpu.hpp"
 #include "ppu.hpp"
@@ -42,7 +45,21 @@ void reset() {
 	cpu.reset();
 	ppu.reset();
 
-	cpu._break = true;
+	for(int i = 0; i < rand() % 4; i++) {
+		ppu.clockTick();
+	}
+
+	controller1.resetButtons();
+	controller2.resetButtons();
+}
+
+void power() {
+	cpu.power();
+	ppu.power();
+
+	for(int i = 0; i < rand() % 4; i++) {
+		ppu.clockTick();
+	}
 
 	controller1.resetButtons();
 	controller2.resetButtons();
@@ -52,11 +69,7 @@ void step() {
 	if (cpu.halted()) {
 		std::cout << "HALTED\n";
 	} else {
-		do {
-			ppu.clockTick();
-			ppu.clockTick();
-			ppu.clockTick();
-		} while(!cpu.clockTick());
+		cpu.execute();
 	}
 }
 
@@ -164,11 +177,7 @@ void specialRelease(int key, int x, int y) {
 
 void renderScene()  {
 	while(!cpu.halted() && !cpu._break && !ppu.readyToDraw()) {
-		cpu.clockTick();
-
-		ppu.clockTick();
-		ppu.clockTick();
-		ppu.clockTick();
+		cpu.execute();
 	}
 	glDrawPixels(PPU::SCREEN_WIDTH, PPU::SCREEN_HEIGHT,  GL_RGB, GL_UNSIGNED_BYTE, surface);
 	glutSwapBuffers();
@@ -191,6 +200,8 @@ void idle() {
 }
 
 int main(int argc, char* argv[]) {
+	srand(time(NULL));
+
 	surface = ppu.getSurface();
 
 	cpu.setPPU(&ppu);
@@ -213,7 +224,7 @@ int main(int argc, char* argv[]) {
 	if (argc > 1) {
 		filename = argv[1];
 		if (loadFile(filename.c_str())) {
-			reset();
+			power();
 			std::cout << "Loaded " << filename << '\n';
 		} else {
 			std::cout << "Could not load " << filename << '\n';
