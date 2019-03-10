@@ -1,8 +1,6 @@
 #include <iostream>
 #include <string>
 #include <windows.h>
-#include <cstdlib>
-#include <ctime>
 
 #include "debugging.hpp"
 #include "cpu.hpp"
@@ -47,10 +45,6 @@ void reset() {
 	cpu.reset();
 	ppu.reset();
 
-	for(int i = 0; i < rand() % 4; i++) {
-		ppu.clockTick();
-	}
-
 	joypad.reset();
 	zapper.reset();
 }
@@ -58,10 +52,6 @@ void reset() {
 void power() {
 	cpu.power();
 	ppu.power();
-
-	for(int i = 0; i < rand() % 4; i++) {
-		ppu.clockTick();
-	}
 
 	joypad.reset();
 	zapper.reset();
@@ -183,23 +173,11 @@ void mouseButton(int button, int state, int x, int y) {
 	}
 }
 
-int mouse_x, mouse_y;
-
 void mouseMotion(int x, int y) {
-	mouse_x = x;
-	mouse_y = y;
+	zapper.aim(x, y);
 }
 
 void renderScene()  {
-	// zapper detect light
-	if (mouse_x >= 0 && mouse_x < PPU::SCREEN_WIDTH && mouse_y >= 0 && mouse_y < PPU::SCREEN_HEIGHT) {
-		Pixel p = surface[mouse_x + mouse_y * PPU::SCREEN_WIDTH];
-		zapper.setLight(p.red >= 0xf8 && p.blue >= 0xf8 && p.green >= 0xf8);
-	} else {
-		zapper.setLight(false);
-	}
-
-	// run frame
 	while(!cpu.halted() && !cpu._break && !ppu.readyToDraw()) {
 		cpu.execute();
 	}
@@ -231,6 +209,8 @@ int main(int argc, char* argv[]) {
 	cpu.setPPU(&ppu);
 	cpu.setAPU(&apu);
 	ppu.setCPU(&cpu);
+
+	zapper.setScreen(surface);
 	
 	cpu.setController(&joypad, 0);
 	cpu.setController(&zapper, 1);
@@ -278,6 +258,9 @@ int main(int argc, char* argv[]) {
 	glutSpecialFunc(specialKeyboard);
 	glutKeyboardUpFunc(keyboardRelease);
 	glutSpecialUpFunc(specialRelease);
+
+	glutMouseFunc(mouseButton);
+	glutMotionFunc(mouseMotion);
 
 	glutIgnoreKeyRepeat(GLUT_DEVICE_IGNORE_KEY_REPEAT);
 	

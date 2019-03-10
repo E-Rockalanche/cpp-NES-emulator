@@ -14,7 +14,7 @@ CFLAGS := -c -std=c++17 -Ofast
 MAKE_OBJ = $(CXX) $< -o $@ $(CFLAGS)
 MAKE_EXE = $(CXX) $^ -o $@ $(LFLAGS)
 
-$(TARGET):	main.o cpu.o ppu.o apu.o cartridge.o mapper1.o controller.o joypad.o zapper.o
+$(TARGET):	main.o cpu.o ppu.o apu.o cartridge.o mapper1.o joypad.o zapper.o
 	$(MAKE_EXE)
 
 main.o: main.cpp cpu.hpp ppu.hpp apu.hpp debugging.hpp common.hpp controller.hpp
@@ -35,13 +35,10 @@ cartridge.o:	cartridge.cpp cartridge.hpp debugging.hpp common.hpp
 mapper1.o:	mappers/mapper1.cpp mappers/mapper1.hpp cartridge.hpp debugging.hpp common.hpp
 	$(MAKE_OBJ)
 
-controller.o:	controller.cpp controller.hpp debugging.hpp common.hpp
+joypad.o:	joypad.cpp joypad.hpp controller.hpp common.hpp
 	$(MAKE_OBJ)
 
-joypad.o:	joypad.cpp joypad.hpp controller.hpp
-	$(MAKE_OBJ)
-
-zapper.o:	zapper.cpp zapper.hpp controller.hpp
+zapper.o:	zapper.cpp zapper.hpp controller.hpp common.hpp
 	$(MAKE_OBJ)
 
 clean:

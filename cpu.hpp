@@ -166,14 +166,14 @@ private:
 		ex) LSR
 		*/
 
-		INDEXED_X,
-		INDEXED_X_STORE, // always an extra cycle regardless of page cross
+		ABSOLUTE_X,
+		ABSOLUTE_X_STORE, // always an extra cycle regardless of page cross
 		/*
 		address given added to value in x index
 		ex) LDA $31f6, x
 		*/
 
-		INDEXED_Y,
+		ABSOLUTE_Y,
 		/*
 		address given added to value in y index
 		ex) LDA $31f6, y
@@ -188,7 +188,7 @@ private:
 		[$2160] = $30
 		*/
 
-		PRE_INDEXED,
+		INDIRECT_X,
 		/*
 		zero-page address is added to contents of x register to give the address
 		of the bytes holding to address of the operand
@@ -199,7 +199,7 @@ private:
 		[$2415] = $6e
 		*/
 
-		POST_INDEXED,
+		INDIRECT_Y,
 		/*
 		contents of zero page address (and following byte) give the indirect address
 		which is added to the contents of the y register to yield the actual address

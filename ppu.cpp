@@ -5,8 +5,6 @@
 
 using namespace std;
 
-#define renderingIsEnabled() ((bool)(mask & (SHOW_SPRITES | SHOW_BACKGROUND)))
-
 const int PPU::nes_palette[] = {
 	0x7C7C7C, 0x0000FC, 0x0000BC, 0x4428BC, 0x940084, 0xA80020, 0xA81000, 0x881400,
 	0x503000, 0x007800, 0x006800, 0x005800, 0x004058, 0x000000, 0x000000, 0x000000,
@@ -29,11 +27,9 @@ const char* PPU::register_names[] = {
 };
 
 PPU::PPU() {
-	dout("PPU()");
 }
 
 PPU::~PPU() {
-	dout("~PPU()");
 }
 
 void PPU::setCPU(CPU* cpu) {
@@ -71,6 +67,10 @@ void PPU::power() {
 	open_bus = 0;
 
 	can_draw = false;
+	
+	sprite_zero_next_scanline = false;
+	sprite_zero_this_scanline = false;
+	sprite_zero_hit = false;
 
 	for(int n = 0; n < PRIMARY_OAM_SIZE; n++) {
 		primary_oam[n] = 0xff;
@@ -100,6 +100,10 @@ void PPU::reset() {
 	write_toggle = false;
 
 	can_draw = false;
+	
+	sprite_zero_next_scanline = false;
+	sprite_zero_this_scanline = false;
+	sprite_zero_hit = false;
 
 	for(int x = 0; x < SCREEN_WIDTH; x++) {
 		for(int y = 0; y < SCREEN_HEIGHT; y++) {
@@ -221,6 +225,7 @@ void PPU::clearOAM() {
 	}
 }
 
+
 void PPU::clockTick() {
 	switch(scanline) {
 		case 0 ... 239: scanlineCycle<VISIBLE>(); break;
@@ -231,8 +236,8 @@ void PPU::clockTick() {
 	}
 
 	if (++cycle > 340) {
-		cycle %= 341;
-		if (++scanline > 261) {
+		cycle -= 341;
+		if (++scanline == 262) {
 			scanline = 0;
 			odd_frame = !odd_frame;
 		}
@@ -255,6 +260,7 @@ void PPU::scanlineCycle() {
 				if (s == PRERENDER) {
 					setStatusFlag(SPRITE_OVERFLOW, false);
 					setStatusFlag(SPRITE_0_HIT, false);
+					sprite_zero_hit = false;
 				}
 				break;
 
@@ -445,7 +451,7 @@ Word PPU::backgroundAddress() {
 
 void PPU::incrementVRAMAddress() {
 	
-	if (renderingIsEnabled() && !in_vblank) {
+	if (rendering() && !in_vblank) {
 		// this will happen if PPU_DATA read/writes occur during rendering
 		dout("increment VRAM address outside vblank");
 		incrementXComponent();
@@ -563,7 +569,7 @@ void PPU::loadSpritesOnScanline() {
 
 			// increment secondary OAM index
 			if (++j > 8) {
-				if (renderingIsEnabled()) {
+				if (rendering()) {
 					setStatusFlag(SPRITE_OVERFLOW);
 				}
 				break;
@@ -651,7 +657,10 @@ void PPU::renderPixel() {
 					if (spr_palette == 0) continue; // transparent
 
 					if ((i == 0) && sprite_zero_this_scanline && palette
-						&& (x != 255)) setStatusFlag(SPRITE_0_HIT);
+						&& (x != 255) && !sprite_zero_hit) {
+						sprite_zero_hit = true;
+						setStatusFlag(SPRITE_0_HIT);
+					}
 
 					spr_palette |= (attributes & SPR_PALETTE) << 2;
 					obj_palette = spr_palette + 16;

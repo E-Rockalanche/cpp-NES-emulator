@@ -5,16 +5,11 @@
 
 class Controller {
 public:
-	Controller();
+	Controller() {};
 	virtual ~Controller() {}
-	bool read();
-	void write(Byte value);
-	void reset();
-
-protected:
-	int current_button;
-	bool buttons[8];
-	bool strobe;
+	virtual Byte read() = 0;
+	virtual void write(Byte value) = 0;
+	virtual void reset() = 0;
 };
 
 #endif

@@ -392,6 +392,7 @@ private:
 
 	bool sprite_zero_next_scanline;
 	bool sprite_zero_this_scanline;
+	bool sprite_zero_hit;
 
 	int cycle;
 	int scanline;

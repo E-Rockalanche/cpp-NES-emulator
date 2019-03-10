@@ -21,13 +21,19 @@ public:
 
 	int keymap[NUM_BUTTONS];
 
-	Joypad() {}
+	Joypad();
 	~Joypad() {}
 	void pressKey(int key);
 	void releaseKey(int key);
+	Byte read();
+	void write(Byte value);
+	void reset();
 
 private:
 	static const char* button_names[NUM_BUTTONS];
+	int current_button;
+	bool buttons[NUM_BUTTONS];
+	bool strobe;
 };
 
 #endif
