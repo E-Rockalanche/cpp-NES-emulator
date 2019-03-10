@@ -5,34 +5,16 @@
 
 class Controller {
 public:
-	enum Button {
-		A,
-		B,
-		SELECT,
-		START,
-		UP,
-		DOWN,
-		LEFT,
-		RIGHT,
-
-		NUM_BUTTONS
-	};
-
-	int keymap[NUM_BUTTONS];
-
 	Controller();
+	virtual ~Controller() {}
 	bool read();
 	void write(Byte value);
-	void pressKey(int key);
-	void releaseKey(int key);
-	void resetButtons();
+	void reset();
 
-private:
-	static const char* key_names[NUM_BUTTONS];
-
-	bool strobe = false;
-	int current_button = 0;
-	bool buttons[NUM_BUTTONS];
+protected:
+	int current_button;
+	bool buttons[8];
+	bool strobe;
 };
 
 #endif
