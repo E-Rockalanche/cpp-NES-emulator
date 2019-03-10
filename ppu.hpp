@@ -15,6 +15,7 @@ public:
 	Byte readByte(Word address);
 	void writeByte(Word address, Byte value);
 	void clockTick();
+	void power();
 	void reset();
 	void setCPU(CPU* cpu);
 	const Pixel* getSurface();
@@ -356,6 +357,7 @@ private:
 	int wait_cycles;
 
 	Byte open_bus;
+	int open_bus_decay_timer;
 
 	bool write_toggle; // used to set x_scroll/y_scroll and vram_address
 	Byte control;
@@ -366,7 +368,6 @@ private:
 	Word temp_vram_address; // 15 bits
 	Byte fine_x_scroll; // 3 bits
 	bool in_vblank;
-	Byte oam_data_high;
 
 	Byte bg_latch_low;
 	Byte bg_latch_high;

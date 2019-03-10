@@ -1,4 +1,4 @@
-TARGET := test.exe
+TARGET := nes.exe
 CXX := g++
 
 ifeq ($(OS), windows)
@@ -14,10 +14,10 @@ CFLAGS := -c -std=c++17 -Ofast
 MAKE_OBJ = $(CXX) $< -o $@ $(CFLAGS)
 MAKE_EXE = $(CXX) $^ -o $@ $(LFLAGS)
 
-$(TARGET):	test_cpu.o cpu.o ppu.o apu.o cartridge.o controller.o mapper1.o
+$(TARGET):	main.o cpu.o ppu.o apu.o cartridge.o mapper1.o controller.o joypad.o zapper.o
 	$(MAKE_EXE)
 
-test_cpu.o:	test_cpu.cpp cpu.hpp ppu.hpp apu.hpp debugging.hpp common.hpp controller.hpp
+main.o: main.cpp cpu.hpp ppu.hpp apu.hpp debugging.hpp common.hpp controller.hpp
 	$(MAKE_OBJ)
 
 cpu.o:	cpu.cpp cpu.hpp ppu.hpp cartridge.hpp controller.hpp debugging.hpp common.hpp
@@ -36,6 +36,12 @@ mapper1.o:	mappers/mapper1.cpp mappers/mapper1.hpp cartridge.hpp debugging.hpp c
 	$(MAKE_OBJ)
 
 controller.o:	controller.cpp controller.hpp debugging.hpp common.hpp
+	$(MAKE_OBJ)
+
+joypad.o:	joypad.cpp joypad.hpp controller.hpp
+	$(MAKE_OBJ)
+
+zapper.o:	zapper.cpp zapper.hpp controller.hpp
 	$(MAKE_OBJ)
 
 clean:

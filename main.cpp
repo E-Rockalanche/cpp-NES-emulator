@@ -1,12 +1,16 @@
 #include <iostream>
 #include <string>
 #include <windows.h>
+#include <cstdlib>
+#include <ctime>
+
 #include "debugging.hpp"
 #include "cpu.hpp"
 #include "ppu.hpp"
 #include "apu.hpp"
 #include "cartridge.hpp"
-#include "controller.hpp"
+#include "joypad.hpp"
+#include "zapper.hpp"
 
 #include <GL/gl.h>
 #include <GL/glu.h>
@@ -17,7 +21,8 @@ bool good;
 CPU cpu;
 PPU ppu;
 APU apu;
-Controller controller1, controller2;
+Joypad joypad;
+Zapper zapper;
 
 const Pixel* surface;
 
@@ -42,21 +47,31 @@ void reset() {
 	cpu.reset();
 	ppu.reset();
 
-	cpu._break = true;
+	for(int i = 0; i < rand() % 4; i++) {
+		ppu.clockTick();
+	}
 
-	controller1.resetButtons();
-	controller2.resetButtons();
+	joypad.reset();
+	zapper.reset();
+}
+
+void power() {
+	cpu.power();
+	ppu.power();
+
+	for(int i = 0; i < rand() % 4; i++) {
+		ppu.clockTick();
+	}
+
+	joypad.reset();
+	zapper.reset();
 }
 
 void step() {
 	if (cpu.halted()) {
 		std::cout << "HALTED\n";
 	} else {
-		do {
-			ppu.clockTick();
-			ppu.clockTick();
-			ppu.clockTick();
-		} while(!cpu.clockTick());
+		cpu.execute();
 	}
 }
 
@@ -142,33 +157,51 @@ void keyboard(unsigned char key, int x, int y)  {
 			break;
 
 		default:
-			controller1.pressKey(key);
-			controller2.pressKey(key);
+			joypad.pressKey(key);
 	}
 }
 
 void specialKeyboard(int key, int x, int y) {
-	controller1.pressKey(key);
-	controller2.pressKey(key);
+	joypad.pressKey(key);
 }
 
 void keyboardRelease(unsigned char key, int x, int y) {
-	controller1.releaseKey(key);
-	controller2.releaseKey(key);
+	joypad.releaseKey(key);
 }
 
 void specialRelease(int key, int x, int y) {
-	controller1.releaseKey(key);
-	controller2.releaseKey(key);
+	joypad.releaseKey(key);
+}
+
+void mouseButton(int button, int state, int x, int y) {
+	if (button == GLUT_LEFT_BUTTON) {
+		if (state == GLUT_DOWN) {
+			zapper.pull();
+		} else {
+			zapper.release();
+		}
+	}
+}
+
+int mouse_x, mouse_y;
+
+void mouseMotion(int x, int y) {
+	mouse_x = x;
+	mouse_y = y;
 }
 
 void renderScene()  {
-	while(!cpu.halted() && !cpu._break && !ppu.readyToDraw()) {
-		cpu.clockTick();
+	// zapper detect light
+	if (mouse_x >= 0 && mouse_x < PPU::SCREEN_WIDTH && mouse_y >= 0 && mouse_y < PPU::SCREEN_HEIGHT) {
+		Pixel p = surface[mouse_x + mouse_y * PPU::SCREEN_WIDTH];
+		zapper.setLight(p.red >= 0xf8 && p.blue >= 0xf8 && p.green >= 0xf8);
+	} else {
+		zapper.setLight(false);
+	}
 
-		ppu.clockTick();
-		ppu.clockTick();
-		ppu.clockTick();
+	// run frame
+	while(!cpu.halted() && !cpu._break && !ppu.readyToDraw()) {
+		cpu.execute();
 	}
 	glDrawPixels(PPU::SCREEN_WIDTH, PPU::SCREEN_HEIGHT,  GL_RGB, GL_UNSIGNED_BYTE, surface);
 	glutSwapBuffers();
@@ -191,29 +224,31 @@ void idle() {
 }
 
 int main(int argc, char* argv[]) {
+	srand(time(NULL));
+
 	surface = ppu.getSurface();
 
 	cpu.setPPU(&ppu);
 	cpu.setAPU(&apu);
 	ppu.setCPU(&cpu);
 	
-	cpu.setController(&controller1, 0);
-	cpu.setController(&controller2, 1);
+	cpu.setController(&joypad, 0);
+	cpu.setController(&zapper, 1);
 
-	controller1.keymap[Controller::A] = 'v';
-	controller1.keymap[Controller::B] = 'c';
-	controller1.keymap[Controller::START] = 13; // enter
-	controller1.keymap[Controller::SELECT] = ' '; // spacebar
-	controller1.keymap[Controller::RIGHT] = GLUT_KEY_RIGHT;
-	controller1.keymap[Controller::LEFT] = GLUT_KEY_LEFT;
-	controller1.keymap[Controller::UP] = GLUT_KEY_UP;
-	controller1.keymap[Controller::DOWN] = GLUT_KEY_DOWN;
+	joypad.keymap[Joypad::A] = 'v';
+	joypad.keymap[Joypad::B] = 'c';
+	joypad.keymap[Joypad::START] = 13; // enter
+	joypad.keymap[Joypad::SELECT] = ' '; // spacebar
+	joypad.keymap[Joypad::RIGHT] = GLUT_KEY_RIGHT;
+	joypad.keymap[Joypad::LEFT] = GLUT_KEY_LEFT;
+	joypad.keymap[Joypad::UP] = GLUT_KEY_UP;
+	joypad.keymap[Joypad::DOWN] = GLUT_KEY_DOWN;
 
 	std::string filename;
 	if (argc > 1) {
 		filename = argv[1];
 		if (loadFile(filename.c_str())) {
-			reset();
+			power();
 			std::cout << "Loaded " << filename << '\n';
 		} else {
 			std::cout << "Could not load " << filename << '\n';

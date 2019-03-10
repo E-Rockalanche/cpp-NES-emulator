@@ -1,28 +1,17 @@
 #include "controller.hpp"
-#include "debugging.hpp"
-
-const char* Controller::key_names[] = {
-	"A",
-	"B",
-	"select",
-	"start",
-	"up",
-	"down",
-	"left",
-	"right"
-};
 
 Controller::Controller() {
-	for(int n = 0; n < NUM_BUTTONS; n++) {
+	for(int n = 0; n < 8; n++) {
 		buttons[n] = false;
 	}
+	strobe = false;
 }
 
 bool Controller::read() {
-	return buttons[current_button++];
 	if (strobe) {
 		current_button = 0;
 	}
+	return buttons[current_button++ % 8];
 }
 
 void Controller::write(Byte value) {
@@ -32,23 +21,7 @@ void Controller::write(Byte value) {
 	}
 }
 
-void Controller::pressKey(int key) {
-	for(int n = 0; n < 8; n++) {
-		if (keymap[n] == key) {
-			buttons[n] = true;
-		}
-	}
-}
-
-void Controller::releaseKey(int key) {
-	for(int n = 0; n < 8; n++) {
-		if (keymap[n] == key) {
-			buttons[n] = false;
-		}
-	}
-}
-
-void Controller::resetButtons() {
+void Controller::reset() {
 	for(int n = 0; n < 8; n++) {
 		buttons[n] = false;
 	}
