@@ -9,6 +9,8 @@
 #include "cartridge.hpp"
 #include "joypad.hpp"
 #include "zapper.hpp"
+#include "file_path.hpp"
+#include "program_end.hpp"
 
 #include <GL/gl.h>
 #include <GL/glu.h>
@@ -21,6 +23,10 @@ PPU ppu;
 APU apu;
 Joypad joypad;
 Zapper zapper;
+Cartridge* cartridge = NULL;
+
+std::string file_path;
+std::string file_name;
 
 const Pixel* surface;
 
@@ -29,17 +35,30 @@ const double TIME_PER_FRAME = 1000.0 / TARGET_FPS;
 int g_start_time;
 int g_current_frame_number;
 
-bool loadFile(const char* filename) {
-	Cartridge* cartridge = Cartridge::loadFile(filename);
+bool loadFile(std::string filename) {
+	cartridge = Cartridge::loadFile(filename);
 	if (!cartridge) {
 		dout("could not load " << filename);
 		return false;
 	} else {
+		if (cartridge->hasSRAM()) {
+			file_path = getPath(filename);
+			file_name = getFilename(filename);
+			cartridge->loadSave(file_path + file_name + ".sav");
+		}
 		cpu.setCartridge(cartridge);
 		ppu.setCartridge(cartridge);
 		return true;
 	}
 }
+
+// close program callback
+void quit() {
+	if (cartridge && cartridge->hasSRAM()) {
+		cartridge->saveGame(file_path + file_name + ".sav");
+	}
+}
+ProgramEnd pe(quit);
 
 void reset() {
 	cpu.reset();
@@ -75,7 +94,9 @@ int readAddress() {
 ====== HELP ======\n\
   x - execute\n\
   r - reset\n\
+  q - quit\n\
   b - break\n\
+  f - frame step\n\
   s - step\n\
   k - breakpoint\n\
   d - dump\n\
@@ -83,6 +104,8 @@ int readAddress() {
   p - dump ppu\n\
   h - help\n\
 ==================\n"
+
+int next_frame = false;
 
 void keyboard(unsigned char key, int x, int y)  {
 	switch(key) {
@@ -95,8 +118,18 @@ void keyboard(unsigned char key, int x, int y)  {
 			reset();
 			break;
 
+		case 'q':
+		case 27: // escape key
+			exit(0);
+			break;
+
 		case 'b': // break
 			cpu._break = true;
+			break;
+
+		case 'f': // frame step
+			cpu._break = true;
+			next_frame = true;
 			break;
 
 		case 's': // step
@@ -167,8 +200,6 @@ void mouseButton(int button, int state, int x, int y) {
 	if (button == GLUT_LEFT_BUTTON) {
 		if (state == GLUT_DOWN) {
 			zapper.pull();
-		} else {
-			zapper.release();
 		}
 	}
 }
@@ -176,13 +207,19 @@ void mouseButton(int button, int state, int x, int y) {
 void mouseMotion(int x, int y) {
 	zapper.aim(x, y);
 }
+void mousePassiveMotion(int x, int y) {
+	zapper.aim(x, y);
+}
 
 void renderScene()  {
-	while(!cpu.halted() && !cpu._break && !ppu.readyToDraw()) {
+	while(!cpu.halted() && (!cpu._break || next_frame) && !ppu.readyToDraw()) {
 		cpu.execute();
 	}
+	next_frame = false;
 	glDrawPixels(PPU::SCREEN_WIDTH, PPU::SCREEN_HEIGHT,  GL_RGB, GL_UNSIGNED_BYTE, surface);
 	glutSwapBuffers();
+
+	zapper.update();
 }
 
 void idle() {
@@ -261,6 +298,7 @@ int main(int argc, char* argv[]) {
 
 	glutMouseFunc(mouseButton);
 	glutMotionFunc(mouseMotion);
+	glutPassiveMotionFunc(mousePassiveMotion);
 
 	glutIgnoreKeyRepeat(GLUT_DEVICE_IGNORE_KEY_REPEAT);
 	

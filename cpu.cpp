@@ -43,6 +43,8 @@
 
 int test_ticks;
 
+bool in_nmi = false;
+
 #define clockTick() { odd_cycle = !odd_cycle; test_ticks++; \
 	ppu->clockTick(); ppu->clockTick(); ppu->clockTick(); }
 
@@ -496,6 +498,10 @@ void CPU::setNMI() {
 	_nmi = true;
 }
 
+void CPU::clearNMI() {
+	_nmi = false;
+}
+
 void CPU::setIRQ() {
 	_irq = true;
 }
@@ -558,6 +564,18 @@ void CPU::writeByte(Word address, Byte value) {
 			break;
 
 		case PPU_START ... PPU_END:
+			/*
+			if (!in_nmi && ppu->nmiEnabled() && ppu->renderingEnabled()) {
+				Word ppu_reg = address - PPU_START;
+				switch(ppu_reg) {
+					case PPU::PPU_SCROLL: dout("write ppu scroll outside nmi"); break;
+					case PPU::PPU_ADDRESS: dout("write ppu address outside nmi"); break;
+					case PPU::PPU_DATA: dout("write ppu data outside nmi"); break;
+					default: break;
+				}
+			}
+			*/
+
 			ppu->writeByte((address - PPU_START) % PPU_SIZE, value);
 			break;
 
@@ -654,6 +672,8 @@ void CPU::nmi() {
 	program_counter = readWord(NMI_VECTOR);
 
 	debugInterrupt(CPU::NMI);
+
+	in_nmi = true;
 }
 
 void CPU::irq() {
@@ -1226,6 +1246,8 @@ void CPU::returnFromInterrupt(CPU::AddressMode address_mode) {
 	debugStatus(DISABLE_INTERRUPTS);
 	debugStatus(ZERO);
 	debugStatus(CARRY);
+
+	in_nmi = false;
 }
 
 void CPU::returnFromSubroutine(CPU::AddressMode address_mode) {

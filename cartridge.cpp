@@ -4,14 +4,14 @@
 
 using namespace std;
 
-Cartridge* Cartridge::loadFile(const char* filename) {
+Cartridge* Cartridge::loadFile(std::string filename) {
 	Cartridge* mapper = NULL;
 	int data_size = 0;
-	Byte* data;
+	Byte* data = NULL;
 
 	ifstream fin(filename, ios::binary);
 	if (!fin.is_open() || !fin.good() || fin.eof()) {
-		dout("Could not open file");
+		dout("Could not open " << filename);
 		return NULL;
 	}
 
@@ -115,6 +115,59 @@ Cartridge::~Cartridge() {
 	delete[] data;
 	delete[] ram;
 	if (has_chr_ram) delete[] chr;
+}
+
+bool Cartridge::hasSRAM() {
+	return data[FLAGS_6] & 0x02;
+}
+
+bool Cartridge::saveGame(std::string filename) {
+	if (!hasSRAM()) {
+		dout("Cartridge does not have SRAM");
+		return false;
+	}
+
+	ofstream fout(filename, ios::binary);
+	if (!(fout.is_open() && fout.good())) {
+		dout("Could not open " << filename);
+		return false;
+	}
+
+	fout.write((const char*)ram, ram_size);
+	fout.close();
+
+	dout("saved to " << filename);
+	return true;
+}
+
+bool Cartridge::loadSave(std::string filename) {
+	if (!hasSRAM()) {
+		dout("Cartridge does not have SRAM");
+		return false;
+	}
+
+	ifstream fin(filename, ios::binary);
+	if (!(fin.is_open() && fin.good())) {
+		dout("Could not open " << filename);
+		return false;
+	}
+
+	// check file size
+	fin.seekg(0, ios::end);
+	int file_size = fin.tellg();
+	fin.seekg(0);
+
+	if (file_size != ram_size) {
+		dout("Save file is not 8KB");
+		fin.close();
+		return false;
+	}
+
+	fin.read((char*)ram, ram_size);
+	fin.close();
+
+	dout("loaded " << filename);
+	return true;
 }
 
 Cartridge::NameTableMirroring Cartridge::nameTableMirroring() {

@@ -63,6 +63,9 @@ void PPU::power() {
 	fine_x_scroll = 0;
 
 	in_vblank = false;
+	suppress_vblank = false;
+	cycles_since_nmi = -1;
+
 	write_toggle = false;
 	open_bus = 0;
 
@@ -70,7 +73,6 @@ void PPU::power() {
 	
 	sprite_zero_next_scanline = false;
 	sprite_zero_this_scanline = false;
-	sprite_zero_hit = false;
 
 	for(int n = 0; n < PRIMARY_OAM_SIZE; n++) {
 		primary_oam[n] = 0xff;
@@ -97,13 +99,15 @@ void PPU::reset() {
 	mask = 0;
 
 	in_vblank = false;
+	suppress_vblank = false;
+	cycles_since_nmi = -1;
+
 	write_toggle = false;
 
 	can_draw = false;
 	
 	sprite_zero_next_scanline = false;
 	sprite_zero_this_scanline = false;
-	sprite_zero_hit = false;
 
 	for(int x = 0; x < SCREEN_WIDTH; x++) {
 		for(int y = 0; y < SCREEN_HEIGHT; y++) {
@@ -167,8 +171,17 @@ Byte PPU::readByte(Word address) {
 	switch(address) {
 		case PPU_STATUS:
 			open_bus = (open_bus & 0x1f) | status;
-			setStatusFlag(VERTICAL_BLANK, false);
+			clearVBlank();
 			write_toggle = false;
+
+			if (scanline == 241) {
+				if (cycle == 0) {
+					suppress_vblank = true;
+				} else if ((cycle == 1) && (cycles_since_nmi != -1)) {
+					dout("suppressed vblank");
+					cpu->clearNMI();
+				}
+			}
 			break;
 
 		case OAM_DATA:
@@ -203,7 +216,7 @@ void PPU::setStatusFlag(int flag, bool value) {
 	}
 }
 
-bool PPU::rendering() {
+bool PPU::renderingEnabled() {
 	return mask & (SHOW_BACKGROUND | SHOW_SPRITES);
 }
 
@@ -212,11 +225,28 @@ int PPU::spriteHeight() {
 }
 
 void PPU::setVBlank() {
-	setStatusFlag(VERTICAL_BLANK, true);
-	in_vblank = true;
-	if (testFlag(control, NMI_ENABLE)) {
-		cpu->setNMI();
+	if (!suppress_vblank) {
+		setStatusFlag(VBLANK, true);
+	} else {
+		dout("suppressed vblank");
 	}
+	suppress_vblank = false;
+	nmiChange();
+}
+
+void PPU::clearVBlank() {
+	setStatusFlag(VBLANK, false);
+	nmiChange();
+}
+
+void PPU::nmiChange() {
+	bool nmi = testFlag(control, NMI_ENABLE)
+		&& testFlag(status, VBLANK);
+	
+	if (nmi && !nmi_previous) {
+		nmi_delay = 2;
+	}
+	nmi_previous = nmi;
 }
 
 void PPU::clearOAM() {
@@ -225,22 +255,35 @@ void PPU::clearOAM() {
 	}
 }
 
-
 void PPU::clockTick() {
+	if (++cycle > 340) {
+		cycle -= 341;
+		scanline = (scanline + 1) % 262;
+		if (scanline == 261) {
+			odd_frame = !odd_frame; // CHECK
+		}
+	}
+
+	if (nmi_delay-- > 0) {
+		if (nmi_delay == 0 && testFlag(control, NMI_ENABLE) && testFlag(status, VBLANK)) {
+			cpu->setNMI();
+			cycles_since_nmi = 0;
+		}
+	}
+
+	if (cycles_since_nmi >= 0) {
+		cycles_since_nmi++;
+		if (cycles_since_nmi > 3) {
+			cycles_since_nmi = -1;
+		}
+	}
+
 	switch(scanline) {
 		case 0 ... 239: scanlineCycle<VISIBLE>(); break;
 		case 240: scanlineCycle<POSTRENDER>(); break;
-		case 241: scanlineCycle<VBLANK>(); break;
+		case 241: scanlineCycle<VBLANK_LINE>(); break;
 		case 261: scanlineCycle<PRERENDER>(); break;
 		default: break;
-	}
-
-	if (++cycle > 340) {
-		cycle -= 341;
-		if (++scanline == 262) {
-			scanline = 0;
-			odd_frame = !odd_frame;
-		}
 	}
 }
 
@@ -248,8 +291,9 @@ template <PPU::Scanline s>
 void PPU::scanlineCycle() {
 	static Word address = 0;
 
-	if (s == VBLANK && cycle == 1) {
+	if (s == VBLANK_LINE && cycle == 1) {
 		setVBlank();
+		in_vblank = true;
 	} else if (s == POSTRENDER && cycle == 0) {
 		can_draw = true;
 	} else if (s == VISIBLE || s == PRERENDER) {
@@ -260,7 +304,6 @@ void PPU::scanlineCycle() {
 				if (s == PRERENDER) {
 					setStatusFlag(SPRITE_OVERFLOW, false);
 					setStatusFlag(SPRITE_0_HIT, false);
-					sprite_zero_hit = false;
 				}
 				break;
 
@@ -315,6 +358,8 @@ void PPU::scanlineCycle() {
 				renderPixel();
 				loadShiftRegisters();
 				updateVRAMX();
+
+				oam_address = 0; // CHECK
 				break;
 
 			case 280 ... 304:
@@ -327,7 +372,8 @@ void PPU::scanlineCycle() {
 			case 1:
 				address = nametableAddress();
 				if (s == PRERENDER) {
-					setStatusFlag(VERTICAL_BLANK, false);
+					clearVBlank();
+					in_vblank = false;
 				}
 				break;
 			case 321:
@@ -337,19 +383,19 @@ void PPU::scanlineCycle() {
 			case 338: nametable_latch = read(address); break;
 			case 340:
 				nametable_latch = read(address);
-				if (s == PRERENDER && rendering() && odd_frame) {
+				if (s == PRERENDER && renderingEnabled() && odd_frame) {
 					cycle++;
 				}
 		}
 
 		// signal scanline to mapper
-		// if (cycle == 260 && rendering()) cartridge->signalScanline();
+		// if (cycle == 260 && renderingEnabled()) cartridge->signalScanline();
 	}
 }
 
 void PPU::writeToControl(Byte value) {
 	control = value;
-	if (testFlag(control, NMI_ENABLE) && testFlag(status, VERTICAL_BLANK)) {
+	if (testFlag(control, NMI_ENABLE) && testFlag(status, VBLANK)) {
 		cpu->setNMI();
 	}
 	temp_vram_address = (temp_vram_address & 0x73ff)
@@ -387,7 +433,7 @@ void PPU::writeToAddress(Byte value) {
 }
 
 void PPU::incrementXComponent() {
-	if (!rendering()) return;
+	if (!renderingEnabled()) return;
 
 	if ((vram_address & 0x001f) == 31) { // if coarse X == 31
 		vram_address ^= 0x041f;
@@ -401,7 +447,7 @@ void PPU::incrementXComponent() {
 }
 
 void PPU::incrementYComponent() {
-	if (!rendering()) return;
+	if (!renderingEnabled()) return;
 
 	if ((vram_address & 0x7000) != 0x7000) { // if fine Y < 7
 		vram_address += 0x1000; // increment fine Y
@@ -421,13 +467,13 @@ void PPU::incrementYComponent() {
 }
 
 void PPU::updateVRAMX() {
-	if (!rendering()) return;
+	if (!renderingEnabled()) return;
 	static const int X_COMPONENT = 0x041f;
 	vram_address = (vram_address & ~X_COMPONENT) | (temp_vram_address & X_COMPONENT);
 }
 
 void PPU::updateVRAMY() {
-	if (!rendering()) return;
+	if (!renderingEnabled()) return;
 	static const int Y_COMPONENT = 0x7be0;
 	vram_address = (vram_address & ~Y_COMPONENT) | (temp_vram_address & Y_COMPONENT);
 }
@@ -450,17 +496,21 @@ Word PPU::backgroundAddress() {
 }
 
 void PPU::incrementVRAMAddress() {
-	
-	if (rendering() && !in_vblank) {
+	/*
+	if (renderingEnabled() && !testFlag(status, VBLANK)) {
 		// this will happen if PPU_DATA read/writes occur during rendering
 		dout("increment VRAM address outside vblank");
+		if (in_vblank) {
+			dout("actually in vblank");
+		}
 		incrementXComponent();
 		incrementYComponent();
 	} else {
 		vram_address += testFlag(control, INCREMENT_MODE) ? 32 : 1;
 	}
+	*/
 	
-	// vram_address += testFlag(control, INCREMENT_MODE) ? 32 : 1;
+	vram_address += testFlag(control, INCREMENT_MODE) ? 32 : 1;
 }
 
 void PPU::writeToOAM(Byte value) {
@@ -569,7 +619,7 @@ void PPU::loadSpritesOnScanline() {
 
 			// increment secondary OAM index
 			if (++j > 8) {
-				if (rendering()) {
+				if (renderingEnabled()) {
 					setStatusFlag(SPRITE_OVERFLOW);
 				}
 				break;
@@ -614,16 +664,17 @@ void PPU::loadSpriteRegisters() {
 #define bit(value, n) (((value) >> (n)) & 1)
 
 void PPU::renderPixel() {
-	if (rendering()) {
+	if (renderingEnabled()) {
 		Byte palette = 0;
 		Byte obj_palette = 0;
 		bool obj_priority = 0;
 		int x = cycle - 2;
 
 		if (scanline < 240 && x >= 0 && x < 256) {
+			
 			// background
-			if (testFlag(mask, SHOW_BACKGROUND)
-					&& (testFlag(mask, SHOW_BKG_LEFT_8) || (x >= 8))) {
+			bool show_background = testFlag(mask, SHOW_BACKGROUND);
+			if (show_background && (testFlag(mask, SHOW_BKG_LEFT_8) || (x >= 8))) {
 				palette = (bit(bg_shift_high, 15 - fine_x_scroll) << 1)
 					| bit(bg_shift_low, 15 - fine_x_scroll);
 				if (palette) {
@@ -633,8 +684,8 @@ void PPU::renderPixel() {
 			}
 
 			//sprites
-			if (testFlag(mask, SHOW_SPRITES)
-					&& (testFlag(mask, SHOW_SPR_LEFT_8) || (x >= 8))) {
+			bool show_sprites = testFlag(mask, SHOW_SPRITES);
+			if (show_sprites && (testFlag(mask, SHOW_SPR_LEFT_8) || (x >= 8))) {
 				for(int i = 7; i >= 0; i--) {
 					Byte attributes = sprite_attribute_latch[i];
 
@@ -645,7 +696,7 @@ void PPU::renderPixel() {
 					*/
 
 					unsigned int sprite_x = x - sprite_x_counter[i];
-					if (sprite_x >= 8) continue; // not in range
+					if (sprite_x < 0 || sprite_x >= 8 || x >= 255) continue; // not in range
 
 					if (testFlag(attributes, FLIP_HOR)) {
 						sprite_x ^= 0x07;
@@ -654,12 +705,16 @@ void PPU::renderPixel() {
 					Byte spr_palette = (bit(sprite_shift_high[i], 7 - sprite_x) << 1)
 						| bit(sprite_shift_low[i], 7 - sprite_x);
 
-					if (spr_palette == 0) continue; // transparent
+					if ((spr_palette & 0x3) == 0) continue; // transparent
 
-					if ((i == 0) && sprite_zero_this_scanline && palette
-						&& (x != 255) && !sprite_zero_hit) {
-						sprite_zero_hit = true;
+					if (sprite_zero_this_scanline && (i == 0) // hit sprite 0
+							&& show_background && palette // background not transparent
+							&& (x < 255)) { // doesn't check at x=255
+						sprite_zero_this_scanline = false;
 						setStatusFlag(SPRITE_0_HIT);
+
+						if (scanline == 1)
+							dout("sprite0 hit cycle: " << cycle);
 					}
 
 					spr_palette |= (attributes & SPR_PALETTE) << 2;
@@ -672,7 +727,7 @@ void PPU::renderPixel() {
 				palette = obj_palette;
 			}
 
-			int palette_index = read(PALETTE_START + (rendering() ? palette : 0));
+			int palette_index = read(PALETTE_START + (renderingEnabled() ? palette : 0));
 			int y = (SCREEN_HEIGHT - 1 - scanline);
 			surface[y * SCREEN_WIDTH + x] = Pixel(nes_palette[palette_index]);
 		}
@@ -704,4 +759,8 @@ void PPU::dump() {
 		std::cout << "[" << n << "]: " << (int)palette[n] << '\n';
 	}
 	std::cout << "=====================\n";
+}
+
+bool PPU::nmiEnabled() {
+	return testFlag(control, NMI_ENABLE);
 }

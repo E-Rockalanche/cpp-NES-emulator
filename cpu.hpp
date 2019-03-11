@@ -24,6 +24,7 @@ public:
 	void power();
 	void execute();
 	void setNMI();
+	void clearNMI();
 	void setIRQ();
 	bool halted();
 	bool breaked();
