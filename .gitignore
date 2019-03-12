@@ -1,6 +1,12 @@
 # cpp-NES-emulator GitIgnore
 # created by Eric Roberts
 
+# build
 *.o
 *.exe
+
+# illegal stuff
 roms/
+
+# tests
+tests/
