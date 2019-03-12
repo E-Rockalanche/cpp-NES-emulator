@@ -3,7 +3,9 @@
 A catch-up style cycle acurate NES emulator written in c++
 
 ## Mappers working
-0-1
+0 - NROM
+1 - MMC1
+2 - UxROM
 
 ## Tests failing
 cpu_dummy_writes_oam
