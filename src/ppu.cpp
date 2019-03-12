@@ -344,8 +344,6 @@ void PPU::scanlineCycle() {
 				renderPixel();
 				loadShiftRegisters();
 				updateVRAMX();
-
-				oam_address = 0; // CHECK
 				break;
 
 			case 280 ... 304:
