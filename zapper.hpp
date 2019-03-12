@@ -5,11 +5,22 @@
 
 class Zapper : public Controller {
 public:
-	Zapper() {}
+	Zapper(const Pixel* screen = NULL);
 	~Zapper() {}
+	void setScreen(const Pixel* screen);
+	Byte read();
+	void write(Byte value) {}
 	void pull();
+	void update();
 	void release();
-	void setLight(bool light);
+	bool detectingLight();
+	void reset();
+	void aim(int x, int y);
+
+private:
+	int trigger_held;
+	int x, y;
+	const Pixel* screen;
 };
 
 #endif

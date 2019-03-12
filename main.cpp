@@ -1,8 +1,8 @@
 #include <iostream>
 #include <string>
 #include <windows.h>
-#include <cstdlib>
 #include <ctime>
+#include <cstdlib>
 
 #include "debugging.hpp"
 #include "cpu.hpp"
@@ -11,6 +11,8 @@
 #include "cartridge.hpp"
 #include "joypad.hpp"
 #include "zapper.hpp"
+#include "file_path.hpp"
+#include "program_end.hpp"
 
 #include <GL/gl.h>
 #include <GL/glu.h>
@@ -23,6 +25,10 @@ PPU ppu;
 APU apu;
 Joypad joypad;
 Zapper zapper;
+Cartridge* cartridge = NULL;
+
+std::string file_path;
+std::string file_name;
 
 const Pixel* surface;
 
@@ -31,25 +37,34 @@ const double TIME_PER_FRAME = 1000.0 / TARGET_FPS;
 int g_start_time;
 int g_current_frame_number;
 
-bool loadFile(const char* filename) {
-	Cartridge* cartridge = Cartridge::loadFile(filename);
+bool loadFile(std::string filename) {
+	cartridge = Cartridge::loadFile(filename);
 	if (!cartridge) {
 		dout("could not load " << filename);
 		return false;
 	} else {
+		if (cartridge->hasSRAM()) {
+			file_path = getPath(filename);
+			file_name = getFilename(filename);
+			cartridge->loadSave(file_path + file_name + ".sav");
+		}
 		cpu.setCartridge(cartridge);
 		ppu.setCartridge(cartridge);
 		return true;
 	}
 }
 
+// close program callback
+void quit() {
+	if (cartridge && cartridge->hasSRAM()) {
+		cartridge->saveGame(file_path + file_name + ".sav");
+	}
+}
+ProgramEnd pe(quit);
+
 void reset() {
 	cpu.reset();
 	ppu.reset();
-
-	for(int i = 0; i < rand() % 4; i++) {
-		ppu.clockTick();
-	}
 
 	joypad.reset();
 	zapper.reset();
@@ -58,10 +73,6 @@ void reset() {
 void power() {
 	cpu.power();
 	ppu.power();
-
-	for(int i = 0; i < rand() % 4; i++) {
-		ppu.clockTick();
-	}
 
 	joypad.reset();
 	zapper.reset();
@@ -85,7 +96,9 @@ int readAddress() {
 ====== HELP ======\n\
   x - execute\n\
   r - reset\n\
+  q - quit\n\
   b - break\n\
+  f - frame step\n\
   s - step\n\
   k - breakpoint\n\
   d - dump\n\
@@ -93,6 +106,8 @@ int readAddress() {
   p - dump ppu\n\
   h - help\n\
 ==================\n"
+
+int next_frame = false;
 
 void keyboard(unsigned char key, int x, int y)  {
 	switch(key) {
@@ -105,8 +120,18 @@ void keyboard(unsigned char key, int x, int y)  {
 			reset();
 			break;
 
+		case 'q':
+		case 27: // escape key
+			exit(0);
+			break;
+
 		case 'b': // break
 			cpu._break = true;
+			break;
+
+		case 'f': // frame step
+			cpu._break = true;
+			next_frame = true;
 			break;
 
 		case 's': // step
@@ -177,34 +202,26 @@ void mouseButton(int button, int state, int x, int y) {
 	if (button == GLUT_LEFT_BUTTON) {
 		if (state == GLUT_DOWN) {
 			zapper.pull();
-		} else {
-			zapper.release();
 		}
 	}
 }
 
-int mouse_x, mouse_y;
-
 void mouseMotion(int x, int y) {
-	mouse_x = x;
-	mouse_y = y;
+	zapper.aim(x, y);
+}
+void mousePassiveMotion(int x, int y) {
+	zapper.aim(x, y);
 }
 
 void renderScene()  {
-	// zapper detect light
-	if (mouse_x >= 0 && mouse_x < PPU::SCREEN_WIDTH && mouse_y >= 0 && mouse_y < PPU::SCREEN_HEIGHT) {
-		Pixel p = surface[mouse_x + mouse_y * PPU::SCREEN_WIDTH];
-		zapper.setLight(p.red >= 0xf8 && p.blue >= 0xf8 && p.green >= 0xf8);
-	} else {
-		zapper.setLight(false);
-	}
-
-	// run frame
-	while(!cpu.halted() && !cpu._break && !ppu.readyToDraw()) {
+	while(!cpu.halted() && (!cpu._break || next_frame) && !ppu.readyToDraw()) {
 		cpu.execute();
 	}
+	next_frame = false;
 	glDrawPixels(PPU::SCREEN_WIDTH, PPU::SCREEN_HEIGHT,  GL_RGB, GL_UNSIGNED_BYTE, surface);
 	glutSwapBuffers();
+
+	zapper.update();
 }
 
 void idle() {
@@ -231,6 +248,8 @@ int main(int argc, char* argv[]) {
 	cpu.setPPU(&ppu);
 	cpu.setAPU(&apu);
 	ppu.setCPU(&cpu);
+
+	zapper.setScreen(surface);
 	
 	cpu.setController(&joypad, 0);
 	cpu.setController(&zapper, 1);
@@ -278,6 +297,10 @@ int main(int argc, char* argv[]) {
 	glutSpecialFunc(specialKeyboard);
 	glutKeyboardUpFunc(keyboardRelease);
 	glutSpecialUpFunc(specialRelease);
+
+	glutMouseFunc(mouseButton);
+	glutMotionFunc(mouseMotion);
+	glutPassiveMotionFunc(mousePassiveMotion);
 
 	glutIgnoreKeyRepeat(GLUT_DEVICE_IGNORE_KEY_REPEAT);
 	
