@@ -3,4 +3,4 @@
 
 *.o
 *.exe
-*.nes
+roms/
