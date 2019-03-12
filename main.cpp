@@ -1,6 +1,8 @@
 #include <iostream>
 #include <string>
 #include <windows.h>
+#include <ctime>
+#include <cstdlib>
 
 #include "debugging.hpp"
 #include "cpu.hpp"

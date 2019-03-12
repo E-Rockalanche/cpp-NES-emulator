@@ -290,7 +290,6 @@ private:
 
 	void setVBlank();
 	void clearVBlank();
-	void nmiChange();
 
 	Word nametableMirror(Word address);
 	Byte read(Word address);
