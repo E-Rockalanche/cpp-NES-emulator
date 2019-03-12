@@ -1,0 +1,6 @@
+# cpp-NES-emulator GitIgnore
+# created by Eric Roberts
+
+*.o
+*.exe
+*.nes
