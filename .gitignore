@@ -7,3 +7,6 @@
 
 # illegal stuff
 roms/
+
+# tests
+tests/
