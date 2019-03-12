@@ -1,12 +1,12 @@
 TARGET := nes.exe
 CXX := g++
 
-ifeq ($(OS), windows)
-	LFLAGS := -static -lm -lglut32cu -lglu32 -lopengl32
-	CLEAN := del *.o $(TARGET)
-else
+ifeq ($(OS), unix)
 	LFLAGS := -lm -lGL -lGLU -lglut
 	CLEAN := rm *.o $(TARGET)
+else
+	LFLAGS := -static -lm -lglut32cu -lglu32 -lopengl32
+	CLEAN := del *.o $(TARGET)
 endif
 
 CFLAGS := -c -std=c++17 -Ofast

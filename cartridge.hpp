@@ -22,10 +22,13 @@ public:
 		*/
 	};
 
-	static Cartridge* loadFile(const char* filename);
+	static Cartridge* loadFile(std::string);
 
 	Cartridge(Byte* data);
 	virtual ~Cartridge();
+	bool hasSRAM();
+	bool saveGame(std::string);
+	bool loadSave(std::string);
 
 	Byte readPRG(Word address);
 	virtual void writePRG(Word address, Byte value) {}

@@ -21,7 +21,10 @@ public:
 	const Pixel* getSurface();
 	bool readyToDraw();
 	void writeToOAM(Byte value);
+	bool renderingEnabled();
+
 	void dump();
+	bool nmiEnabled();
 
 	static const int SCREEN_WIDTH = 256;
 	static const int SCREEN_HEIGHT = 240;
@@ -245,7 +248,7 @@ public:
 		Used for raster timing
 		*/
 
-		VERTICAL_BLANK = BL(7),
+		VBLANK = BL(7),
 		/*
 		Set at dot 1 of line 241 (line after post-render line).
 		Cleared after reading $2002 and at dot 1 of the pre-render line
@@ -259,13 +262,13 @@ private:
 		VISIBLE,
 		POSTRENDER,
 		PRERENDER,
-		VBLANK
+		VBLANK_LINE
 	};
 	template <Scanline s>
 	void scanlineCycle();
 
 	void setStatusFlag(int flag, bool value = true);
-	bool rendering();
+
 	int spriteHeight();
 
 	void clearOAM();
@@ -284,7 +287,9 @@ private:
 	void writeToScroll(Byte value);
 	void writeToAddress(Byte value);
 	void renderPixel();
+
 	void setVBlank();
+	void clearVBlank();
 
 	Word nametableMirror(Word address);
 	Byte read(Word address);
@@ -367,7 +372,12 @@ private:
 	Word vram_address; // 15 bits: -yyyNNYYYYYXXXXX (fine y scroll, nametable select, coarse Y scroll, coarse X scroll)
 	Word temp_vram_address; // 15 bits
 	Byte fine_x_scroll; // 3 bits
+
 	bool in_vblank;
+	bool suppress_vblank;
+	bool nmi_previous;
+	int nmi_delay;
+	int cycles_since_nmi;
 
 	Byte bg_latch_low;
 	Byte bg_latch_high;

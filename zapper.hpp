@@ -11,13 +11,14 @@ public:
 	Byte read();
 	void write(Byte value) {}
 	void pull();
+	void update();
 	void release();
 	bool detectingLight();
 	void reset();
 	void aim(int x, int y);
 
 private:
-	bool trigger_held;
+	int trigger_held;
 	int x, y;
 	const Pixel* screen;
 };

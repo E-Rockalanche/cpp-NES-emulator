@@ -24,6 +24,7 @@ public:
 	void power();
 	void execute();
 	void setNMI();
+	void clearNMI();
 	void setIRQ();
 	bool halted();
 	bool breaked();
@@ -296,7 +297,7 @@ private:
 	bool odd_cycle;
 
 	bool _halt;
-	bool _nmi;
+	int _nmi; // time since nmi was set
 	bool _irq;
 
 	static const int NMI_VECTOR = 0xfffa;
@@ -338,6 +339,7 @@ private:
 
 
 
+	void clockTick();
 
 	Byte readByte(Word address);
 	Word readWord(Word address);

@@ -43,8 +43,7 @@
 
 int test_ticks;
 
-#define clockTick() { odd_cycle = !odd_cycle; test_ticks++; \
-	ppu->clockTick(); ppu->clockTick(); ppu->clockTick(); }
+bool in_nmi = false;
 
 #define cross(addr1, addr2) (((addr1) & 0xff00) != ((addr2) & 0xff00))
 
@@ -464,7 +463,7 @@ void CPU::power() {
 	program_counter = readWord(RESET_VECTOR);
 
 	_halt = false;
-	_nmi = false;
+	_nmi = -1;
 	_irq = false;
 	wait_cycles = 0;
 	odd_cycle = false;
@@ -484,7 +483,7 @@ void CPU::reset() {
 	program_counter = readWord(RESET_VECTOR);
 
 	_halt = false;
-	_nmi = false;
+	_nmi = -1;
 	_irq = false;
 	wait_cycles = 0;
 	odd_cycle = false;
@@ -493,11 +492,28 @@ void CPU::reset() {
 }
 
 void CPU::setNMI() {
-	_nmi = true;
+	_nmi = 0; // time since set
+}
+
+void CPU::clearNMI() {
+	_nmi = -1; // time since set
 }
 
 void CPU::setIRQ() {
 	_irq = true;
+}
+
+void CPU::clockTick() {
+	if (_nmi >= 0) _nmi++;
+
+	odd_cycle = !odd_cycle;
+	//apu->clockTick();
+	ppu->clockTick();
+	ppu->clockTick();
+	ppu->clockTick();
+
+
+	test_ticks++; // debug
 }
 	
 Byte CPU::readByte(Word address) {
@@ -599,8 +615,8 @@ void CPU::execute() {
 		bool do_interrupts = !getStatusFlag(DISABLE_INTERRUPTS);
 		_irq = _irq && do_interrupts;
 
-		if (_nmi) {
-			_nmi = false;
+		if (_nmi > 0) {
+			_nmi = -1;
 			nmi();
 
 			if (test_ticks != wait_cycles) {
@@ -654,6 +670,7 @@ void CPU::nmi() {
 	program_counter = readWord(NMI_VECTOR);
 
 	debugInterrupt(CPU::NMI);
+	in_nmi = true;
 }
 
 void CPU::irq() {
@@ -672,6 +689,7 @@ void CPU::irq() {
 Word CPU::getAddress(CPU::AddressMode address_mode) {
 	Word address = 0;
 	Word page1 = 0;
+	Byte zp = 0;
 	switch(address_mode) {
 		case IMMEDIATE:
 			address = program_counter++;
@@ -687,13 +705,13 @@ Word CPU::getAddress(CPU::AddressMode address_mode) {
 			break;
 
 		case ZERO_PAGE_X:
-			clockTick();
 			address = (readByte(program_counter++) + x_register) & 0xff;
+			clockTick();
 			break;
 
 		case ZERO_PAGE_Y:
-			clockTick();
 			address = (readByte(program_counter++) + y_register) & 0xff;
+			clockTick();
 			break;
 
 		case ABSOLUTE_X:
@@ -729,12 +747,14 @@ Word CPU::getAddress(CPU::AddressMode address_mode) {
 			break;
 
 		case INDIRECT_X:
+			zp = (readByte(program_counter++) + x_register) & 0xff;
 			clockTick();
-			address = readWordBug((readByte(program_counter++) + x_register) & 0xff);
+			address = readWordBug(zp);
 			break;
 
 		case INDIRECT_Y:
-			address = readWordBug(readByte(program_counter++)) + y_register;
+			zp = readByte(program_counter++);
+			address = readWordBug(zp) + y_register;
 			if (cross(address - y_register, address)) {
 				clockTick();
 				wait_cycles++;
@@ -878,9 +898,9 @@ void CPU::bitwiseAnd(CPU::AddressMode address_mode) {
 void CPU::shiftLeft(CPU::AddressMode address_mode) {
 	int result;
 	if (address_mode == ACCUMULATOR) {
+		readByte(program_counter); // dummy read
 		result = accumulator << 1;
 		accumulator = result & 0xff;
-		clockTick();
 
 		debugSpecific("acc << 1 = " << toHex(accumulator));
 	} else {
@@ -949,26 +969,30 @@ void CPU::branchOnOverflowSet(CPU::AddressMode address_mode) {
 }
 
 void CPU::clearCarryFlag(CPU::AddressMode address_mode) {
-	setStatusFlag(CARRY, Constant<bool, false>());
 	clockTick();
+	setStatusFlag(CARRY, Constant<bool, false>());
+
 	debugStatus(CARRY);
 }
 
 void CPU::clearDecimalFlag(CPU::AddressMode address_mode) {
-	setStatusFlag(DECIMAL, Constant<bool, false>());
 	clockTick();
+	setStatusFlag(DECIMAL, Constant<bool, false>());
+
 	debugStatus(DECIMAL);
 }
 
 void CPU::clearInterruptDisableFlag(CPU::AddressMode address_mode) {
-	setStatusFlag(DISABLE_INTERRUPTS, Constant<bool, false>());
 	clockTick();
+	setStatusFlag(DISABLE_INTERRUPTS, Constant<bool, false>());
+
 	debugStatus(DISABLE_INTERRUPTS);
 }
 
 void CPU::clearOverflowFlag(CPU::AddressMode address_mode) {
-	setStatusFlag(OVERFLOW, Constant<bool, false>());
 	clockTick();
+	setStatusFlag(OVERFLOW, Constant<bool, false>());
+
 	debugStatus(OVERFLOW);
 }
 
@@ -987,23 +1011,23 @@ void CPU::compareWithY(CPU::AddressMode address_mode) {
 void CPU::decrement(CPU::AddressMode address_mode) {
 	Word address = getAddress(address_mode);
 	Byte result = readByte(address) - 1;
-	setArithmeticFlags(result);
 	clockTick();
+	setArithmeticFlags(result);
 	writeByte(address, result);
 
 	debugSpecific("mem[" << toHex(address) << "] - 1 = " << (int)result);
 }
 
 void CPU::decrementX(CPU::AddressMode address_mode) {
-	setArithmeticFlags(--x_register);
 	clockTick();
+	setArithmeticFlags(--x_register);
 
 	debugSpecific("x - 1 = " << (int)x_register);
 }
 
 void CPU::decrementY(CPU::AddressMode address_mode) {
-	setArithmeticFlags(--y_register);
 	clockTick();
+	setArithmeticFlags(--y_register);
 
 	debugSpecific("y - 1 = " << (int)y_register);
 }
@@ -1021,21 +1045,24 @@ void CPU::increment(CPU::AddressMode address_mode) {
 	Byte result = readByte(address) + 1;
 	clockTick();
 	setArithmeticFlags(result);
+
+	// indirect x dummy read here
+
 	writeByte(address, result);
 
 	debugSpecific("mem[" << toHex(address) << "] + 1 = " << (int)result);
 }
 
 void CPU::incrementX(CPU::AddressMode address_mode) {
-	setArithmeticFlags(++x_register);
 	clockTick();
+	setArithmeticFlags(++x_register);
 
 	debugSpecific("x + 1 = " << (int)x_register);
 }
 
 void CPU::incrementY(CPU::AddressMode address_mode) {
-	setArithmeticFlags(++y_register);
 	clockTick();
+	setArithmeticFlags(++y_register);
 
 	debugSpecific("y + 1 = " << (int)y_register);
 }
@@ -1048,7 +1075,9 @@ void CPU::jump(CPU::AddressMode address_mode) {
 void CPU::jumpToSubroutine(CPU::AddressMode address_mode) {
 	clockTick();
 	pushWordToStack(program_counter + 1);
+
 	debugSpecific("return addr = " << toHex(program_counter + 2, 2));
+
 	program_counter = readWord(program_counter);
 
 	debugSpecific("pc = " << toHex(program_counter));
@@ -1083,9 +1112,9 @@ void CPU::shiftRight(CPU::AddressMode address_mode) {
 	Byte result = 0;
 	bool carry = false;
 	if (address_mode == ACCUMULATOR) {
+		readByte(program_counter); // dummy read
 		carry = accumulator & 1;
 		accumulator >>= 1;
-		clockTick();
 		result = accumulator;
 
 		debugSpecific("acc >> 1 = " << toHex(accumulator));
@@ -1133,10 +1162,11 @@ void CPU::pushStatus(CPU::AddressMode address_mode) {
 }
 
 void CPU::popAcc(CPU::AddressMode address_mode) {
-	clockTick();
+	readByte(program_counter); // dummy read
 	clockTick();
 	accumulator = popByteFromStack();
 	setArithmeticFlags(accumulator);
+
 	debugSpecific("acc = " << (int)accumulator);
 	debugStatus(NEGATIVE);
 	debugStatus(ZERO);
@@ -1144,9 +1174,10 @@ void CPU::popAcc(CPU::AddressMode address_mode) {
 }
 
 void CPU::popStatus(CPU::AddressMode address_mode) {
-	clockTick();
+	readByte(program_counter); // dummy read
 	clockTick();
 	status = (popByteFromStack() & ~0x30) | (status & 0x30);
+
 	debugStatus(NEGATIVE);
 	debugStatus(OVERFLOW);
 	debugStatus(BREAK);
@@ -1160,9 +1191,9 @@ void CPU::rotateLeft(CPU::AddressMode address_mode) {
 	bool carry = false;
 	Byte result;
 	if (address_mode == ACCUMULATOR) {
+		readByte(program_counter); // dummy read
 		carry = accumulator & 0x80;
 		accumulator = (accumulator << 1) | getStatusFlag(CARRY);
-		clockTick();
 		result = accumulator;
 
 		debugSpecific("acc <<= 1 = " << (int)accumulator);
@@ -1188,9 +1219,9 @@ void CPU::rotateRight(CPU::AddressMode address_mode) {
 	bool carry;
 	Byte result;
 	if (address_mode == ACCUMULATOR) {
+		readByte(program_counter); // dummy read
 		carry = accumulator & 1;
 		accumulator = (accumulator >> 1) | (getStatusFlag(CARRY) ? 0x80 : 0);
-		clockTick();
 		result = accumulator;
 		
 		debugSpecific("acc >>= 1 = " << toHex(accumulator));
@@ -1214,9 +1245,9 @@ void CPU::rotateRight(CPU::AddressMode address_mode) {
 
 void CPU::returnFromInterrupt(CPU::AddressMode address_mode) {
 	readByte(program_counter); // dummy read
-	clockTick();
 	status = (popByteFromStack() & ~0x30) | (status & 0x30);
 	program_counter = popWordFromStack();
+	clockTick();
 
 	debugSpecific("pc = " << toHex(program_counter));
 	debugStatus(NEGATIVE);
@@ -1226,12 +1257,14 @@ void CPU::returnFromInterrupt(CPU::AddressMode address_mode) {
 	debugStatus(DISABLE_INTERRUPTS);
 	debugStatus(ZERO);
 	debugStatus(CARRY);
+
+	in_nmi = false;
 }
 
 void CPU::returnFromSubroutine(CPU::AddressMode address_mode) {
 	readByte(program_counter); // dummy read
-	clockTick();
 	program_counter = popWordFromStack() + 1;
+	clockTick();
 	clockTick();
 
 	debugSpecific("pc = " << toHex(program_counter));
@@ -1247,20 +1280,23 @@ void CPU::subtractFromAcc(CPU::AddressMode address_mode) {
 }
 
 void CPU::setCarryFlag(CPU::AddressMode address_mode) {
-	setStatusFlag(CARRY, Constant<bool, true>());
 	clockTick();
+	setStatusFlag(CARRY, Constant<bool, true>());
+
 	debugStatus(CARRY);
 }
 
 void CPU::setDecimalFlag(CPU::AddressMode address_mode) {
-	setStatusFlag(DECIMAL, Constant<bool, true>());
 	clockTick();
+	setStatusFlag(DECIMAL, Constant<bool, true>());
+
 	debugStatus(DECIMAL);
 }
 
 void CPU::setInterruptDisableFlag(CPU::AddressMode address_mode) {
-	setStatusFlag(DISABLE_INTERRUPTS, Constant<bool, true>());
 	clockTick();
+	setStatusFlag(DISABLE_INTERRUPTS, Constant<bool, true>());
+
 	debugStatus(DISABLE_INTERRUPTS);
 }
 
@@ -1357,10 +1393,17 @@ void CPU::oamDmaTransfer(Byte high) {
 
 	Word address = high << 8;
 	for(int index = 0; index < 256; index++) {
+		Byte data = readByte(address + index);
 		clockTick();
-		ppu->writeToOAM(readByte(address + index));
+		ppu->writeToOAM(data);
 	}
 }
+
+
+
+
+
+
 
 void CPU::dump(Word address) {
 	address &= 0xfff0;

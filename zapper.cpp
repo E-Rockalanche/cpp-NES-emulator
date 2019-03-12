@@ -3,6 +3,7 @@
 
 Zapper::Zapper(const Pixel* screen) {
 	this->screen = screen;
+	trigger_held = 0;
 }
 
 void Zapper::setScreen(const Pixel* screen) {
@@ -15,11 +16,14 @@ void Zapper::aim(int x, int y) {
 }
 
 void Zapper::pull() {
-	trigger_held = true;
+	// initiate fire
+	if (trigger_held == 0) trigger_held++;
 }
 
-void Zapper::release() {
-	trigger_held = false;
+void Zapper::update() {
+	// trigger releases after 2 frames (min amount required by games)
+	if (trigger_held > 0)
+		trigger_held = (trigger_held + 1) % 3;
 }
 
 bool Zapper::detectingLight() {
@@ -27,17 +31,14 @@ bool Zapper::detectingLight() {
 	if (x >= 0 && x < 256 && y >= 0 && y < 240) {
 		Pixel p = screen[x + (239 - y) * 256];
 		light = (p.red >= 0xf8) && (p.blue >= 0xf8) && (p.green >= 0xf8);
-		if (light) {
-			dout("detected light");
-		}
 	}
 	return light;
 }
 
 Byte Zapper::read() {
-	return (trigger_held * 0x10) | (detectingLight() * 0x08);
+	return ((trigger_held >= 1) ? 0x10 : 0) | (detectingLight() ? 0 : 0x08);
 }
 
 void Zapper::reset() {
-	trigger_held = false;
+	trigger_held = 0;
 }
