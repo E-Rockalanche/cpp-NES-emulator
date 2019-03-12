@@ -1,7 +1,7 @@
 #ifndef MAPPER1_HPP
 #define MAPPER1_HPP
 
-#include "../cartridge.hpp"
+#include "cartridge.hpp"
 
 class Mapper1 : public Cartridge {
 public:
