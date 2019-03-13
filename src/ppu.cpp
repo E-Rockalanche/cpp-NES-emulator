@@ -4,6 +4,8 @@
 #include "debugging.hpp"
 #include "common.hpp"
 
+#define doutCycle(message) dout(message << ", s: " << scanline << ", c: " << cycle);
+
 int frame = 0;
 
 using namespace std;
@@ -28,12 +30,6 @@ const char* PPU::register_names[] = {
 	"PPU ADDRESS",
 	"PPU DATA"
 };
-
-PPU::PPU() {
-}
-
-PPU::~PPU() {
-}
 
 void PPU::setCPU(CPU* cpu) {
 	assert(cpu != NULL, "PPU::setCPU() cpu is null");
@@ -177,7 +173,7 @@ Byte PPU::readByte(Word address) {
 			clearVBlank();
 			write_toggle = false;
 
-			if (scanline == 241) {
+			if (scanline == VBLANK_SCANLINE) {
 				if (cycle == 0) {
 					suppress_vblank = true;
 				} else if (cycle == 1 || cycle == 2) {
@@ -210,6 +206,66 @@ Byte PPU::readByte(Word address) {
 	return open_bus;
 }
 
+void PPU::writeToControl(Byte value) {
+	dout("write to control: " << toHex(control));
+
+	// manual NMI trigger during vblank
+	if (!testFlag(control, NMI_ENABLE)
+			&& testFlag(value, NMI_ENABLE)
+			&& testFlag(status, VBLANK)
+			&& (scanline != PRERENDER_SCANLINE)) {
+		cpu->setNMI();
+		doutCycle("manually set nmi");
+
+	// NMI suppression near vblank
+	} else if (testFlag(control, NMI_ENABLE)
+			&& !testFlag(value, NMI_ENABLE)
+			&& (scanline == VBLANK_SCANLINE)
+			&& (cycle <= 2)) {
+		cpu->setNMI(false);
+		doutCycle("suppressed nmi by disabling nmi");
+	}
+
+	if ((control ^ value) & NMI_ENABLE) {
+		doutCycle("set nmi enable: " << testFlag(value, NMI_ENABLE));
+	}
+
+	control = value;
+
+	temp_vram_address = (temp_vram_address & 0x73ff)
+		| ((value & 0x3) << 10); // set name tables bits
+}
+
+void PPU::writeToScroll(Byte value) {
+	if (!write_toggle) {
+		// first write
+		fine_x_scroll = value & 0x7; // fine x
+		// coarse x
+		temp_vram_address = (temp_vram_address & 0x7fe0) | (value >> 3);
+	} else {
+		// second write
+		int fine_y = value & 0x7;
+		int coarse_y = value >> 3;
+		temp_vram_address = (temp_vram_address & 0x0c1f)
+			| (fine_y << 12) | (coarse_y << 5);
+	}
+	write_toggle = !write_toggle;
+}
+
+void PPU::writeToAddress(Byte value) {
+	if (!write_toggle) {
+		// first write
+		temp_vram_address = (temp_vram_address & 0x00ff)
+			| ((value & 0x3f) << 8); // set address high
+	} else {
+		// second write
+		temp_vram_address = (temp_vram_address & 0x7f00)
+			| (value & 0xff); // set address low
+		vram_address = temp_vram_address;
+	}
+	write_toggle = !write_toggle;
+}
+
 void PPU::setStatusFlag(int flag, bool value) {
 	if (value) {
 		status |= flag;
@@ -230,8 +286,11 @@ void PPU::setVBlank() {
 	if (!suppress_vblank) {
 		setStatusFlag(VBLANK, true);
 		if (testFlag(control, NMI_ENABLE)) {
+			doutCycle("nmi");
 			cpu->setNMI();
 		}
+	} else {
+		doutCycle("suppressed vblank");
 	}
 	suppress_vblank = false;
 }
@@ -376,57 +435,6 @@ void PPU::scanlineCycle() {
 			cartridge->signalScanline();
 		}
 	}
-}
-
-void PPU::writeToControl(Byte value) {
-	// manual NMI trigger during vblank
-	if (!testFlag(control, NMI_ENABLE)
-			&& testFlag(value, NMI_ENABLE)
-			&& testFlag(status, VBLANK)
-			&& (scanline != PRERENDER_SCANLINE)) {
-		cpu->setNMI();
-
-	// NMI suppression near vblank
-	} else if (testFlag(control, NMI_ENABLE)
-			&& !testFlag(value, NMI_ENABLE)
-			&& (scanline == VBLANK_SCANLINE)
-			&& (cycle <= 2)) {
-		cpu->setNMI(false);
-	}
-	control = value;
-
-	temp_vram_address = (temp_vram_address & 0x73ff)
-		| ((value & 0x3) << 10); // set name tables bits
-}
-
-void PPU::writeToScroll(Byte value) {
-	if (!write_toggle) {
-		// first write
-		fine_x_scroll = value & 0x7; // fine x
-		// coarse x
-		temp_vram_address = (temp_vram_address & 0x7fe0) | (value >> 3);
-	} else {
-		// second write
-		int fine_y = value & 0x7;
-		int coarse_y = value >> 3;
-		temp_vram_address = (temp_vram_address & 0x0c1f)
-			| (fine_y << 12) | (coarse_y << 5);
-	}
-	write_toggle = !write_toggle;
-}
-
-void PPU::writeToAddress(Byte value) {
-	if (!write_toggle) {
-		// first write
-		temp_vram_address = (temp_vram_address & 0x00ff)
-			| ((value & 0x3f) << 8); // set address high
-	} else {
-		// second write
-		temp_vram_address = (temp_vram_address & 0x7f00)
-			| (value & 0xff); // set address low
-		vram_address = temp_vram_address;
-	}
-	write_toggle = !write_toggle;
 }
 
 void PPU::incrementXComponent() {
@@ -610,6 +618,7 @@ void PPU::loadSpritesOnScanline() {
 			if (++j > 8) {
 				if (renderingEnabled()) {
 					setStatusFlag(SPRITE_OVERFLOW);
+					doutCycle("sprite overflow");
 				}
 				break;
 			}
@@ -701,6 +710,7 @@ void PPU::renderPixel() {
 							&& (x < 255)) { // doesn't check at x=255
 						sprite_zero_this_scanline = false;
 						setStatusFlag(SPRITE_0_HIT);
+						doutCycle("sprite 0 hit");
 					}
 
 					spr_palette |= (attributes & SPR_PALETTE) << 2;
@@ -729,22 +739,17 @@ void PPU::renderPixel() {
 }
 
 void PPU::dump() {
-	std::cout << "===== NAMETABLE =====\n";
-	for(int n = 0; n < 2; n++) {
-		for(int y = 0; y < 32; y++) {
-			for(int x = 0; x < 32; x++) {
-				Byte value = nametable[n*1024 + y*32 + x*8];
-				std::cout << toHex(value, 1) << ' ';
-			}
-			std::cout << '\n';
-		}
-		std::cout << '\n';
-	}
-	std::cout << "====== PALETTE ======\n";
-	for(int n = 0; n < PALETTE_SIZE; n++) {
-		std::cout << "[" << n << "]: " << (int)palette[n] << '\n';
-	}
-	std::cout << "=====================\n";
+	std::cout << "====== PPU ======\n";
+	std::cout << "         NmHBSInn\n";
+	std::cout << "control: " << toBin(control) << '\n';
+	std::cout << "         bgrSBsbG\n";
+	std::cout << "mask:    " << toBin(control) << '\n';
+	std::cout << "         VHO-----\n";
+	std::cout << "status:  " << toBin(control) << "\n\n";
+
+	std::cout << "scanline: " << scanline << '\n';
+	std::cout << "cycle: " << cycle << '\n';
+	std::cout << "=================\n";
 }
 
 bool PPU::nmiEnabled() {

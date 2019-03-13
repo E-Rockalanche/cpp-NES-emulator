@@ -144,7 +144,7 @@ CPU::CPU() {
 	dout("CPU()");
 
 	for(unsigned int i = 0; i < 256; i++) {
-		setOperation(i, ILL, IMPLIED, 0);
+		setOperation(i, ILL, IMPLIED, 1);
 	}
 
 	controllers[0] = NULL;
@@ -718,7 +718,7 @@ Word CPU::getAddress(CPU::AddressMode address_mode) {
 			address = page1 + x_register;
 			if (cross(page1, address)) {
 				wait_cycles++;
-				clockTick();
+				readByte(program_counter); // dummy read
 			}
 			break;
 
@@ -726,7 +726,7 @@ Word CPU::getAddress(CPU::AddressMode address_mode) {
 			page1 = readWord(program_counter);
 			program_counter += 2;
 			address = page1 + x_register;
-			clockTick();
+			readByte(program_counter); // dummy read
 			break;
 
 		case ABSOLUTE_Y:
@@ -735,7 +735,7 @@ Word CPU::getAddress(CPU::AddressMode address_mode) {
 			address = page1 + y_register;
 			if (cross(page1, address)) {
 				wait_cycles++;
-				clockTick();
+				readByte(program_counter); // dummy read
 			}
 			break;
 
@@ -743,7 +743,7 @@ Word CPU::getAddress(CPU::AddressMode address_mode) {
 			page1 = readWord(program_counter);
 			program_counter += 2;
 			address = page1 + y_register;
-			clockTick();
+			readByte(program_counter); // dummy read
 			break;
 
 		case INDIRECT:
@@ -761,7 +761,7 @@ Word CPU::getAddress(CPU::AddressMode address_mode) {
 			zp = readByte(program_counter++);
 			address = readWordBug(zp) + y_register;
 			if (cross(address - y_register, address)) {
-				clockTick();
+				readByte(program_counter); // dummy read
 				wait_cycles++;
 			}
 			break;
@@ -769,7 +769,7 @@ Word CPU::getAddress(CPU::AddressMode address_mode) {
 		case INDIRECT_Y_STORE:
 			zp = readByte(program_counter++);
 			address = readWordBug(zp) + y_register;
-			clockTick();
+			readByte(program_counter); // dummy read
 			break;
 
 		case RELATIVE_MODE:

@@ -9,8 +9,6 @@ class PPU;
 
 class PPU {
 public:
-	PPU();
-	~PPU();
 	void setCartridge(Cartridge* cartridge);
 	Byte readByte(Word address);
 	void writeByte(Word address, Byte value);
