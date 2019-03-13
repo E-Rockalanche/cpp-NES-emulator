@@ -7,7 +7,7 @@ Mapper1::Mapper1(Byte* data) : Cartridge(data) {
 
 	// set initial banks
 	setPRGBank(0, 0, 16 * KB);
-	setPRGBank(1, 0x0f, 16 * KB);
+	setPRGBank(1, -1, 16 * KB);
 }
 
 void Mapper1::writePRG(Word address, Byte value) {
@@ -32,6 +32,7 @@ void Mapper1::writePRG(Word address, Byte value) {
 }
 
 void Mapper1::writeCHR(Word address, Byte value) {
+	assert(address < chr_size, "chr address out of bounds");
 	chr[address] = value;
 }
 
@@ -69,8 +70,8 @@ void Mapper1::applyBankSwitch() {
 		case 3:
 			// 0x8000 swappable
 			setPRGBank(0, registers[PRG_BANK] & 0x0f, 16 * KB);
-			// 0xc000 fixed to bank 0x0f
-			setPRGBank(1, 0x0f, 16 * KB);
+			// 0xc000 fixed to last bank
+			setPRGBank(1, -1, 16 * KB);
 			break;
 	}
 

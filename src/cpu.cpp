@@ -491,20 +491,17 @@ void CPU::reset() {
 	_break = false;
 }
 
-void CPU::setNMI() {
-	_nmi = 0; // time since set
+void CPU::setNMI(bool on) {
+	_nmi = on ? 0 : -1;
 }
 
-void CPU::clearNMI() {
-	_nmi = -1; // time since set
-}
-
-void CPU::setIRQ() {
-	_irq = true;
+void CPU::setIRQ(bool on) {
+	_irq = on ? 0 : -1;
 }
 
 void CPU::clockTick() {
 	if (_nmi >= 0) _nmi++;
+	if (_irq >= 0) _irq++;
 
 	odd_cycle = !odd_cycle;
 	//apu->clockTick();
@@ -612,8 +609,7 @@ void CPU::execute() {
 	test_ticks = 0;
 
 	if (!_halt) {
-		bool do_interrupts = !getStatusFlag(DISABLE_INTERRUPTS);
-		_irq = _irq && do_interrupts;
+		_irq = getStatusFlag(DISABLE_INTERRUPTS) ? -1 : _irq;
 
 		if (_nmi > 0) {
 			_nmi = -1;
@@ -625,8 +621,8 @@ void CPU::execute() {
 				dout("wait cycles: " << wait_cycles);
 				dout("test ticks: " << test_ticks);
 			}
-		} else if (_irq) {
-			_irq = false;
+		} else if (_irq > 0) {
+			_irq = -1;
 			irq();
 
 			if (test_ticks != wait_cycles) {

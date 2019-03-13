@@ -407,8 +407,6 @@ private:
 	int cycle;
 	int scanline;
 	bool odd_frame;
-	
-	Cartridge::NameTableMirroring nt_mirror;
 
 	static const int nes_palette[64];
 

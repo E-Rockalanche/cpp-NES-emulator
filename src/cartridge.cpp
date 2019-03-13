@@ -2,6 +2,7 @@
 #include "mapper1.hpp"
 #include "mapper2.hpp"
 #include "mapper3.hpp"
+#include "mapper4.hpp"
 #include <fstream>
 
 using namespace std;
@@ -48,12 +49,19 @@ Cartridge* Cartridge::loadFile(std::string filename) {
 		return NULL;
 	}
 
+	if ((data[FLAGS_7] & 0x0c) == 0x08) {
+		dout("NES 2.0 format not supported");
+		delete[] data;
+		return NULL;
+	}
+
 	int mapper_number = getMapperNumber(data);
 	switch(mapper_number) {
 		case 0: mapper = new Cartridge(data); break;
 		case 1: mapper = new Mapper1(data); break;
 		case 2: mapper = new Mapper2(data); break;
 		case 3: mapper = new Mapper3(data); break;
+		case 4: mapper = new Mapper4(data); break;
 		default: assert(false, "mapper " << mapper_number << " is not supported");
 	}
 
@@ -110,6 +118,8 @@ Cartridge::Cartridge(Byte* data) : data(data) {
 	}
 
 	nt_mirroring = (data[FLAGS_6] & 1) ? VERTICAL : HORIZONTAL;
+
+	cpu = NULL;
 
 	setPRGBank(0, 0, 0x8000);
 	setCHRBank(0, 0, 0x2000);
@@ -199,6 +209,9 @@ Byte Cartridge::readCHR(Word address) {
 }
 
 void Cartridge::setPRGBank(int slot, int bank, int bank_size) {
+	if (bank < 0) {
+		bank = (prg_size / bank_size) + bank;
+	}
 	int map_size = bank_size / MIN_PRG_BANK_SIZE;
 	for(int i = 0; i < map_size; i++) {
 		prg_map[(slot * map_size) + i] = ((bank * bank_size) + (i * MIN_PRG_BANK_SIZE)) % prg_size;
@@ -210,4 +223,8 @@ void Cartridge::setCHRBank(int slot, int bank, int bank_size) {
 	for(int i = 0; i < map_size; i++) {
 		chr_map[(slot * map_size) + i] = ((bank * bank_size) + (i * MIN_CHR_BANK_SIZE)) % chr_size;
 	}
+}
+
+void Cartridge::setCPU(CPU* cpu) {
+	this->cpu = cpu;
 }

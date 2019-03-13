@@ -23,9 +23,8 @@ public:
 	void reset();
 	void power();
 	void execute();
-	void setNMI();
-	void clearNMI();
-	void setIRQ();
+	void setNMI(bool on = true);
+	void setIRQ(bool on = true);
 	bool halted();
 	bool breaked();
 
@@ -298,7 +297,7 @@ private:
 
 	bool _halt;
 	int _nmi; // time since nmi was set
-	bool _irq;
+	int _irq; // time since irq was set
 
 	static const int NMI_VECTOR = 0xfffa;
 	static const int RESET_VECTOR = 0xfffc;

@@ -4,7 +4,7 @@ Mapper2::Mapper2(Byte* data) : Cartridge(data) {
 	dout("Mapper2()");
 	
 	setPRGBank(0, 0, 16 * KB); // switchable
-	setPRGBank(1, 0x0f, 16 * KB); // fixed
+	setPRGBank(1, -1, 16 * KB); // fixed
 
 	setCHRBank(0, 0, 8 * KB);
 }
@@ -16,5 +16,6 @@ void Mapper2::writePRG(Word address, Byte value) {
 }
 
 void Mapper2::writeCHR(Word address, Byte value) {
+	assert(address < chr_size, "chr address out of bounds");
 	chr[address] = value;
 }
