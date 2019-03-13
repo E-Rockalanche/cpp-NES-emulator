@@ -368,8 +368,13 @@ void PPU::scanlineCycle() {
 				nametable_latch = read(address);
 		}
 
-		// signal scanline to mapper
-		if ((cycle == 260) && renderingEnabled()) cartridge->signalScanline();
+		// signal scanline to MMC3
+		if (renderingEnabled()
+				&& ((control & 0x10)
+				? (cycle == 324 || cycle == 4)
+				: (cycle == 260))) {
+			cartridge->signalScanline();
+		}
 	}
 }
 
