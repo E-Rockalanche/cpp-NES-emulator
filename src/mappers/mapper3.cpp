@@ -12,5 +12,6 @@ void Mapper3::writePRG(Word address, Byte value) {
 }
 
 void Mapper3::writeCHR(Word address, Byte value) {
+	assert(address < chr_size, "chr address out of bounds");
 	chr[address] = value;
 }

@@ -50,6 +50,7 @@ bool loadFile(std::string filename) {
 		}
 		cpu.setCartridge(cartridge);
 		ppu.setCartridge(cartridge);
+		cartridge->setCPU(&cpu);
 		return true;
 	}
 }
