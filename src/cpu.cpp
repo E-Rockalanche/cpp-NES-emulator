@@ -132,9 +132,11 @@ const char* CPU::address_mode_names[CPU::NUM_ADDRESS_MODES] = {
 	"ABSOLUTE_X",
 	"ABSOLUTE_X (store)",
 	"ABSOLUTE_Y",
+	"ABSOLUTE_Y (store)",
 	"INDIRECT",
 	"INDIRECT_X",
 	"INDIRECT_Y",
+	"INDIRECT_Y (store)",
 	"RELATIVE",
 };
 
@@ -151,7 +153,7 @@ CPU::CPU() {
 	setOperation(0x69, ADC, IMMEDIATE, 2);
 	setOperation(0x65, ADC, ZERO_PAGE, 3);
 	setOperation(0x75, ADC, ZERO_PAGE_X, 4);
-	setOperation(0x6d, ADC, ABSOLUTE_MODE, 4);
+	setOperation(0x6d, ADC, ABSOLUTE, 4);
 	setOperation(0x7d, ADC, ABSOLUTE_X, 4);
 	setOperation(0x79, ADC, ABSOLUTE_Y, 4);
 	setOperation(0x61, ADC, INDIRECT_X, 6);
@@ -160,7 +162,7 @@ CPU::CPU() {
 	setOperation(0x29, AND, IMMEDIATE, 2);
 	setOperation(0x25, AND, ZERO_PAGE, 3);
 	setOperation(0x35, AND, ZERO_PAGE_X, 4);
-	setOperation(0x2d, AND, ABSOLUTE_MODE, 4);
+	setOperation(0x2d, AND, ABSOLUTE, 4);
 	setOperation(0x3d, AND, ABSOLUTE_X, 4);
 	setOperation(0x39, AND, ABSOLUTE_Y, 4);
 	setOperation(0x21, AND, INDIRECT_X, 6);
@@ -169,7 +171,7 @@ CPU::CPU() {
 	setOperation(0x0a, ASL, ACCUMULATOR, 2);
 	setOperation(0x06, ASL, ZERO_PAGE, 5);
 	setOperation(0x16, ASL, ZERO_PAGE_X, 6);
-	setOperation(0x0e, ASL, ABSOLUTE_MODE, 6);
+	setOperation(0x0e, ASL, ABSOLUTE, 6);
 	setOperation(0x1e, ASL, ABSOLUTE_X_STORE, 7);
 
 	setOperation(0x90, BCC, RELATIVE_MODE, 2);
@@ -179,7 +181,7 @@ CPU::CPU() {
 	setOperation(0xf0, BEQ, RELATIVE_MODE, 2);
 
 	setOperation(0x24, BIT, ZERO_PAGE, 3);
-	setOperation(0x2c, BIT, ABSOLUTE_MODE, 4);
+	setOperation(0x2c, BIT, ABSOLUTE, 4);
 
 	setOperation(0x30, BMI, RELATIVE_MODE, 2);
 
@@ -204,7 +206,7 @@ CPU::CPU() {
 	setOperation(0xc9, CMP, IMMEDIATE, 2);
 	setOperation(0xc5, CMP, ZERO_PAGE, 3);
 	setOperation(0xd5, CMP, ZERO_PAGE_X, 4);
-	setOperation(0xcd, CMP, ABSOLUTE_MODE, 4);
+	setOperation(0xcd, CMP, ABSOLUTE, 4);
 	setOperation(0xdd, CMP, ABSOLUTE_X, 4);
 	setOperation(0xd9, CMP, ABSOLUTE_Y, 4);
 	setOperation(0xc1, CMP, INDIRECT_X, 6);
@@ -212,15 +214,15 @@ CPU::CPU() {
 
 	setOperation(0xe0, CPX, IMMEDIATE, 2);
 	setOperation(0xe4, CPX, ZERO_PAGE, 3);
-	setOperation(0xec, CPX, ABSOLUTE_MODE, 4);
+	setOperation(0xec, CPX, ABSOLUTE, 4);
 
 	setOperation(0xc0, CPY, IMMEDIATE, 2);
 	setOperation(0xc4, CPY, ZERO_PAGE, 3);
-	setOperation(0xcc, CPY, ABSOLUTE_MODE, 4);
+	setOperation(0xcc, CPY, ABSOLUTE, 4);
 
 	setOperation(0xc6, DEC, ZERO_PAGE, 5);
 	setOperation(0xd6, DEC, ZERO_PAGE_X, 6);
-	setOperation(0xce, DEC, ABSOLUTE_MODE, 6);
+	setOperation(0xce, DEC, ABSOLUTE, 6);
 	setOperation(0xde, DEC, ABSOLUTE_X_STORE, 7);
 
 	setOperation(0xca, DEX, IMPLIED, 2);
@@ -230,7 +232,7 @@ CPU::CPU() {
 	setOperation(0x49, EOR, IMMEDIATE, 2);
 	setOperation(0x45, EOR, ZERO_PAGE, 3);
 	setOperation(0x55, EOR, ZERO_PAGE_X, 4);
-	setOperation(0x4d, EOR, ABSOLUTE_MODE, 4);
+	setOperation(0x4d, EOR, ABSOLUTE, 4);
 	setOperation(0x5d, EOR, ABSOLUTE_X, 4);
 	setOperation(0x59, EOR, ABSOLUTE_Y, 4);
 	setOperation(0x41, EOR, INDIRECT_X, 6);
@@ -238,22 +240,22 @@ CPU::CPU() {
 
 	setOperation(0xe6, INC, ZERO_PAGE, 5);
 	setOperation(0xf6, INC, ZERO_PAGE_X, 6);
-	setOperation(0xee, INC, ABSOLUTE_MODE, 6);
+	setOperation(0xee, INC, ABSOLUTE, 6);
 	setOperation(0xfe, INC, ABSOLUTE_X_STORE, 7);
 
 	setOperation(0xe8, INX, IMPLIED, 2);
 
 	setOperation(0xc8, INY, IMPLIED, 2);
 
-	setOperation(0x4c, JMP, ABSOLUTE_MODE, 3);
+	setOperation(0x4c, JMP, ABSOLUTE, 3);
 	setOperation(0x6c, JMP, INDIRECT, 5);
 
-	setOperation(0x20, JSR, ABSOLUTE_MODE, 6);
+	setOperation(0x20, JSR, ABSOLUTE, 6);
 
 	setOperation(0xa9, LDA, IMMEDIATE, 2);
 	setOperation(0xa5, LDA, ZERO_PAGE, 3);
 	setOperation(0xb5, LDA, ZERO_PAGE_X, 4);
-	setOperation(0xad, LDA, ABSOLUTE_MODE, 4);
+	setOperation(0xad, LDA, ABSOLUTE, 4);
 	setOperation(0xbd, LDA, ABSOLUTE_X, 4);
 	setOperation(0xb9, LDA, ABSOLUTE_Y, 4);
 	setOperation(0xa1, LDA, INDIRECT_X, 6);
@@ -262,19 +264,19 @@ CPU::CPU() {
 	setOperation(0xa2, LDX, IMMEDIATE, 2);
 	setOperation(0xa6, LDX, ZERO_PAGE, 3);
 	setOperation(0xb6, LDX, ZERO_PAGE_Y, 4);
-	setOperation(0xae, LDX, ABSOLUTE_MODE, 4);
+	setOperation(0xae, LDX, ABSOLUTE, 4);
 	setOperation(0xbe, LDX, ABSOLUTE_Y, 4);
 
 	setOperation(0xa0, LDY, IMMEDIATE, 2);
 	setOperation(0xa4, LDY, ZERO_PAGE, 3);
 	setOperation(0xb4, LDY, ZERO_PAGE_X, 4);
-	setOperation(0xac, LDY, ABSOLUTE_MODE, 4);
+	setOperation(0xac, LDY, ABSOLUTE, 4);
 	setOperation(0xbc, LDY, ABSOLUTE_X, 4);
 
 	setOperation(0x4a, LSR, ACCUMULATOR, 2);
 	setOperation(0x46, LSR, ZERO_PAGE, 5);
 	setOperation(0x56, LSR, ZERO_PAGE_X, 6);
-	setOperation(0x4e, LSR, ABSOLUTE_MODE, 6);
+	setOperation(0x4e, LSR, ABSOLUTE, 6);
 	setOperation(0x5e, LSR, ABSOLUTE_X_STORE, 7);
 
 	setOperation(0xea, NOP, IMPLIED, 2);
@@ -282,7 +284,7 @@ CPU::CPU() {
 	setOperation(0x09, ORA, IMMEDIATE, 2);
 	setOperation(0x05, ORA, ZERO_PAGE, 3);
 	setOperation(0x15, ORA, ZERO_PAGE_X, 4);
-	setOperation(0x0d, ORA, ABSOLUTE_MODE, 4);
+	setOperation(0x0d, ORA, ABSOLUTE, 4);
 	setOperation(0x1d, ORA, ABSOLUTE_X, 4);
 	setOperation(0x19, ORA, ABSOLUTE_Y, 4);
 	setOperation(0x01, ORA, INDIRECT_X, 6);
@@ -299,13 +301,13 @@ CPU::CPU() {
 	setOperation(0x2a, ROL, ACCUMULATOR, 2);
 	setOperation(0x26, ROL, ZERO_PAGE, 5);
 	setOperation(0x36, ROL, ZERO_PAGE_X, 6);
-	setOperation(0x2e, ROL, ABSOLUTE_MODE, 6);
+	setOperation(0x2e, ROL, ABSOLUTE, 6);
 	setOperation(0x3e, ROL, ABSOLUTE_X_STORE, 7);
 
 	setOperation(0x6a, ROR, ACCUMULATOR, 2);
 	setOperation(0x66, ROR, ZERO_PAGE, 5);
 	setOperation(0x76, ROR, ZERO_PAGE_X, 6);
-	setOperation(0x6e, ROR, ABSOLUTE_MODE, 6);
+	setOperation(0x6e, ROR, ABSOLUTE, 6);
 	setOperation(0x7e, ROR, ABSOLUTE_X_STORE, 7);
 
 	setOperation(0x40, RTI, IMPLIED, 6);
@@ -315,7 +317,7 @@ CPU::CPU() {
 	setOperation(0xe9, SBC, IMMEDIATE, 2);
 	setOperation(0xe5, SBC, ZERO_PAGE, 3);
 	setOperation(0xf5, SBC, ZERO_PAGE_X, 4);
-	setOperation(0xed, SBC, ABSOLUTE_MODE, 4);
+	setOperation(0xed, SBC, ABSOLUTE, 4);
 	setOperation(0xfd, SBC, ABSOLUTE_X, 4);
 	setOperation(0xf9, SBC, ABSOLUTE_Y, 4);
 	setOperation(0xe1, SBC, INDIRECT_X, 6);
@@ -329,19 +331,19 @@ CPU::CPU() {
 
 	setOperation(0x85, STA, ZERO_PAGE, 3);
 	setOperation(0x95, STA, ZERO_PAGE_X, 4);
-	setOperation(0x8d, STA, ABSOLUTE_MODE, 4);
+	setOperation(0x8d, STA, ABSOLUTE, 4);
 	setOperation(0x9d, STA, ABSOLUTE_X_STORE, 5);
-	setOperation(0x99, STA, ABSOLUTE_Y, 5);
+	setOperation(0x99, STA, ABSOLUTE_Y_STORE, 5);
 	setOperation(0x81, STA, INDIRECT_X, 6);
-	setOperation(0x91, STA, INDIRECT_Y, 6);
+	setOperation(0x91, STA, INDIRECT_Y_STORE, 6);
 
 	setOperation(0x86, STX, ZERO_PAGE, 3);
 	setOperation(0x96, STX, ZERO_PAGE_Y, 4);
-	setOperation(0x8e, STX, ABSOLUTE_MODE, 4);
+	setOperation(0x8e, STX, ABSOLUTE, 4);
 
 	setOperation(0x84, STY, ZERO_PAGE, 3);
 	setOperation(0x94, STY, ZERO_PAGE_X, 4);
-	setOperation(0x8c, STY, ABSOLUTE_MODE, 4);
+	setOperation(0x8c, STY, ABSOLUTE, 4);
 
 	setOperation(0xaa, TAX, IMPLIED, 2);
 
@@ -500,15 +502,14 @@ void CPU::setIRQ(bool on) {
 }
 
 void CPU::clockTick() {
-	if (_nmi >= 0) _nmi++;
-	if (_irq >= 0) _irq++;
 
 	odd_cycle = !odd_cycle;
 	//apu->clockTick();
-	ppu->clockTick();
-	ppu->clockTick();
-	ppu->clockTick();
-
+	for(int i = 0; i < 3; i++) {
+		if (_nmi >= 0) _nmi++;
+		if (_irq >= 0) _irq++;
+		ppu->clockTick();
+	}
 
 	test_ticks++; // debug
 }
@@ -611,7 +612,7 @@ void CPU::execute() {
 	if (!_halt) {
 		_irq = getStatusFlag(DISABLE_INTERRUPTS) ? -1 : _irq;
 
-		if (_nmi > 0) {
+		if (_nmi > 1) {
 			_nmi = -1;
 			nmi();
 
@@ -621,7 +622,7 @@ void CPU::execute() {
 				dout("wait cycles: " << wait_cycles);
 				dout("test ticks: " << test_ticks);
 			}
-		} else if (_irq > 0) {
+		} else if (_irq > 1) {
 			_irq = -1;
 			irq();
 
@@ -645,6 +646,7 @@ void CPU::execute() {
 
 			if (test_ticks != wait_cycles) {
 				std::cout << '\n';
+				std::cout << "inconsistent timing\n";
 				dout("instruction: " << instruction_names[op.instruction]);
 				dout("address mode: " << address_mode_names[op.address_mode]);
 				dout("wait cycles: " << wait_cycles);
@@ -691,7 +693,7 @@ Word CPU::getAddress(CPU::AddressMode address_mode) {
 			address = program_counter++;
 			break;
 
-		case ABSOLUTE_MODE:
+		case ABSOLUTE:
 			address = readWord(program_counter);
 			program_counter += 2;
 			break;
@@ -737,6 +739,13 @@ Word CPU::getAddress(CPU::AddressMode address_mode) {
 			}
 			break;
 
+		case ABSOLUTE_Y_STORE:
+			page1 = readWord(program_counter);
+			program_counter += 2;
+			address = page1 + y_register;
+			clockTick();
+			break;
+
 		case INDIRECT:
 			address = readWordBug(readWord(program_counter));
 			program_counter += 2;
@@ -755,6 +764,12 @@ Word CPU::getAddress(CPU::AddressMode address_mode) {
 				clockTick();
 				wait_cycles++;
 			}
+			break;
+
+		case INDIRECT_Y_STORE:
+			zp = readByte(program_counter++);
+			address = readWordBug(zp) + y_register;
+			clockTick();
 			break;
 
 		case RELATIVE_MODE:
@@ -965,29 +980,29 @@ void CPU::branchOnOverflowSet(CPU::AddressMode address_mode) {
 }
 
 void CPU::clearCarryFlag(CPU::AddressMode address_mode) {
-	clockTick();
 	setStatusFlag(CARRY, Constant<bool, false>());
+	clockTick();
 
 	debugStatus(CARRY);
 }
 
 void CPU::clearDecimalFlag(CPU::AddressMode address_mode) {
-	clockTick();
 	setStatusFlag(DECIMAL, Constant<bool, false>());
+	clockTick();
 
 	debugStatus(DECIMAL);
 }
 
 void CPU::clearInterruptDisableFlag(CPU::AddressMode address_mode) {
-	clockTick();
 	setStatusFlag(DISABLE_INTERRUPTS, Constant<bool, false>());
+	clockTick();
 
 	debugStatus(DISABLE_INTERRUPTS);
 }
 
 void CPU::clearOverflowFlag(CPU::AddressMode address_mode) {
-	clockTick();
 	setStatusFlag(OVERFLOW, Constant<bool, false>());
+	clockTick();
 
 	debugStatus(OVERFLOW);
 }
@@ -1015,15 +1030,15 @@ void CPU::decrement(CPU::AddressMode address_mode) {
 }
 
 void CPU::decrementX(CPU::AddressMode address_mode) {
-	clockTick();
 	setArithmeticFlags(--x_register);
+	clockTick();
 
 	debugSpecific("x - 1 = " << (int)x_register);
 }
 
 void CPU::decrementY(CPU::AddressMode address_mode) {
-	clockTick();
 	setArithmeticFlags(--y_register);
+	clockTick();
 
 	debugSpecific("y - 1 = " << (int)y_register);
 }
@@ -1041,17 +1056,14 @@ void CPU::increment(CPU::AddressMode address_mode) {
 	Byte result = readByte(address) + 1;
 	clockTick();
 	setArithmeticFlags(result);
-
-	// indirect x dummy read here
-
 	writeByte(address, result);
 
 	debugSpecific("mem[" << toHex(address) << "] + 1 = " << (int)result);
 }
 
 void CPU::incrementX(CPU::AddressMode address_mode) {
-	clockTick();
 	setArithmeticFlags(++x_register);
+	clockTick();
 
 	debugSpecific("x + 1 = " << (int)x_register);
 }
@@ -1259,8 +1271,8 @@ void CPU::returnFromInterrupt(CPU::AddressMode address_mode) {
 
 void CPU::returnFromSubroutine(CPU::AddressMode address_mode) {
 	readByte(program_counter); // dummy read
-	program_counter = popWordFromStack() + 1;
 	clockTick();
+	program_counter = popWordFromStack() + 1;
 	clockTick();
 
 	debugSpecific("pc = " << toHex(program_counter));
@@ -1276,35 +1288,27 @@ void CPU::subtractFromAcc(CPU::AddressMode address_mode) {
 }
 
 void CPU::setCarryFlag(CPU::AddressMode address_mode) {
-	clockTick();
 	setStatusFlag(CARRY, Constant<bool, true>());
+	clockTick();
 
 	debugStatus(CARRY);
 }
 
 void CPU::setDecimalFlag(CPU::AddressMode address_mode) {
-	clockTick();
 	setStatusFlag(DECIMAL, Constant<bool, true>());
+	clockTick();
 
 	debugStatus(DECIMAL);
 }
 
 void CPU::setInterruptDisableFlag(CPU::AddressMode address_mode) {
-	clockTick();
 	setStatusFlag(DISABLE_INTERRUPTS, Constant<bool, true>());
+	clockTick();
 
 	debugStatus(DISABLE_INTERRUPTS);
 }
 
 void CPU::storeAcc(CPU::AddressMode address_mode) {
-	switch(address_mode) {
-		case INDIRECT_Y:
-		case ABSOLUTE_X:
-		case ABSOLUTE_Y:
-			clockTick();
-			break;
-	}
-
 	Word address = getAddress(address_mode);
 	writeByte(address, accumulator);
 

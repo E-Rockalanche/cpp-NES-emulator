@@ -1,6 +1,5 @@
 #include <iostream>
 #include <string>
-#include <windows.h>
 #include <ctime>
 #include <cstdlib>
 
@@ -17,6 +16,8 @@
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include "GL/glut.h"
+
+#include <windows.h>
 
 bool good;
 

@@ -20,3 +20,7 @@ Zapper trigger: mouse left button
 2 - UxROM
 3 - CNROM
 4 - MMC3
+
+## Failing Blargg Tests
+ppu:
+	10-even_odd_timing

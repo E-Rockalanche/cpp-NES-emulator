@@ -130,7 +130,7 @@ private:
 		ex) LDA #$0a
 		*/
 
-		ABSOLUTE_MODE,
+		ABSOLUTE,
 		/*
 		operands address is given
 		ex) LDA $31f6
@@ -174,6 +174,7 @@ private:
 		*/
 
 		ABSOLUTE_Y,
+		ABSOLUTE_Y_STORE, // always an extra cycle regardless of page cross
 		/*
 		address given added to value in y index
 		ex) LDA $31f6, y
@@ -200,6 +201,7 @@ private:
 		*/
 
 		INDIRECT_Y,
+		INDIRECT_Y_STORE, // always an extra cycle regardless of page cross
 		/*
 		contents of zero page address (and following byte) give the indirect address
 		which is added to the contents of the y register to yield the actual address

@@ -379,10 +379,19 @@ void PPU::scanlineCycle() {
 }
 
 void PPU::writeToControl(Byte value) {
+	// manual NMI trigger during vblank
 	if (!testFlag(control, NMI_ENABLE)
 			&& testFlag(value, NMI_ENABLE)
-			&& testFlag(status, VBLANK)) {
+			&& testFlag(status, VBLANK)
+			&& (scanline != PRERENDER_SCANLINE)) {
 		cpu->setNMI();
+
+	// NMI suppression near vblank
+	} else if (testFlag(control, NMI_ENABLE)
+			&& !testFlag(value, NMI_ENABLE)
+			&& (scanline == VBLANK_SCANLINE)
+			&& (cycle <= 2)) {
+		cpu->setNMI(false);
 	}
 	control = value;
 
@@ -484,7 +493,7 @@ Word PPU::backgroundAddress() {
 }
 
 void PPU::incrementVRAMAddress() {
-	if (((scanline < 240) || (scanline == PRERENDER)) && renderingEnabled()) {
+	if (((scanline < 240) || (scanline == PRERENDER_SCANLINE)) && renderingEnabled()) {
 		// this will happen if PPU_DATA read/writes occur during rendering
 		incrementXComponent();
 		incrementYComponent();
