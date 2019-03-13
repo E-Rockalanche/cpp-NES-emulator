@@ -1,6 +1,7 @@
 #include "cartridge.hpp"
 #include "mapper1.hpp"
 #include "mapper2.hpp"
+#include "mapper3.hpp"
 #include <fstream>
 
 using namespace std;
@@ -52,6 +53,7 @@ Cartridge* Cartridge::loadFile(std::string filename) {
 		case 0: mapper = new Cartridge(data); break;
 		case 1: mapper = new Mapper1(data); break;
 		case 2: mapper = new Mapper2(data); break;
+		case 3: mapper = new Mapper3(data); break;
 		default: assert(false, "mapper " << mapper_number << " is not supported");
 	}
 
