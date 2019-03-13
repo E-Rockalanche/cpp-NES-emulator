@@ -19,3 +19,4 @@ Zapper trigger: mouse left button
 1 - MMC1
 2 - UxROM
 3 - CNROM
+4 - MMC3

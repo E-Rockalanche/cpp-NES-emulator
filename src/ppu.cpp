@@ -43,7 +43,6 @@ void PPU::setCPU(CPU* cpu) {
 void PPU::setCartridge(Cartridge* cartridge) {
 	assert(cartridge != NULL, "PPU::setCartridge() cartridge is null");
 	this->cartridge = cartridge;
-	nt_mirror = cartridge->nameTableMirroring();
 }
 
 void PPU::power() {
@@ -182,7 +181,7 @@ Byte PPU::readByte(Word address) {
 				if (cycle == 0) {
 					suppress_vblank = true;
 				} else if (cycle == 1 || cycle == 2) {
-					cpu->clearNMI();
+					cpu->setNMI(false);
 				}
 			}
 			break;
@@ -369,8 +368,13 @@ void PPU::scanlineCycle() {
 				nametable_latch = read(address);
 		}
 
-		// signal scanline to mapper
-		// if (cycle == 260 && renderingEnabled()) cartridge->signalScanline();
+		// signal scanline to MMC3
+		if (renderingEnabled()
+				&& ((control & 0x10)
+				? (cycle == 324 || cycle == 4)
+				: (cycle == 260))) {
+			cartridge->signalScanline();
+		}
 	}
 }
 
@@ -506,7 +510,7 @@ Word PPU::nametableMirror(Word address) {
 			break;
 
 		default:
-			assert(false, "invalid nametable mirroring: " << (int)nt_mirror);
+			assert(false, "invalid nametable mirroring");
 			break;
 	}
 	return new_address;
