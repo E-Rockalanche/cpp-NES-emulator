@@ -13,31 +13,28 @@
 #include "zapper.hpp"
 #include "file_path.hpp"
 #include "program_end.hpp"
+#include "screen.hpp"
 
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include "GL/glut.h"
 
-bool good;
-
-CPU cpu;
-PPU ppu;
-APU apu;
 Joypad joypad;
 Zapper zapper;
-Cartridge* cartridge = NULL;
+
+Pixel screen[SCREEN_WIDTH * SCREEN_HEIGHT];
 
 std::string file_path;
 std::string file_name;
 
-const Pixel* surface;
-
+// frame timing
 const unsigned int TARGET_FPS = 60;
 const double TIME_PER_FRAME = 1000.0 / TARGET_FPS;
 int g_start_time;
 int g_current_frame_number;
 
 bool loadFile(std::string filename) {
+	if (cartridge) delete cartridge;
 	cartridge = Cartridge::loadFile(filename);
 	if (!cartridge) {
 		dout("could not load " << filename);
@@ -48,42 +45,37 @@ bool loadFile(std::string filename) {
 			file_name = getFilename(filename);
 			cartridge->loadSave(file_path + file_name + ".sav");
 		}
-		cpu.setCartridge(cartridge);
-		ppu.setCartridge(cartridge);
-		cartridge->setCPU(&cpu);
 		return true;
 	}
 }
 
 // close program callback
-void quit() {
+void saveGame() {
 	if (cartridge && cartridge->hasSRAM()) {
 		cartridge->saveGame(file_path + file_name + ".sav");
 	}
 }
-ProgramEnd pe(quit);
+ProgramEnd pe(saveGame);
 
 void reset() {
-	cpu.reset();
-	ppu.reset();
-
-	joypad.reset();
-	zapper.reset();
+	if (cartridge != NULL) {
+		CPU::reset();
+		PPU::reset();
+	}
 }
 
 void power() {
-	cpu.power();
-	ppu.power();
-
-	joypad.reset();
-	zapper.reset();
+	if (cartridge != NULL) {
+		CPU::power();
+		PPU::power();
+	}
 }
 
 void step() {
-	if (cpu.halted()) {
+	if (CPU::halted()) {
 		std::cout << "HALTED\n";
 	} else {
-		cpu.execute();
+		CPU::execute();
 	}
 }
 
@@ -113,8 +105,8 @@ int next_frame = false;
 void keyboard(unsigned char key, int x, int y)  {
 	switch(key) {
 		case 'x': // execute
-			cpu._break = false;
-			cpu.debug = false;
+			CPU::_break = false;
+			CPU::debug = false;
 			break;
 
 		case 'r': // reset ROM
@@ -126,18 +118,29 @@ void keyboard(unsigned char key, int x, int y)  {
 			exit(0);
 			break;
 
+		case 'l': {// load rom
+			saveGame();
+			std::string filename;
+			std::cin >> filename;
+			if (loadFile(filename)) {
+				power();
+			}
+			break;
+		}
+
+
 		case 'b': // break
-			cpu._break = true;
+			CPU::_break = true;
 			break;
 
 		case 'f': // frame step
-			cpu._break = true;
+			CPU::_break = true;
 			next_frame = true;
 			break;
 
 		case 's': // step
-			cpu.debug = true;
-			cpu._break = true;
+			CPU::debug = true;
+			CPU::_break = true;
 			step();
 			break;
 
@@ -161,21 +164,21 @@ void keyboard(unsigned char key, int x, int y)  {
 				std::cout << "address: ";
 				address = readAddress();
 			}
-			cpu.addBreakpoint(address, condition);
+			CPU::addBreakpoint(address, condition);
 		} break;
 
 		case 'd': // dump
 			std::cout << "dump address: ";
-			cpu.dump(readAddress());
+			CPU::dump(readAddress());
 			break;
 
 		case 't': // dump stack/state
-			cpu.dumpState();
-			cpu.dumpStack();
+			CPU::dumpState();
+			CPU::dumpStack();
 			break;
 
 		case 'p':
-			ppu.dump();
+			PPU::dump();
 			break;
 
 		case 'h':
@@ -215,11 +218,11 @@ void mousePassiveMotion(int x, int y) {
 }
 
 void renderScene()  {
-	while(!cpu.halted() && (!cpu._break || next_frame) && !ppu.readyToDraw()) {
-		cpu.execute();
+	while(!CPU::halted() && (!CPU::_break || next_frame) && !PPU::readyToDraw()) {
+		CPU::execute();
 	}
 	next_frame = false;
-	glDrawPixels(PPU::SCREEN_WIDTH, PPU::SCREEN_HEIGHT,  GL_RGB, GL_UNSIGNED_BYTE, surface);
+	glDrawPixels(SCREEN_WIDTH, SCREEN_HEIGHT,  GL_RGB, GL_UNSIGNED_BYTE, screen);
 	glutSwapBuffers();
 
 	zapper.update();
@@ -244,16 +247,9 @@ void idle() {
 int main(int argc, char* argv[]) {
 	srand(time(NULL));
 
-	surface = ppu.getSurface();
-
-	cpu.setPPU(&ppu);
-	cpu.setAPU(&apu);
-	ppu.setCPU(&cpu);
-
-	zapper.setScreen(surface);
-	
-	cpu.setController(&joypad, 0);
-	cpu.setController(&zapper, 1);
+	controller_ports[0] = &joypad;
+	controller_ports[1] = &zapper;
+	CPU::init();
 
 	joypad.keymap[Joypad::A] = 'v';
 	joypad.keymap[Joypad::B] = 'c';
@@ -286,10 +282,10 @@ int main(int argc, char* argv[]) {
 	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGB);
 
 	glutInitWindowPosition(100,100);
-	glutInitWindowSize(PPU::SCREEN_WIDTH, PPU::SCREEN_HEIGHT);
+	glutInitWindowSize(SCREEN_WIDTH, SCREEN_HEIGHT);
 	glutCreateWindow("NES emulator test");
 
-	glViewport(0, 0, PPU::SCREEN_WIDTH, PPU::SCREEN_HEIGHT);
+	glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
 	glutDisplayFunc(renderScene);
 	glutIdleFunc(idle);

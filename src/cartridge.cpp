@@ -7,6 +7,8 @@
 
 using namespace std;
 
+Cartridge* cartridge = NULL;
+
 Cartridge* Cartridge::loadFile(std::string filename) {
 	Cartridge* mapper = NULL;
 	int data_size = 0;
@@ -119,8 +121,6 @@ Cartridge::Cartridge(Byte* data) : data(data) {
 
 	nt_mirroring = (data[FLAGS_6] & 1) ? VERTICAL : HORIZONTAL;
 
-	cpu = NULL;
-
 	setPRGBank(0, 0, 0x8000);
 	setCHRBank(0, 0, 0x2000);
 }
@@ -223,8 +223,4 @@ void Cartridge::setCHRBank(int slot, int bank, int bank_size) {
 	for(int i = 0; i < map_size; i++) {
 		chr_map[(slot * map_size) + i] = ((bank * bank_size) + (i * MIN_CHR_BANK_SIZE)) % chr_size;
 	}
-}
-
-void Cartridge::setCPU(CPU* cpu) {
-	this->cpu = cpu;
 }
