@@ -93,15 +93,17 @@ enum ObjectAttribute {
 	FLIP_VER = BL(7)
 };
 
-const int PRIMARY_OAM_SIZE = 64 * OBJECT_SIZE;
-const int SECONDARY_OAM_SIZE = 8 * OBJECT_SIZE;
+const int PRIMARY_OAM_SIZE = 64;
+const int SECONDARY_OAM_SIZE = 8;
 
 Byte nametable[NAMETABLE_SIZE];
 Byte palette[PALETTE_SIZE];
-Byte primary_oam[PRIMARY_OAM_SIZE];
-Byte secondary_oam[SECONDARY_OAM_SIZE];
+Byte primary_oam[PRIMARY_OAM_SIZE * OBJECT_SIZE];
+Byte secondary_oam[PRIMARY_OAM_SIZE * OBJECT_SIZE]; // uses secondary size if sprite flickering is on
 
 bool can_draw;
+
+bool sprite_flickering = false;
 
 const int BOOTUP_CYCLES = 30000;
 int wait_cycles;
@@ -140,10 +142,11 @@ Byte attribute_shift_high;
 
 Byte nametable_latch;
 
-Byte sprite_shift_low[8];
-Byte sprite_shift_high[8];
-Byte sprite_x_counter[8];
-Byte sprite_attribute_latch[8];
+// uses secondary oam size if sprite flickering
+Byte sprite_shift_low[PRIMARY_OAM_SIZE];
+Byte sprite_shift_high[PRIMARY_OAM_SIZE];
+Byte sprite_x_counter[PRIMARY_OAM_SIZE];
+Byte sprite_attribute_latch[PRIMARY_OAM_SIZE];
 
 bool sprite_zero_next_scanline;
 bool sprite_zero_this_scanline;
@@ -201,7 +204,7 @@ void power() {
 	sprite_zero_next_scanline = false;
 	sprite_zero_this_scanline = false;
 
-	for(int n = 0; n < PRIMARY_OAM_SIZE; n++) {
+	for(int n = 0; n < PRIMARY_OAM_SIZE * OBJECT_SIZE; n++) {
 		primary_oam[n] = 0xff;
 	}
 
@@ -361,8 +364,13 @@ void clearVBlank() {
 	setStatusFlag(VBLANK, false);
 }
 
+int secondaryOamSize() {
+	return sprite_flickering ? SECONDARY_OAM_SIZE : PRIMARY_OAM_SIZE;
+}
+
 void clearOAM() {
-	for(int i = 0; i < 8 * OBJECT_SIZE; i++) {
+	int size = secondaryOamSize() * OBJECT_SIZE;
+	for(int i = 0; i < size; i++) {
 		secondary_oam[i] = 0xff;
 	}
 }
@@ -615,7 +623,6 @@ void incrementVRAMAddress() {
 }
 
 void writeToOAM(Byte value) {
-	assert(oam_address < PRIMARY_OAM_SIZE, "primary oam address out of bounds");
 	primary_oam[oam_address++] = value;
 }
 
@@ -698,7 +705,8 @@ void loadShiftRegisters() {
 void loadSpritesOnScanline() {
 	sprite_zero_next_scanline = false;
 	int j = 0;
-	for(int i = 0; i < 64; i++) {
+	int sec_size = secondaryOamSize();
+	for(int i = 0; i < PRIMARY_OAM_SIZE; i++) {
 		Byte* object = primary_oam + i * OBJECT_SIZE;
 		int line = ((scanline == 261) ? -1 : scanline)
 			- object[Y_POS];
@@ -709,7 +717,7 @@ void loadSpritesOnScanline() {
 				sprite_zero_next_scanline = true;
 			}
 
-			if (j < 8) {
+			if (j < sec_size) {
 				Byte* secondary_object = secondary_oam + j * OBJECT_SIZE;
 
 				// copy sprite data
@@ -719,11 +727,11 @@ void loadSpritesOnScanline() {
 			}
 
 			// increment secondary OAM index
-			if (++j > 8) {
+			if (++j == (SECONDARY_OAM_SIZE + 1)) {
 				if (renderingEnabled()) {
 					setStatusFlag(SPRITE_OVERFLOW);
 				}
-				break;
+				if (sprite_flickering) break;
 			}
 		}
 	}
@@ -733,7 +741,8 @@ void loadSpriteRegisters() {
 	Word address;
 	sprite_zero_this_scanline = sprite_zero_next_scanline;
 
-	for(int i = 0; i < 8; i++) {
+	int size = secondaryOamSize();
+	for(int i = 0; i < size; i++) {
 		Byte* object = secondary_oam + (i * OBJECT_SIZE);
 		Byte tile = object[TILE_INDEX];
 
@@ -787,7 +796,8 @@ void renderPixel() {
 			//sprites
 			bool show_sprites = testFlag(mask, SHOW_SPRITES);
 			if (show_sprites && (testFlag(mask, SHOW_SPR_LEFT_8) || (x >= 8))) {
-				for(int i = 7; i >= 0; i--) {
+				int size = secondaryOamSize();
+				for(int i = size-1; i >= 0; i--) {
 					Byte attributes = sprite_attribute_latch[i];
 
 					/*
