@@ -51,7 +51,7 @@ void loadSpritesOnScanline();
 void loadSpriteRegisters();
 
 const int PRERENDER_SCANLINE = 261;
-const int MAX_SCANLINE = 261;
+const int NUM_SCANLINES = 262;
 /*
 dummy scanline
 purpose is to fill shift registers with the data for the first two tiles to be rendered
@@ -67,7 +67,7 @@ const int VBLANK_SCANLINE = 241;
 VBLANK flag set on second tick of this scanline (and the NMI occurs)
 The PPU makes no memory accesses during the VBLANK scanlines, so the PPU memory can be freely accessed by the program
 */
-const int MAX_CYCLE = 340;
+const int NUM_CYCLES = 341;
 
 const int CHR_START = 0;
 const int CHR_END = 0x1fff;
@@ -297,7 +297,6 @@ Byte readByte(Word address) {
 				if (cycle == 0) {
 					suppress_vblank = true;
 				} else if (cycle == 1 || cycle == 2) {
-					dout("suppressed vblank");
 					CPU::setNMI(false);
 				}
 			}
@@ -319,24 +318,19 @@ Byte readByte(Word address) {
 			incrementVRAMAddress();
 			break;
 
-		default:
-			// dout("reading from " << register_names[address]);
-		break;
+		default: break;
 	}
 
 	return open_bus;
 }
 
 void writeToControl(Byte value) {
-	dout("write to control: " << toHex(control));
-
 	// manual NMI trigger during vblank
 	if (!testFlag(control, NMI_ENABLE)
 			&& testFlag(value, NMI_ENABLE)
 			&& testFlag(status, VBLANK)
 			&& (scanline != PRERENDER_SCANLINE)) {
 		CPU::setNMI();
-		doutCycle("manually set nmi");
 
 	// NMI suppression near vblank
 	} else if (testFlag(control, NMI_ENABLE)
@@ -344,11 +338,6 @@ void writeToControl(Byte value) {
 			&& (scanline == VBLANK_SCANLINE)
 			&& (cycle <= 2)) {
 		CPU::setNMI(false);
-		doutCycle("suppressed nmi by disabling nmi");
-	}
-
-	if ((control ^ value) & NMI_ENABLE) {
-		doutCycle("set nmi enable: " << testFlag(value, NMI_ENABLE));
 	}
 
 	control = value;
@@ -407,11 +396,8 @@ void setVBlank() {
 	if (!suppress_vblank) {
 		setStatusFlag(VBLANK, true);
 		if (testFlag(control, NMI_ENABLE)) {
-			doutCycle("nmi");
 			CPU::setNMI();
 		}
-	} else {
-		doutCycle("suppressed vblank");
 	}
 	suppress_vblank = false;
 }
@@ -433,15 +419,17 @@ void clearOAM() {
 
 void clockTick() {
 	cycle = (cycle + 1) % 341;
+	if (odd_frame
+			&& (scanline == PRERENDER_SCANLINE)
+			&& renderingEnabled()
+			&& (cycle == 340)) {
+		cycle = 0;
+	}
 	if (cycle == 0) {
 		scanline = (scanline + 1) % 262;
 		if (scanline == 0) {
-			frame++;
-
 			odd_frame = !odd_frame;
-			if (odd_frame && renderingEnabled()) {
-				cycle++; // skip idle cycle of first visible scanline
-			}
+			frame++;
 		}
 	}
 
@@ -742,7 +730,6 @@ void loadSpritesOnScanline() {
 			if (++j == (SECONDARY_OAM_SIZE + 1)) {
 				if (renderingEnabled()) {
 					setStatusFlag(SPRITE_OVERFLOW);
-					doutCycle("sprite overflow");
 				}
 				if (sprite_flickering) break;
 			}
@@ -836,7 +823,6 @@ void renderPixel() {
 							&& (x < 255)) { // doesn't check at x=255
 						sprite_zero_this_scanline = false;
 						setStatusFlag(SPRITE_0_HIT);
-						doutCycle("sprite 0 hit");
 					}
 
 					spr_palette |= (attributes & SPR_PALETTE) << 2;
