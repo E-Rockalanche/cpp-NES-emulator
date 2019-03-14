@@ -1,33 +1,23 @@
 #ifndef PPU_HPP
 #define PPU_HPP
 
-class PPU;
-
 #include "cpu.hpp"
 #include "common.hpp"
 #include "cartridge.hpp"
+#include "screen.hpp"
 
-class PPU {
-public:
-	PPU();
-	~PPU();
-	void setCartridge(Cartridge* cartridge);
+namespace PPU {
 	Byte readByte(Word address);
 	void writeByte(Word address, Byte value);
 	void clockTick();
 	void power();
 	void reset();
-	void setCPU(CPU* cpu);
-	const Pixel* getSurface();
 	bool readyToDraw();
 	void writeToOAM(Byte value);
 	bool renderingEnabled();
 
 	void dump();
 	bool nmiEnabled();
-
-	static const int SCREEN_WIDTH = 256;
-	static const int SCREEN_HEIGHT = 240;
 
 	/*
 	OAM: Object Attribute Memory
@@ -150,7 +140,7 @@ public:
 		*/
 	};
 
-	static const char* register_names[NUM_REGISTERS];
+	extern const char* register_names[NUM_REGISTERS];
 
 	enum ControlFlag {
 		NAMETABLE_0 = BL(0), // 1: x scroll += 256
@@ -256,161 +246,6 @@ public:
 		1: in vblank
 		*/
 	};
-
-private:
-	enum Scanline {
-		VISIBLE,
-		POSTRENDER,
-		PRERENDER,
-		VBLANK_LINE
-	};
-	template <Scanline s>
-	void scanlineCycle();
-
-	void setStatusFlag(int flag, bool value = true);
-
-	int spriteHeight();
-
-	void clearOAM();
-
-	void incrementYComponent();
-	void incrementXComponent();
-	void incrementVRAMAddress();
-	void updateVRAMX();
-	void updateVRAMY();
-
-	Word nametableAddress();
-	Word attributeAddress();
-	Word backgroundAddress();
-
-	void writeToControl(Byte value);
-	void writeToScroll(Byte value);
-	void writeToAddress(Byte value);
-	void renderPixel();
-
-	void setVBlank();
-	void clearVBlank();
-
-	Word nametableMirror(Word address);
-	Byte read(Word address);
-	void write(Word address, Byte value);
-
-	void loadShiftRegisters();
-	void loadSpritesOnScanline();
-	void loadSpriteRegisters();
-
-	static const int PRERENDER_SCANLINE = 261;
-	static const int MAX_SCANLINE = 261;
-	/*
-	dummy scanline
-	purpose is to fill shift registers with the data for the first two tiles to be rendered
-	no pixels are rendered but the PPU still makes the same memory accesses it would for a regular scanline
-	*/
-	static const int POSTRENDER_SCANLINE = 240;
-	/*
-	The PPU idles during this scanline.
-	Accessing PPU memory is safe here but VBLANK is set next scanline
-	*/
-	static const int VBLANK_SCANLINE = 241;
-	/*
-	VBLANK flag set on second tick of this scanline (and the NMI occurs)
-	The PPU makes no memory accesses during the VBLANK scanlines, so the PPU memory can be freely accessed by the program
-	*/
-	static const int MAX_CYCLE = 340;
-
-	static const int CHR_START = 0;
-	static const int CHR_END = 0x1fff;
-
-	static const int NAMETABLE_START = 0x2000;
-	static const int NAMETABLE_END = 0x3eff;
-	static const int NAMETABLE_SIZE = 0x800;
-
-	static const int PALETTE_START = 0x3f00;
-	static const int PALETTE_END = 0x3fff;
-	static const int PALETTE_SIZE = 0x20;
-
-	enum Object {
-		Y_POS,
-		TILE_INDEX,
-		ATTRIBUTES,
-		X_POS,
-
-		OBJECT_SIZE
-	};
-
-	enum ObjectAttribute {
-		SPR_PALETTE = 0x03, // 4 to 7
-		PRIORITY = BL(5), // 0: front, 1: back
-		FLIP_HOR = BL(6),
-		FLIP_VER = BL(7)
-	};
-
-	static const int PRIMARY_OAM_SIZE = 64 * OBJECT_SIZE;
-	static const int SECONDARY_OAM_SIZE = 8 * OBJECT_SIZE;
-
-	Byte nametable[NAMETABLE_SIZE];
-	Byte palette[PALETTE_SIZE];
-	Byte primary_oam[PRIMARY_OAM_SIZE];
-	Byte secondary_oam[SECONDARY_OAM_SIZE];
-
-	bool can_draw;
-
-	CPU* cpu;
-	Cartridge* cartridge;
-
-	static const int BOOTUP_CYCLES = 30000;
-	int wait_cycles;
-
-	Byte open_bus;
-	int open_bus_decay_timer;
-
-	bool write_toggle; // used to set x_scroll/y_scroll and vram_address
-	Byte control;
-	Byte mask;
-	Byte status;
-	Byte oam_address;
-	Word vram_address; // 15 bits: -yyyNNYYYYYXXXXX (fine y scroll, nametable select, coarse Y scroll, coarse X scroll)
-	Word temp_vram_address; // 15 bits
-	Byte fine_x_scroll; // 3 bits
-
-	bool in_vblank;
-	bool suppress_vblank;
-	bool nmi_previous;
-	int nmi_delay;
-	int cycles_since_nmi;
-
-	Byte bg_latch_low;
-	Byte bg_latch_high;
-	// VVV
-	Word bg_shift_low;
-	Word bg_shift_high;
-
-	Byte attribute_latch; // 2 bit latch
-	// VVV
-	bool attribute_latch_low;
-	bool attribute_latch_high;
-	// VVV
-	Byte attribute_shift_low;
-	Byte attribute_shift_high;
-
-	Byte nametable_latch;
-
-	Byte sprite_shift_low[8];
-	Byte sprite_shift_high[8];
-	Byte sprite_x_counter[8];
-	Byte sprite_attribute_latch[8];
-
-	bool sprite_zero_next_scanline;
-	bool sprite_zero_this_scanline;
-	bool sprite_zero_hit;
-
-	int cycle;
-	int scanline;
-	bool odd_frame;
-
-	static const int nes_palette[64];
-
-	Pixel surface[SCREEN_WIDTH * SCREEN_HEIGHT];
-};
+}
 
 #endif
