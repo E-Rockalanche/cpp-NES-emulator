@@ -42,7 +42,6 @@ public:
 	NameTableMirroring nameTableMirroring();
 
 	virtual void signalScanline() {}
-	void setCPU(CPU* cpu);
 
 protected:
 	enum Header {
@@ -182,8 +181,6 @@ protected:
 	int prg_map[4];
 	int chr_map[8];
 
-	CPU* cpu; // irq signalling
-
 	static Format getFormat(Byte* data);
 	static bool verifyHeader(Byte* data);
 	static int getMapperNumber(Byte* data);
@@ -191,5 +188,7 @@ protected:
 	void setPRGBank(int slot, int bank, int bank_size);
 	void setCHRBank(int slot, int bank, int bank_size);
 };
+
+extern Cartridge* cartridge;
 
 #endif
