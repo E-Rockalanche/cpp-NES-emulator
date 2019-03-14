@@ -30,7 +30,7 @@ void Mapper4::writePRG(Word address, Byte value) {
 			case 0xc001: irq_counter = 0; break;
 			case 0xe000:
 				irq_enabled = false;
-				cpu->setIRQ(false);
+				CPU::setIRQ(false);
 				break;
 			case 0xe001: irq_enabled = true; break;
 			default:
@@ -80,6 +80,6 @@ void Mapper4::signalScanline() {
 	}
 
 	if (irq_enabled && (irq_counter == 0)) {
-		cpu->setIRQ();
+		CPU::setIRQ();
 	}
 }

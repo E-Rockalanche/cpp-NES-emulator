@@ -1,13 +1,9 @@
 #include "zapper.hpp"
 #include "debugging.hpp"
+#include "screen.hpp"
 
-Zapper::Zapper(const Pixel* screen) {
-	this->screen = screen;
+Zapper::Zapper() {
 	trigger_held = 0;
-}
-
-void Zapper::setScreen(const Pixel* screen) {
-	this->screen = screen;
 }
 
 void Zapper::aim(int x, int y) {

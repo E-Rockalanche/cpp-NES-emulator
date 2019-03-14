@@ -5,9 +5,8 @@
 
 class Zapper : public Controller {
 public:
-	Zapper(const Pixel* screen = NULL);
+	Zapper();
 	~Zapper() {}
-	void setScreen(const Pixel* screen);
 	Byte read();
 	void write(Byte value) {}
 	void pull();
@@ -20,7 +19,6 @@ public:
 private:
 	int trigger_held;
 	int x, y;
-	const Pixel* screen;
 };
 
 #endif

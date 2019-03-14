@@ -12,4 +12,6 @@ public:
 	virtual void reset() = 0;
 };
 
+extern Controller* controller_ports[2];
+
 #endif
