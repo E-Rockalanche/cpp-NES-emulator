@@ -1302,6 +1302,7 @@ void storeAcc(AddressMode address_mode) {
 		case ABSOLUTE_Y:
 			clockTick();
 			break;
+		default: break;
 	}
 
 	Word address = getAddress(address_mode);

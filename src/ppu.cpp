@@ -103,10 +103,7 @@ Byte secondary_oam[PRIMARY_OAM_SIZE * OBJECT_SIZE]; // uses secondary size if sp
 
 bool can_draw;
 
-bool sprite_flickering = false;
-
-const int BOOTUP_CYCLES = 30000;
-int wait_cycles;
+bool sprite_flickering = true;
 
 Byte open_bus;
 int open_bus_decay_timer;
@@ -806,7 +803,7 @@ void renderPixel() {
 					}
 					*/
 
-					unsigned int sprite_x = x - sprite_x_counter[i];
+					int sprite_x = x - sprite_x_counter[i];
 					if (sprite_x < 0 || sprite_x >= 8 || x >= 255) continue; // not in range
 
 					if (testFlag(attributes, FLIP_HOR)) {

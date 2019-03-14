@@ -9,7 +9,7 @@ else
 	CLEAN := del .\obj\*.o .\obj\mappers\*.o $(TARGET)
 endif
 
-CFLAGS := -c -std=c++17 -Ofast
+CFLAGS := -c -std=c++17 -Ofast -Wall -Wextra -Wno-unused-parameter
 INCLUDE := -I./inc -I./inc/mappers
 
 SOURCES = $(wildcard src/*.cpp)
