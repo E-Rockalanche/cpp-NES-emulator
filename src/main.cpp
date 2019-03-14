@@ -32,6 +32,7 @@ int window_width = SCREEN_WIDTH * 3;
 int window_height = SCREEN_HEIGHT * 3;
 int x_offset = 0;
 int y_offset = 0;
+bool fullscreen = false;
 
 // frame timing
 const unsigned int TARGET_FPS = 60;
@@ -202,7 +203,18 @@ void keyboard(unsigned char key, int x, int y)  {
 }
 
 void specialKeyboard(int key, int x, int y) {
-	joypad.pressKey(key);
+	switch(key) {
+		case GLUT_KEY_F11:
+			fullscreen = !fullscreen;
+			if (fullscreen) glutFullScreen();
+			else {
+				glutReshapeWindow(SCREEN_WIDTH, SCREEN_HEIGHT);
+				glutPositionWindow(100, 100);
+			}
+		default:
+			joypad.pressKey(key);
+			break;
+	}
 }
 
 void keyboardRelease(unsigned char key, int x, int y) {
