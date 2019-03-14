@@ -465,8 +465,7 @@ void power() {
 
 	_halt = false;
 	_nmi = -1;
-	_irq = false;
-	wait_cycles = 0;
+	_irq = -1;
 	odd_cycle = false;
 
 	for(int i = 0; i < RAM_SIZE; i++) {
@@ -485,8 +484,7 @@ void reset() {
 
 	_halt = false;
 	_nmi = -1;
-	_irq = false;
-	wait_cycles = 0;
+	_irq = -1;
 	odd_cycle = false;
 
 	_break = false;
@@ -501,14 +499,13 @@ void setIRQ(bool on) {
 }
 
 void clockTick() {
-	if (_nmi >= 0) _nmi++;
-	if (_irq >= 0) _irq++;
-
 	odd_cycle = !odd_cycle;
 	//APU::clockTick();
-	PPU::clockTick();
-	PPU::clockTick();
-	PPU::clockTick();
+	for(int i = 0; i < 3; i++) {
+		if (_nmi >= 0) _nmi++;
+		if (_irq >= 0) _irq++;
+		PPU::clockTick();
+	}
 
 	test_ticks++; // debug
 }
@@ -611,7 +608,7 @@ void execute() {
 	if (!_halt) {
 		_irq = getStatusFlag(DISABLE_INTERRUPTS) ? -1 : _irq;
 
-		if (_nmi > 0) {
+		if (_nmi > 1) {
 			_nmi = -1;
 			nmi();
 
@@ -621,7 +618,7 @@ void execute() {
 				dout("wait cycles: " << wait_cycles);
 				dout("test ticks: " << test_ticks);
 			}
-		} else if (_irq > 0) {
+		} else if (_irq > 1) {
 			_irq = -1;
 			irq();
 
