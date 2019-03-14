@@ -28,6 +28,11 @@ Pixel screen[SCREEN_WIDTH * SCREEN_HEIGHT];
 std::string file_path;
 std::string file_name;
 
+int window_width = SCREEN_WIDTH * 3;
+int window_height = SCREEN_HEIGHT * 3;
+int x_offset = 0;
+int y_offset = 0;
+
 // frame timing
 const unsigned int TARGET_FPS = 60;
 const double TIME_PER_FRAME = 1000.0 / TARGET_FPS;
@@ -186,6 +191,11 @@ void keyboard(unsigned char key, int x, int y)  {
 			std::cout << HELP;
 			break;
 
+		case '1' ... '3': {
+			int scale = key - '0';
+			glutReshapeWindow(SCREEN_WIDTH * scale, SCREEN_HEIGHT * scale);
+			} break;
+
 		default:
 			joypad.pressKey(key);
 	}
@@ -203,6 +213,7 @@ void specialRelease(int key, int x, int y) {
 	joypad.releaseKey(key);
 }
 
+// Zapper
 void mouseButton(int button, int state, int x, int y) {
 	if (button == GLUT_LEFT_BUTTON) {
 		if (state == GLUT_DOWN) {
@@ -210,12 +221,29 @@ void mouseButton(int button, int state, int x, int y) {
 		}
 	}
 }
-
+#define scaleX(x) (((float)(x) * SCREEN_WIDTH) / window_width)
+#define scaleY(x) (((float)(y) * SCREEN_HEIGHT) / window_height)
 void mouseMotion(int x, int y) {
-	zapper.aim(x, y);
+	zapper.aim(scaleX(x - x_offset), scaleY(y - y_offset));
 }
 void mousePassiveMotion(int x, int y) {
-	zapper.aim(x, y);
+	zapper.aim(scaleX(x - x_offset), scaleY(y - y_offset));
+}
+
+#define min(x, y) (((x) < (y)) ? (x) : (y))
+void resizeWindow(int width, int height) {
+	float x_scale = (float)width / SCREEN_WIDTH;
+	float y_scale = (float)height / SCREEN_HEIGHT;
+	float scale = min(x_scale, y_scale);
+
+	window_width = scale * SCREEN_WIDTH;
+	window_height = scale * SCREEN_HEIGHT;
+	glViewport(0, 0, window_width, window_height);
+	glPixelZoom(scale, scale);
+
+	x_offset = (width - window_width) / 2;
+	y_offset = (height - window_height) / 2;
+	glWindowPos2i(x_offset, y_offset);
 }
 
 void renderScene()  {
@@ -283,10 +311,10 @@ int main(int argc, char* argv[]) {
 	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGB);
 
 	glutInitWindowPosition(100,100);
-	glutInitWindowSize(SCREEN_WIDTH, SCREEN_HEIGHT);
-	glutCreateWindow("NES emulator test");
+	glutInitWindowSize(window_width, window_height);
+	glutCreateWindow("NES emulator");
 
-	glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+	glViewport(0, 0, window_width, window_height);
 
 	glutDisplayFunc(renderScene);
 	glutIdleFunc(idle);
@@ -299,6 +327,8 @@ int main(int argc, char* argv[]) {
 	glutMouseFunc(mouseButton);
 	glutMotionFunc(mouseMotion);
 	glutPassiveMotionFunc(mousePassiveMotion);
+
+	glutReshapeFunc(resizeWindow);
 
 	glutIgnoreKeyRepeat(GLUT_DEVICE_IGNORE_KEY_REPEAT);
 	
