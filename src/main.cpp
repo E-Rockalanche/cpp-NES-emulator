@@ -31,6 +31,9 @@ Cartridge* cartridge = NULL;
 std::string file_path;
 std::string file_name;
 
+std::string rom_folder;
+std::string save_folder;
+
 const Pixel* surface;
 
 const unsigned int TARGET_FPS = 60;
