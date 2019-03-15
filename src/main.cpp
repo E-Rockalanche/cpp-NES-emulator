@@ -3,6 +3,7 @@
 #include <ctime>
 #include <cstdlib>
 
+#include "common.hpp"
 #include "debugging.hpp"
 #include "cpu.hpp"
 #include "ppu.hpp"
@@ -37,8 +38,16 @@ bool fullscreen = false;
 // frame timing
 const unsigned int TARGET_FPS = 60;
 const double TIME_PER_FRAME = 1000.0 / TARGET_FPS;
-int g_start_time;
-int g_current_frame_number;
+int last_time = 0;
+int last_render_time = 0;
+double last_wait_time = 0;
+
+float fps = 0;
+float min_fps = 1000000;
+float max_fps = 0;
+float total_fps = 0;
+int total_frames = 0;
+#define ave_fps (total_fps / total_frames)
 
 bool loadFile(std::string filename) {
 	if (cartridge) delete cartridge;
@@ -135,6 +144,10 @@ void keyboard(unsigned char key, int x, int y)  {
 			break;
 		}
 
+		case 'i':
+			PPU::sprite_flickering = !PPU::sprite_flickering;
+			break;
+
 
 		case 'b': // break
 			CPU::_break = true;
@@ -186,6 +199,12 @@ void keyboard(unsigned char key, int x, int y)  {
 
 		case 'p':
 			PPU::dump();
+			break;
+
+		case 'a':
+			std::cout << "min fps: " << min_fps << '\n';
+			std::cout << "max fps: " << max_fps << '\n';
+			std::cout << "ave fps: " << ave_fps << '\n';
 			break;
 
 		case 'h':
@@ -242,11 +261,10 @@ void mousePassiveMotion(int x, int y) {
 	zapper.aim(scaleX(x - x_offset), scaleY(y - y_offset));
 }
 
-#define min(x, y) (((x) < (y)) ? (x) : (y))
 void resizeWindow(int width, int height) {
 	float x_scale = (float)width / SCREEN_WIDTH;
 	float y_scale = (float)height / SCREEN_HEIGHT;
-	float scale = min(x_scale, y_scale);
+	float scale = MIN(x_scale, y_scale);
 
 	window_width = scale * SCREEN_WIDTH;
 	window_height = scale * SCREEN_HEIGHT;
@@ -267,22 +285,32 @@ void renderScene()  {
 	glutSwapBuffers();
 
 	zapper.update();
+	total_frames++;
 }
 
 void idle() {
-    double end_frame_time, end_rendering_time, waste_time;
-    glutPostRedisplay();
+	int current_time = glutGet(GLUT_ELAPSED_TIME);
+	int elapsed_time = current_time - last_time;
+	last_time = current_time;
 
-    // wait until it is time to draw the current frame
-    end_frame_time = g_start_time + (g_current_frame_number + 1) * TIME_PER_FRAME;
-    end_rendering_time = glutGet(GLUT_ELAPSED_TIME);
-    waste_time = end_frame_time - end_rendering_time;
-    if (waste_time > 0.0) {
-    	Sleep(waste_time / 1000.0);    // sleep parameter should be in seconds
-    }
+	double wait_time = TIME_PER_FRAME - elapsed_time;
+	// reduce wait time if last frame took too long
+	if (last_wait_time < 0.0) {
+		wait_time += last_wait_time;
+	}
+	last_wait_time = wait_time;
 
-    // update frame number
-    g_current_frame_number = g_current_frame_number + 1;
+    fps = TIME_PER_FRAME / (current_time - last_render_time) * TARGET_FPS;
+    min_fps = MIN(min_fps, fps);
+    max_fps = MAX(max_fps, fps);
+    total_fps += fps;
+
+	if (wait_time >= 0.0) {
+		Sleep(wait_time);
+	}
+
+	glutPostRedisplay();
+	last_render_time = glutGet(GLUT_ELAPSED_TIME);
 }
 
 int main(int argc, char* argv[]) {
@@ -316,8 +344,7 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	g_start_time = glutGet(GLUT_ELAPSED_TIME);
-    g_current_frame_number = 0;
+	last_time = glutGet(GLUT_ELAPSED_TIME);
 
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGB);

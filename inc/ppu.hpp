@@ -246,6 +246,8 @@ namespace PPU {
 		1: in vblank
 		*/
 	};
+
+	extern bool sprite_flickering;
 }
 
 #endif

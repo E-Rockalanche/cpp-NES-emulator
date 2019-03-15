@@ -20,6 +20,9 @@
 	#define NULL 0
 #endif
 
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+
 typedef unsigned char Byte;
 typedef unsigned short Word;
 
