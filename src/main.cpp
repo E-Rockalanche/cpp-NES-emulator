@@ -1,8 +1,10 @@
+// standard library
 #include <iostream>
 #include <string>
 #include <ctime>
 #include <cstdlib>
 
+// nes
 #include "common.hpp"
 #include "debugging.hpp"
 #include "cpu.hpp"
@@ -15,10 +17,13 @@
 #include "program_end.hpp"
 #include "screen.hpp"
 
+// unprotected includes
+#include "nes_config.hpp"
+
+// graphics
 #include <GL/gl.h>
 #include <GL/glu.h>
 #include "GL/glut.h"
-
 #include <windows.h>
 
 Joypad joypad;
@@ -26,9 +31,9 @@ Zapper zapper;
 
 Pixel screen[SCREEN_WIDTH * SCREEN_HEIGHT];
 
-std::string file_path;
 std::string file_name;
 
+// window size
 int window_width = SCREEN_WIDTH * 3;
 int window_height = SCREEN_HEIGHT * 3;
 int x_offset = 0;
@@ -43,11 +48,12 @@ int last_render_time = 0;
 double last_wait_time = 0;
 
 float fps = 0;
-float min_fps = 1000000;
-float max_fps = 0;
+float real_fps = 0;
 float total_fps = 0;
+float total_real_fps = 0;
 int total_frames = 0;
 #define ave_fps (total_fps / total_frames)
+#define ave_real_fps (total_real_fps / total_frames)
 
 bool loadFile(std::string filename) {
 	if (cartridge) delete cartridge;
@@ -57,18 +63,25 @@ bool loadFile(std::string filename) {
 		return false;
 	} else {
 		if (cartridge->hasSRAM()) {
-			file_path = getPath(filename);
 			file_name = getFilename(filename);
-			cartridge->loadSave(file_path + file_name + ".sav");
+			cartridge->loadSave(save_path + file_name + ".sav");
 		}
 		return true;
+	}
+}
+
+bool loadSave(std::string filename) {
+	if (cartridge && cartridge->hasSRAM()) {
+		return cartridge->loadSave(filename);
+	} else {
+		return false;
 	}
 }
 
 // close program callback
 void saveGame() {
 	if (cartridge && cartridge->hasSRAM()) {
-		cartridge->saveGame(file_path + file_name + ".sav");
+		cartridge->saveGame(save_path + file_name + ".sav");
 	}
 }
 ProgramEnd pe(saveGame);
@@ -146,6 +159,7 @@ void keyboard(unsigned char key, int x, int y)  {
 
 		case 'i':
 			PPU::sprite_flickering = !PPU::sprite_flickering;
+			std::cout << "sprite flickering: " << (PPU::sprite_flickering ? "ON" : "OFF");
 			break;
 
 
@@ -202,9 +216,8 @@ void keyboard(unsigned char key, int x, int y)  {
 			break;
 
 		case 'a':
-			std::cout << "min fps: " << min_fps << '\n';
-			std::cout << "max fps: " << max_fps << '\n';
 			std::cout << "ave fps: " << ave_fps << '\n';
+			std::cout << "ave real fps: " << ave_real_fps << '\n';
 			break;
 
 		case 'h':
@@ -291,7 +304,6 @@ void renderScene()  {
 void idle() {
 	int current_time = glutGet(GLUT_ELAPSED_TIME);
 	int elapsed_time = current_time - last_time;
-	last_time = current_time;
 
 	double wait_time = TIME_PER_FRAME - elapsed_time;
 	// reduce wait time if last frame took too long
@@ -300,10 +312,10 @@ void idle() {
 	}
 	last_wait_time = wait_time;
 
-    fps = TIME_PER_FRAME / (current_time - last_render_time) * TARGET_FPS;
-    min_fps = MIN(min_fps, fps);
-    max_fps = MAX(max_fps, fps);
+    real_fps = TIME_PER_FRAME / (current_time - last_render_time) * TARGET_FPS;
+    fps = TIME_PER_FRAME / (current_time - last_time) * TARGET_FPS;
     total_fps += fps;
+    total_real_fps += real_fps;
 
 	if (wait_time >= 0.0) {
 		Sleep(wait_time);
@@ -311,10 +323,12 @@ void idle() {
 
 	glutPostRedisplay();
 	last_render_time = glutGet(GLUT_ELAPSED_TIME);
+	last_time = current_time;
 }
 
 int main(int argc, char* argv[]) {
 	srand(time(NULL));
+	loadConfig();
 
 	controller_ports[0] = &joypad;
 	controller_ports[1] = &zapper;
