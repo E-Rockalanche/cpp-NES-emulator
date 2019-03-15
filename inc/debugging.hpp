@@ -1,6 +1,8 @@
 #ifndef DEBUGGING_HPP
 #define DEBUGGING_HPP
 
+#include <iostream>
+
 #define DEBUG true
 
 #if (DEBUG)

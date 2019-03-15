@@ -16,9 +16,7 @@
 #include "file_path.hpp"
 #include "program_end.hpp"
 #include "screen.hpp"
-
-// unprotected includes
-#include "nes_config.hpp"
+#include "config.hpp"
 
 // graphics
 #include <GL/gl.h>
@@ -26,19 +24,24 @@
 #include "GL/glut.h"
 #include <windows.h>
 
-Joypad joypad;
+Joypad joypad[4];
 Zapper zapper;
 
 Pixel screen[SCREEN_WIDTH * SCREEN_HEIGHT];
 
-std::string file_name;
+// paths
+std::string file_name = "";
+std::string save_path = "./";
+std::string rom_path = "./";
+std::string screenshot_path = "./";
 
 // window size
-int window_width = SCREEN_WIDTH * 3;
-int window_height = SCREEN_HEIGHT * 3;
+bool fullscreen = false;
+float window_scale = 2;
+int screen_width = SCREEN_WIDTH;
+int screen_height = SCREEN_HEIGHT;
 int x_offset = 0;
 int y_offset = 0;
-bool fullscreen = false;
 
 // frame timing
 const unsigned int TARGET_FPS = 60;
@@ -47,13 +50,45 @@ int last_time = 0;
 int last_render_time = 0;
 double last_wait_time = 0;
 
+// frame rate
+int total_frames = 0;
 float fps = 0;
 float real_fps = 0;
 float total_fps = 0;
 float total_real_fps = 0;
-int total_frames = 0;
 #define ave_fps (total_fps / total_frames)
 #define ave_real_fps (total_real_fps / total_frames)
+
+#define CONFIG_FILE "nes.cfg"
+Config config;
+void loadConfig() {
+	dout("load config");
+
+	if (!config.load(CONFIG_FILE)) {
+		dout("could not load configuration file");
+	} else dout("setting variables");
+
+	// ppu options
+	PPU::sprite_flickering = config.getBool("sprite_flickering", true);
+
+	// file options
+	rom_path = config.getString("rom_path", "./");
+	save_path = config.getString("save_path", "./");
+	screenshot_path = config.getString("screenshot_path", "./");
+
+	// window options
+	fullscreen = config.getBool("fullscreen", false);
+	window_scale = config.getFloat("window_scale", 2.0);
+
+	if (config.updated()) {
+		dout("saving config");
+		config.save(CONFIG_FILE);
+	}
+		
+	if (fullscreen) glutFullScreen();
+	else glutReshapeWindow(SCREEN_WIDTH * window_scale,
+						   SCREEN_HEIGHT * window_scale);
+}
 
 bool loadFile(std::string filename) {
 	if (cartridge) delete cartridge;
@@ -83,6 +118,7 @@ void saveGame() {
 	if (cartridge && cartridge->hasSRAM()) {
 		cartridge->saveGame(save_path + file_name + ".sav");
 	}
+	config.save();
 }
 ProgramEnd pe(saveGame);
 
@@ -224,13 +260,14 @@ void keyboard(unsigned char key, int x, int y)  {
 			std::cout << HELP;
 			break;
 
-		case '1' ... '3': {
-			int scale = key - '0';
-			glutReshapeWindow(SCREEN_WIDTH * scale, SCREEN_HEIGHT * scale);
-			} break;
+		case '1' ... '3':
+			window_scale = key - '0';
+			glutReshapeWindow(SCREEN_WIDTH * window_scale,
+							  SCREEN_HEIGHT * window_scale);
+			break;
 
 		default:
-			joypad.pressKey(key);
+			for(int i = 0; i < 4; i++) joypad[i].pressKey(key);
 	}
 }
 
@@ -240,21 +277,22 @@ void specialKeyboard(int key, int x, int y) {
 			fullscreen = !fullscreen;
 			if (fullscreen) glutFullScreen();
 			else {
-				glutReshapeWindow(SCREEN_WIDTH, SCREEN_HEIGHT);
+				glutReshapeWindow(SCREEN_WIDTH * window_scale,
+								  SCREEN_HEIGHT * window_scale);
 				glutPositionWindow(100, 100);
 			}
 		default:
-			joypad.pressKey(key);
+			for(int i = 0; i < 4; i++) joypad[i].pressKey(key);
 			break;
 	}
 }
 
 void keyboardRelease(unsigned char key, int x, int y) {
-	joypad.releaseKey(key);
+	for(int i = 0; i < 4; i++) joypad[i].releaseKey(key);
 }
 
 void specialRelease(int key, int x, int y) {
-	joypad.releaseKey(key);
+	for(int i = 0; i < 4; i++) joypad[i].releaseKey(key);
 }
 
 // Zapper
@@ -265,8 +303,8 @@ void mouseButton(int button, int state, int x, int y) {
 		}
 	}
 }
-#define scaleX(x) (((float)(x) * SCREEN_WIDTH) / window_width)
-#define scaleY(x) (((float)(y) * SCREEN_HEIGHT) / window_height)
+#define scaleX(x) (((float)(x) * SCREEN_WIDTH) / screen_width)
+#define scaleY(x) (((float)(y) * SCREEN_HEIGHT) / screen_height)
 void mouseMotion(int x, int y) {
 	zapper.aim(scaleX(x - x_offset), scaleY(y - y_offset));
 }
@@ -274,18 +312,21 @@ void mousePassiveMotion(int x, int y) {
 	zapper.aim(scaleX(x - x_offset), scaleY(y - y_offset));
 }
 
-void resizeWindow(int width, int height) {
-	float x_scale = (float)width / SCREEN_WIDTH;
-	float y_scale = (float)height / SCREEN_HEIGHT;
+void resizeWindow(int window_width, int window_height) {
+	// calculate largest screen scale in current window size
+	float x_scale = (float)window_width / SCREEN_WIDTH;
+	float y_scale = (float)window_height / SCREEN_HEIGHT;
 	float scale = MIN(x_scale, y_scale);
 
-	window_width = scale * SCREEN_WIDTH;
-	window_height = scale * SCREEN_HEIGHT;
-	glViewport(0, 0, window_width, window_height);
+	// set new screen size
+	screen_width = scale * SCREEN_WIDTH;
+	screen_height = scale * SCREEN_HEIGHT;
+	glViewport(0, 0, screen_width, screen_height);
 	glPixelZoom(scale, scale);
 
-	x_offset = (width - window_width) / 2;
-	y_offset = (height - window_height) / 2;
+	// center screen in window
+	x_offset = (window_width - screen_width) / 2;
+	y_offset = (window_height - screen_height) / 2;
 	glWindowPos2i(x_offset, y_offset);
 }
 
@@ -321,27 +362,52 @@ void idle() {
 		Sleep(wait_time);
 	}
 
-	glutPostRedisplay();
 	last_render_time = glutGet(GLUT_ELAPSED_TIME);
 	last_time = current_time;
+
+	glutPostRedisplay();
+}
+
+void initializeGlut(int& argc, char* argv[]) {
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGB);
+
+	glutInitWindowPosition(100,100);
+	glutInitWindowSize(screen_width, screen_height);
+	glutCreateWindow("NES emulator");
+
+	glViewport(0, 0, screen_width, screen_height);
+
+	glutDisplayFunc(renderScene);
+	glutIdleFunc(idle);
+
+	glutKeyboardFunc(keyboard);
+	glutSpecialFunc(specialKeyboard);
+	glutKeyboardUpFunc(keyboardRelease);
+	glutSpecialUpFunc(specialRelease);
+
+	glutMouseFunc(mouseButton);
+	glutMotionFunc(mouseMotion);
+	glutPassiveMotionFunc(mousePassiveMotion);
+
+	glutReshapeFunc(resizeWindow);
+
+	glutIgnoreKeyRepeat(GLUT_DEVICE_IGNORE_KEY_REPEAT);
 }
 
 int main(int argc, char* argv[]) {
+	initializeGlut(argc, argv);
+
 	srand(time(NULL));
+
 	loadConfig();
 
-	controller_ports[0] = &joypad;
+	controller_ports[0] = &joypad[0];
 	controller_ports[1] = &zapper;
 	CPU::init();
 
-	joypad.keymap[Joypad::A] = 'v';
-	joypad.keymap[Joypad::B] = 'c';
-	joypad.keymap[Joypad::START] = 13; // enter
-	joypad.keymap[Joypad::SELECT] = ' '; // spacebar
-	joypad.keymap[Joypad::RIGHT] = GLUT_KEY_RIGHT;
-	joypad.keymap[Joypad::LEFT] = GLUT_KEY_LEFT;
-	joypad.keymap[Joypad::UP] = GLUT_KEY_UP;
-	joypad.keymap[Joypad::DOWN] = GLUT_KEY_DOWN;
+	joypad[0].mapButtons((const int[8]){ 'v', 'c', ' ', 13,
+		GLUT_KEY_UP, GLUT_KEY_DOWN, GLUT_KEY_LEFT, GLUT_KEY_RIGHT });
 
 	std::string filename;
 	if (argc > 1) {
@@ -360,31 +426,6 @@ int main(int argc, char* argv[]) {
 
 	last_time = glutGet(GLUT_ELAPSED_TIME);
 
-	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGB);
-
-	glutInitWindowPosition(100,100);
-	glutInitWindowSize(window_width, window_height);
-	glutCreateWindow("NES emulator");
-
-	glViewport(0, 0, window_width, window_height);
-
-	glutDisplayFunc(renderScene);
-	glutIdleFunc(idle);
-
-	glutKeyboardFunc(keyboard);
-	glutSpecialFunc(specialKeyboard);
-	glutKeyboardUpFunc(keyboardRelease);
-	glutSpecialUpFunc(specialRelease);
-
-	glutMouseFunc(mouseButton);
-	glutMotionFunc(mouseMotion);
-	glutPassiveMotionFunc(mousePassiveMotion);
-
-	glutReshapeFunc(resizeWindow);
-
-	glutIgnoreKeyRepeat(GLUT_DEVICE_IGNORE_KEY_REPEAT);
-	
 	glutMainLoop();
 
 	return 0;

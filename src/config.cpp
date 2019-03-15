@@ -1,4 +1,5 @@
 #include "config.hpp"
+#include "debugging.hpp"
 #include <fstream>
 #include <cctype>
 #include <sstream>
@@ -14,8 +15,14 @@ std::string trim(std::string str) {
 	return std::string(str, start, end-start+1);
 }
 
+Config::Config() {
+	_updated = false;
+	filename = "";
+}
+
 Config::Config(std::string filename) : filename(filename) {
 	load(filename);
+	_updated = false;
 }
 
 bool Config::load(std::string filename) {
@@ -65,40 +72,74 @@ bool Config::save() {
 	return save(filename);
 }
 
-int Config::getInt(std::string key) {
-	int value;
-	try {
-		value = std::stoi(values[key]);
-	} catch(...) {
-		value = 0;
-	}
-	return value;
+bool Config::updated() {
+	return _updated;
 }
 
-float Config::getFloat(std::string key) {
-	float value;
-	try {
-		value = std::stof(values[key]);
-	} catch(...) {
-		value = 0;
-	}
-	return value;
-}
+int Config::getInt(std::string key, int default_value) {
+	dout("getInt(" << key << ")");
 
-std::string Config::getString(std::string key) {
-	return values[key];
-}
-
-bool Config::getBool(std::string key) {
-	bool ok = false;
-	std::string& value = values[key];
-	if ((value == "TRUE") || (value == "true")) {
-		ok = true;
-	} else if ((value != "FALSE") && (value != "false")) {
+	int value = default_value;
+	auto it = values.find(key);
+	if (it == values.end()) {
+		set(key, default_value);
+	} else {
 		try {
-			ok = std::stoi(value) == 1;
+			value = std::stoi(it->second);
 		} catch(...) {
-			values[key] = "FALSE";
+			set(key, default_value);
+		}
+	}
+	return value;
+}
+
+float Config::getFloat(std::string key, float default_value) {
+	dout("getFloat(" << key << ")");
+	
+	float value = default_value;
+	auto it = values.find(key);
+	if (it == values.end()) {
+		set(key, default_value);
+	} else {
+		try {
+			value = std::stof(it->second);
+		} catch(...) {
+			set(key, default_value);
+		}
+	}
+	return value;
+}
+
+std::string Config::getString(std::string key, std::string default_value) {
+	dout("getString(" << key << ")");
+	
+	std::string value = default_value;
+	auto it = values.find(key);
+	if (it == values.end()) {
+		set(key, default_value);
+	} else {
+		value = it->second;
+	}
+	return value;
+}
+
+bool Config::getBool(std::string key, bool default_value) {
+	dout("getBool(" << key << ")");
+	
+	bool ok = default_value;
+	auto it = values.find(key);
+	if (it == values.end()) {
+		set(key, default_value);
+	} else {
+		std::string& value = it->second;
+		if ((value == "TRUE") || (value == "true")) {
+			ok = true;
+		} else if ((value != "FALSE") && (value != "false")) {
+			try {
+				ok = std::stoi(value) == 1;
+			} catch(...) {
+				set(key, false);
+			}
 		}
 	}
 	return ok;
@@ -106,16 +147,20 @@ bool Config::getBool(std::string key) {
 
 void Config::set(std::string key, int value) {
 	values[key] = std::to_string(value);
+	_updated = true;
 }
 
 void Config::set(std::string key, float value) {
 	values[key] = std::to_string(value);
+	_updated = true;
 }
 
 void Config::set(std::string key, std::string value) {
 	values[key] = value;
+	_updated = true;
 }
 
 void Config::set(std::string key, bool value) {
 	values[key] = value ? "TRUE" : "FALSE";
+	_updated = true;
 }

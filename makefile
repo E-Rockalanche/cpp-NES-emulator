@@ -27,9 +27,6 @@ $(TARGET): $(OBJECTS) $(MAPPERS_OBJ)
 obj/mappers/%.o: src/mappers/%.cpp inc/mappers/%.hpp inc/cartridge.hpp inc/common.hpp inc/debugging.hpp
 	$(MAKE_OBJ)
 
-obj/main.o: src/main.cpp inc/main.hpp inc/nes_config.hpp inc/common.hpp inc/debugging.hpp
-	$(MAKE_OBJ)
-
 obj/%.o: src/%.cpp inc/%.hpp inc/common.hpp inc/debugging.hpp
 	$(MAKE_OBJ)
 
