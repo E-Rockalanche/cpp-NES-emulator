@@ -22,5 +22,6 @@ A catch-up style cycle acurate NES emulator written in c++
 4. MMC3
 
 ## Credits and Thanks
-* Nesdev: https://wiki.nesdev.com/w/index.php/Nesdev
-* Blargg's NES APU library: http://blargg.8bitalley.com/libs/audio.html#Nes_Snd_Emu
+* Nesdev (great documentation): https://wiki.nesdev.com/w/index.php/Nesdev
+* Blargg's NES APU library (too scary for me to write): http://blargg.8bitalley.com/libs/audio.html#Nes_Snd_Emu
+* LaiNES (helped me when I got stuck): https://github.com/AndreaOrru/LaiNES
