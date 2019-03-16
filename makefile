@@ -1,13 +1,8 @@
 TARGET := nes.exe
 CXX := g++
 
-ifeq ($(OS), unix)
-	LFLAGS := -lm -lGL -lGLU -lglut
-	CLEAN := rm ./obj/*.o ./obj/mappers/*.o ./lib/obj/*.o $(TARGET)
-else
-	LFLAGS := -lmingw32 -lm -lglut32cu -lglu32 -lopengl32 -Wl,-Bdynamic -lSDL2main -lSDL2 -lole32 -loleaut32 -limm32 -lwinmm -lversion -Wl,-Bstatic
-	CLEAN := del .\obj\*.o .\obj\mappers\*.o .\lib\obj\*.o $(TARGET)
-endif
+LFLAGS := -lmingw32 -lm -lglut32cu -lglu32 -lopengl32 -Wl,-Bdynamic -lSDL2main -lSDL2 -lole32 -loleaut32 -limm32 -lwinmm -lversion -Wl,-Bstatic
+CLEAN := del .\obj\*.o .\obj\mappers\*.o .\lib\obj\*.o $(TARGET)
 
 CFLAGS := -c -std=c++17 -Ofast -Wno-unused-parameter
 INCLUDE := -I./inc -I./inc/mappers -I./lib/inc -I./lib/inc/boost
