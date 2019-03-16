@@ -1,7 +1,7 @@
 TARGET := nes.exe
 CXX := g++
 
-LFLAGS := -lmingw32 -lm -lglut32cu -lglu32 -lopengl32 -Wl,-Bdynamic -lSDL2main -lSDL2 -lole32 -loleaut32 -limm32 -lwinmm -lversion -Wl,-Bstatic
+LFLAGS := -lmingw32 -lm -lglut32cu -lglu32 -lopengl32 -Wl,-Bdynamic -lSDL2main -lSDL2 -Wl,-Bstatic
 CLEAN := del .\obj\*.o .\obj\mappers\*.o .\lib\obj\*.o $(TARGET)
 
 CFLAGS := -c -std=c++17 -Ofast -Wno-unused-parameter
