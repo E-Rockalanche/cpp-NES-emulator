@@ -1,9 +1,11 @@
+#include <fstream>
+
 #include "cartridge.hpp"
 #include "mapper1.hpp"
 #include "mapper2.hpp"
 #include "mapper3.hpp"
 #include "mapper4.hpp"
-#include <fstream>
+#include "assert.hpp"
 
 using namespace std;
 

@@ -1,5 +1,6 @@
 #include <bitset>
 #include <cstdlib>
+
 #include "ppu.hpp"
 #include "debugging.hpp"
 #include "common.hpp"

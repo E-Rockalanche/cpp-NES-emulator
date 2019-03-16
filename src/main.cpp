@@ -6,6 +6,7 @@
 
 // nes
 #include "common.hpp"
+#include "main.hpp"
 #include "debugging.hpp"
 #include "cpu.hpp"
 #include "ppu.hpp"
@@ -58,6 +59,12 @@ float total_fps = 0;
 float total_real_fps = 0;
 #define ave_fps (total_fps / total_frames)
 #define ave_real_fps (total_real_fps / total_frames)
+
+Sound_Queue* sound_queue = NULL;
+void newSamples(const blip_sample_t* samples, size_t count)
+{
+    sound_queue->write(samples, count);
+}
 
 #define CONFIG_FILE "nes.cfg"
 Config config;
@@ -331,10 +338,8 @@ void resizeWindow(int window_width, int window_height) {
 }
 
 void renderScene()  {
-	while(!CPU::halted() && (!CPU::_break || next_frame) && !PPU::readyToDraw()) {
-		CPU::execute();
-	}
-	next_frame = false;
+	CPU::runFrame();
+
 	glDrawPixels(SCREEN_WIDTH, SCREEN_HEIGHT,  GL_RGB, GL_UNSIGNED_BYTE, screen);
 	glutSwapBuffers();
 
@@ -395,6 +400,7 @@ void initializeGlut(int& argc, char* argv[]) {
 	glutIgnoreKeyRepeat(GLUT_DEVICE_IGNORE_KEY_REPEAT);
 }
 
+
 int main(int argc, char* argv[]) {
 	initializeGlut(argc, argv);
 
@@ -405,6 +411,9 @@ int main(int argc, char* argv[]) {
 	controller_ports[0] = &joypad[0];
 	controller_ports[1] = &zapper;
 	CPU::init();
+	APU::init();
+    sound_queue = new Sound_Queue;
+    sound_queue->init(96000);
 
 	joypad[0].mapButtons((const int[8]){ 'v', 'c', ' ', 13,
 		GLUT_KEY_UP, GLUT_KEY_DOWN, GLUT_KEY_LEFT, GLUT_KEY_RIGHT });
