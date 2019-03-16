@@ -1,13 +1,13 @@
 #ifndef CPU_HPP
 #define CPU_HPP
 
-
 #include <vector>
-#include "ppu.hpp"
+
 #include "apu.hpp"
-#include "common.hpp"
+#include "ppu.hpp"
 #include "controller.hpp"
 #include "cartridge.hpp"
+#include "common.hpp"
 
 namespace CPU {
 	void init();
@@ -18,6 +18,9 @@ namespace CPU {
 	void setIRQ(bool on = true);
 	bool halted();
 	bool breaked();
+
+	void runFrame();
+	int readDMC(void*, cpu_addr_t address);
 
 	void dump(Word address);
 	void dumpStack();

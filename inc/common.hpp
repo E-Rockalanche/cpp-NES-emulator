@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <bitset>
 #include "debugging.hpp"
+#include "assert.hpp"
 
 #define GET_MACRO(_1, _2, _3, MACRO_NAME, ...) MACRO_NAME
 
@@ -29,16 +30,6 @@ typedef unsigned short Word;
 #define BL(bit) (1 << (bit))
 
 #define KB 0x400
-
-#undef assert
-#define assert(condition, message) \
-	if (!(condition)) { \
-		std::cout << "ERROR: " << __FILE__ << " (" << __LINE__ << "): " << message << '\n'; \
-		exit(0); \
-	}
-
-#define assertBounds(index, size) \
-	assert((index) < (size), "index " << (index) << " out of bounds " << (size))
 
 template <class T, T V>
 struct Constant {

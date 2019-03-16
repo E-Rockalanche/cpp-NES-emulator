@@ -1,4 +1,5 @@
 #include "mapper3.hpp"
+#include "assert.hpp"
 
 Mapper3::Mapper3(Byte* data) : Cartridge(data) {
 	dout("Mapper3()");

@@ -1,8 +1,8 @@
 #ifndef MAPPER4_HPP
 #define MAPPER4_HPP
 
-#include "cartridge.hpp"
 #include "ppu.hpp"
+#include "cartridge.hpp"
 
 class Mapper4 : public Cartridge {
 public:

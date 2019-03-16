@@ -1,10 +1,14 @@
 #include <iomanip>
 #include <iostream>
 #include <bitset>
+
+#include "Nes_Apu.h"
+
 #include "cpu.hpp"
 #include "debugging.hpp"
 #include "common.hpp"
 #include "controller.hpp"
+#include "apu.hpp"
 
 namespace CPU {
 	bool _break;
@@ -29,7 +33,6 @@ namespace CPU {
 int test_ticks;
 
 bool in_nmi = false;
-
 
 #define crossPage(addr1, addr2) (((addr1) & 0xff00) != ((addr2) & 0xff00))
 #define isNegative(byte) ((bool)((byte) & 0x80))
@@ -416,9 +419,11 @@ void debugInterrupt(BreakpointCondition condition);
 
 void clockTick();
 
+Byte read(Word address);
 Byte readByte(Word address);
 Word readWord(Word address);
 Word readWordBug(Word address);
+void write(Word address, Byte value);
 void writeByte(Word address, Byte value);
 
 Word getAddress(AddressMode address_mode);
@@ -440,6 +445,32 @@ void nmi();
 void irq();
 void oamDmaTransfer(Byte high);
 
+int cycles;
+
+void runFrame() {
+	cycles = 0;
+	while(!CPU::halted() && !CPU::_break && !PPU::readyToDraw()) {
+		CPU::execute();
+	}
+	APU::runFrame(cycles);
+}
+
+void clockTick() {
+	odd_cycle = !odd_cycle;
+	for(int i = 0; i < 3; i++) {
+		if (_nmi >= 0) _nmi++;
+		if (_irq >= 0) _irq++;
+		PPU::clockTick();
+	}
+	cycles++;
+
+	test_ticks++; // debug
+}
+
+int readDMC(void*, cpu_addr_t address) {
+	return read(address);
+}
+
 bool halted() {
 	return _halt;
 }
@@ -455,11 +486,13 @@ void power() {
 	x_register = 0;
 	y_register = 0;
 
-	writeByte(APU_STATUS, 0);
-	writeByte(APU_FRAME_COUNT, 0);
+	write(APU_STATUS, 0);
+	write(APU_FRAME_COUNT, 0);
 	for(int n = 0; n < 16; n++) {
-		writeByte(APU_START + n, 0);
+		write(APU_START + n, 0);
 	}
+
+	cycles = 0;
 
 	program_counter = readWord(RESET_VECTOR);
 
@@ -478,9 +511,11 @@ void power() {
 void reset() {
 	stack_pointer -= 3;
 	setStatusFlag(DISABLE_INTERRUPTS, true);
-	writeByte(APU_STATUS, 0);
+	write(APU_STATUS, 0);
 	
 	program_counter = readWord(RESET_VECTOR);
+
+	cycles = 0;
 
 	_halt = false;
 	_nmi = -1;
@@ -497,22 +532,9 @@ void setNMI(bool on) {
 void setIRQ(bool on) {
 	_irq = on ? 0 : -1;
 }
-
-void clockTick() {
-	odd_cycle = !odd_cycle;
-	//APU::clockTick();
-	for(int i = 0; i < 3; i++) {
-		if (_nmi >= 0) _nmi++;
-		if (_irq >= 0) _irq++;
-		PPU::clockTick();
-	}
-
-	test_ticks++; // debug
-}
 	
-Byte readByte(Word address) {
+Byte read(Word address) {
 	Byte value = 0;
-	clockTick();
 	switch(address) {
 		case RAM_START ... RAM_END:
 			value = ram[(address - RAM_START) % RAM_SIZE];
@@ -528,8 +550,7 @@ Byte readByte(Word address) {
 				break;
 			}
 
-			value = APU::readByte(address - APU_START);
-			dout("APU::readByte(" << toHex(address, 2) << ")");
+			value = APU::readByte(cycles, address);
 			break;
 
 		case JOY1 ... JOY2:
@@ -552,16 +573,18 @@ Byte readByte(Word address) {
 			break;
 	}
 
-	debugReadOperation(address, value);
-
 	return value;
 }
 
-void writeByte(Word address, Byte value) {
+Byte readByte(Word address) {
+	Byte value;
 	clockTick();
+	value = read(address);
+	debugReadOperation(address, value);
+	return value;
+}
 
-	debugWriteOperation(address, value);
-
+void write(Word address, Byte value) {
 	switch(address) {
 		case RAM_START ... RAM_END:
 			ram[(address - RAM_START) % RAM_SIZE] = value;
@@ -576,7 +599,7 @@ void writeByte(Word address, Byte value) {
 			if (address == OAM_DMA) {
 				oamDmaTransfer(value);
 			} else {
-				APU::writeByte(address - APU_START, value);
+				APU::writeByte(cycles, address, value);
 			}
 			break;
 
@@ -599,6 +622,12 @@ void writeByte(Word address, Byte value) {
 			assert(false, "invalid address");
 			break;
 	}
+}
+
+void writeByte(Word address, Byte value) {
+	debugWriteOperation(address, value);
+	clockTick();
+	write(address, value);
 }
 
 void execute() {
