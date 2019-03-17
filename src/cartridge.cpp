@@ -193,8 +193,8 @@ Cartridge::NameTableMirroring Cartridge::nameTableMirroring() {
 Byte Cartridge::readPRG(Word address) {
 	if (address >= PRG_START) {
 		int rom_address = address - PRG_START;
-		int offset = prg_map[rom_address / MIN_PRG_BANK_SIZE];
-		return prg[offset + (rom_address % MIN_PRG_BANK_SIZE)];
+		Byte* bank = prg_map[rom_address / MIN_PRG_BANK_SIZE];
+		return bank[rom_address % MIN_PRG_BANK_SIZE];
 
 	} else if (address >= RAM_START) {
 		return ram[address - RAM_START];
@@ -206,8 +206,8 @@ Byte Cartridge::readPRG(Word address) {
 }
 
 Byte Cartridge::readCHR(Word address) {
-	int offset = chr_map[address / MIN_CHR_BANK_SIZE];
-	return chr[offset + (address % MIN_CHR_BANK_SIZE)];
+	Byte* bank = chr_map[address / MIN_CHR_BANK_SIZE];
+	return bank[address % MIN_CHR_BANK_SIZE];
 }
 
 void Cartridge::setPRGBank(int slot, int bank, int bank_size) {
@@ -216,13 +216,13 @@ void Cartridge::setPRGBank(int slot, int bank, int bank_size) {
 	}
 	int map_size = bank_size / MIN_PRG_BANK_SIZE;
 	for(int i = 0; i < map_size; i++) {
-		prg_map[(slot * map_size) + i] = ((bank * bank_size) + (i * MIN_PRG_BANK_SIZE)) % prg_size;
+		prg_map[(slot * map_size) + i] = prg + ((bank * bank_size) + (i * MIN_PRG_BANK_SIZE)) % prg_size;
 	}
 }
 
 void Cartridge::setCHRBank(int slot, int bank, int bank_size) {
 	int map_size = bank_size / MIN_CHR_BANK_SIZE;
 	for(int i = 0; i < map_size; i++) {
-		chr_map[(slot * map_size) + i] = ((bank * bank_size) + (i * MIN_CHR_BANK_SIZE)) % chr_size;
+		chr_map[(slot * map_size) + i] = chr + ((bank * bank_size) + (i * MIN_CHR_BANK_SIZE)) % chr_size;
 	}
 }

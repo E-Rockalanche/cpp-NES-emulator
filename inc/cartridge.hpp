@@ -34,7 +34,7 @@ public:
 	bool saveGame(std::string);
 	bool loadSave(std::string);
 
-	Byte readPRG(Word address);
+	virtual Byte readPRG(Word address);
 	virtual void writePRG(Word address, Byte value) {}
 
 	Byte readCHR(Word address);
@@ -69,8 +69,8 @@ protected:
 		||||++--- If equal to 2, flags 8-15 are in NES 2.0 format
 		++++----- Upper nybble of mapper number
 		*/
-		RAM_SIZE, // 8 KB units. 0 implies 8 KB for compatibility
-		FLAGS_8 = 8,
+		FLAGS_8,
+		RAM_SIZE = 8, // 8 KB units. 0 implies 8 KB for compatibility
 		FLAGS_9,
 		/*
 		76543210
@@ -179,8 +179,8 @@ protected:
 	NameTableMirroring nt_mirroring;
 
 	// bank switching
-	int prg_map[4];
-	int chr_map[8];
+	Byte* prg_map[4];
+	Byte* chr_map[8];
 
 	static Format getFormat(Byte* data);
 	static bool verifyHeader(Byte* data);
