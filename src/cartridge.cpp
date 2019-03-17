@@ -125,6 +125,7 @@ Cartridge::Cartridge(Byte* data) : data(data) {
 
 	setPRGBank(0, 0, 0x8000);
 	setCHRBank(0, 0, 0x2000);
+	ram_map[0] = ram;
 }
 
 Cartridge::~Cartridge() {
@@ -197,7 +198,7 @@ Byte Cartridge::readPRG(Word address) {
 		return bank[rom_address % MIN_PRG_BANK_SIZE];
 
 	} else if (address >= RAM_START) {
-		return ram[address - RAM_START];
+		return ram_map[0][address - RAM_START];
 
 	} else {
 		dout("cartridge read unmapped at " << toHex(address, 2));
@@ -210,19 +211,26 @@ Byte Cartridge::readCHR(Word address) {
 	return bank[address % MIN_CHR_BANK_SIZE];
 }
 
-void Cartridge::setPRGBank(int slot, int bank, int bank_size) {
+void Cartridge::setBank(Byte* map[], Byte* src, int slot, int bank, int bank_size) {
+	int min_size, src_size;
+	if (src == prg) { min_size = MIN_PRG_BANK_SIZE; src_size = prg_size; }
+	else if (src == chr) { min_size = MIN_CHR_BANK_SIZE; src_size = chr_size; }
+	else if (src == ram) { min_size = 0x2000; src_size = ram_size; }
+	else assert(false, "Invalid bank source");
+
 	if (bank < 0) {
-		bank = (prg_size / bank_size) + bank;
+		bank = (src_size / bank_size) + bank;
 	}
-	int map_size = bank_size / MIN_PRG_BANK_SIZE;
+	int map_size = bank_size / min_size;
 	for(int i = 0; i < map_size; i++) {
-		prg_map[(slot * map_size) + i] = prg + ((bank * bank_size) + (i * MIN_PRG_BANK_SIZE)) % prg_size;
+		map[(slot * map_size) + i] = src + (((bank * bank_size) + (i * min_size)) % src_size);
 	}
 }
 
+void Cartridge::setPRGBank(int slot, int bank, int bank_size) {
+	setBank(prg_map, prg, slot, bank, bank_size);
+}
+
 void Cartridge::setCHRBank(int slot, int bank, int bank_size) {
-	int map_size = bank_size / MIN_CHR_BANK_SIZE;
-	for(int i = 0; i < map_size; i++) {
-		chr_map[(slot * map_size) + i] = chr + ((bank * bank_size) + (i * MIN_CHR_BANK_SIZE)) % chr_size;
-	}
+	setBank(chr_map, chr, slot, bank, bank_size);
 }

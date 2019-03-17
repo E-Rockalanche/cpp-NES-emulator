@@ -181,11 +181,13 @@ protected:
 	// bank switching
 	Byte* prg_map[4];
 	Byte* chr_map[8];
+	Byte* ram_map[1];
 
 	static Format getFormat(Byte* data);
 	static bool verifyHeader(Byte* data);
 	static int getMapperNumber(Byte* data);
 
+	void setBank(Byte* map[], Byte* src, int slot, int bank, int bank_size);
 	void setPRGBank(int slot, int bank, int bank_size);
 	void setCHRBank(int slot, int bank, int bank_size);
 };

@@ -10,6 +10,7 @@ public:
 	~Mapper5() {}
 
 	void writePRG(Word address, Byte value);
+	Byte readPRG(Word address);
 	void writeCHR(Word address, Byte value);
 	void signalScanline();
 
@@ -72,6 +73,11 @@ protected:
 };
 
 #endif
+
+Mapper5::Mapper5(Byte* date) : Cartridge(date) {
+	registers[PRG_MODE] = 3;
+	registers[CHR_MODE] = 3;
+}
 
 void writePRG(Word address, Byte value) {
 	switch(address) {
@@ -147,4 +153,26 @@ Byte readPRG(Word address) {
 		}
 	}
 	return value;
+}
+
+void prgSwitch(Word address, Byte value) {
+	bool rom_toggle = testFlag(value, 0x80);
+	value &= 0x7f;
+	switch(address) {
+		case 0x5113: mapRAM(0, value, 0x2000); break;
+
+		case 0x5114:
+			if (prgMode() == 3) map
+		case 0x5115:
+		case 0x5116:
+
+		case 0x5117: 
+			switch(prgMode()) {
+				case 3: mapROM(3, value, 0x2000); break;
+				case 2: mapROM(3, value, 0x2000); break;
+				case 1: mapROM(1, value, 0x4000); break;
+				case 0: mapROM(0, value, 0x8000); break;
+			}
+			break;
+	}
 }
