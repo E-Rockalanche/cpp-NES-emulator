@@ -1,6 +1,6 @@
-#include "mapper4.hpp"
+#include "4_mmc3.hpp"
 
-Mapper4::Mapper4(Byte* data) : Cartridge(data) {
+MMC3::MMC3(Byte* data) : Cartridge(data) {
 	irq_enabled = false;
 	irq_latch = 0;
 	irq_counter = 0;
@@ -14,7 +14,7 @@ Mapper4::Mapper4(Byte* data) : Cartridge(data) {
 	applyBankSwitch();
 }
 
-void Mapper4::writePRG(Word address, Byte value) {
+void MMC3::writePRG(Word address, Byte value) {
 	if (address >= 0x8000) {
 		switch(address & 0xe001) {
 			case 0x8000: bank_select = value; break;
@@ -41,12 +41,12 @@ void Mapper4::writePRG(Word address, Byte value) {
 	}
 }
 
-void Mapper4::writeCHR(Word address, Byte value) {
+void MMC3::writeCHR(Word address, Byte value) {
 	assert(address < chr_size, "chr address out of bounds");
 	chr[address] = value;
 }
 
-void Mapper4::applyBankSwitch() {
+void MMC3::applyBankSwitch() {
 	setPRGBank(1, bank_registers[7], 8 * KB);
 
 	if (bank_select & 0x40) {
@@ -72,7 +72,7 @@ void Mapper4::applyBankSwitch() {
 	}
 }
 
-void Mapper4::signalScanlineMMC3() {
+void MMC3::signalScanlineMMC3() {
 	if (irq_counter == 0) {
 		irq_counter = irq_latch;
 	} else {

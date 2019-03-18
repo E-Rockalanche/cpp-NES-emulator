@@ -708,14 +708,12 @@ Byte read(Word address) {
 
 		case NAMETABLE_START ... NAMETABLE_END: {
 			int nt_index = (address - NAMETABLE_START) % NAMETABLE_MIRROR_SIZE;
+			Byte* nt_data = nt_map[nt_index / KB];
+			value = nt_data[nt_index % KB];
 			/*
 			NametableReader reader = nt_read_map[nt_index / KB];
 			value = (*reader)(nt_index % KB);
 			*/
-			
-			Byte* nt_data = nt_map[nt_index / KB];
-			value = nt_data[nt_index % KB];
-			
 			break;
 		}
 
@@ -741,14 +739,12 @@ void write(Word address, Byte value) {
 
 		case NAMETABLE_START ... NAMETABLE_END: {
 			int nt_index = (address - NAMETABLE_START) % NAMETABLE_MIRROR_SIZE;
+			Byte* nt_data = nt_map[nt_index / KB];
+			nt_data[nt_index % KB] = value;
 			/*
 			NametableWriter writer = nt_write_map[nt_index / KB];
 			(*writer)(nt_index % KB, value);
 			*/
-			
-			Byte* nt_data = nt_map[nt_index / KB];
-			nt_data[nt_index % KB] = value;
-			
 			break;
 		}
 

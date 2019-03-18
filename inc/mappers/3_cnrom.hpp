@@ -1,12 +1,12 @@
-#ifndef MAPPER2_HPP
-#define MAPPER2_HPP
+#ifndef MAPPER3_HPP
+#define MAPPER3_HPP
 
 #include "cartridge.hpp"
 
-class Mapper2 : public Cartridge {
+class CNROM : public Cartridge {
 public:
-	Mapper2(Byte* data);
-	~Mapper2() {}
+	CNROM(Byte* data);
+	~CNROM() {}
 
 	void writePRG(Word address, Byte value);
 	void writeCHR(Word address, Byte value);

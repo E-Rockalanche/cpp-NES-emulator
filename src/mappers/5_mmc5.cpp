@@ -1,7 +1,7 @@
-#include "mapper5.hpp"
+#include "5_mmc5.hpp"
 #include "ppu.hpp"
 
-Mapper5::Mapper5(Byte* data) : Cartridge(data) {
+MMC5::MMC5(Byte* data) : Cartridge(data) {
 	registers.prg_mode = PRG_MODE_8K;
 	registers.chr_mode = CHR_MODE_8K;
 	registers.ext_ram_mode = EXTRA_NAMETABLE;
@@ -33,12 +33,12 @@ Mapper5::Mapper5(Byte* data) : Cartridge(data) {
 	}
 }
 
-void Mapper5::reset() {
+void MMC5::reset() {
 	irq_enabled = false;
 	CPU::setIRQ(false);
 }
 
-void Mapper5::writePRG(Word address, Byte value) {
+void MMC5::writePRG(Word address, Byte value) {
 	switch(address) {
 		case AUDIO_START ... AUDIO_END:
 			dout("write to audio " << toHex(address, 2) << ", value: " << toHex(value, 1));
@@ -180,7 +180,7 @@ void Mapper5::writePRG(Word address, Byte value) {
 			break;
 
 		default:
-			dout("Mapper5::writePRG(" << toHex(address, 2) << ", " << toHex(value, 1) << ")");
+			dout("MMC5::writePRG(" << toHex(address, 2) << ", " << toHex(value, 1) << ")");
 			break;
 
 
@@ -189,7 +189,7 @@ void Mapper5::writePRG(Word address, Byte value) {
 	}
 }
 
-Byte Mapper5::readPRG(Word address) {
+Byte MMC5::readPRG(Word address) {
 	Byte value = 0;
 	if (address >= 0x6000) {
 		value = Cartridge::readPRG(address);
@@ -228,7 +228,7 @@ Byte Mapper5::readPRG(Word address) {
 				break;
 
 			default:
-				dout("Mapper5::readPRG(" << toHex(address, 2) << ", " << toHex(value, 1) << ")");
+				dout("MMC5::readPRG(" << toHex(address, 2) << ", " << toHex(value, 1) << ")");
 				break;
 
 			// MMC5A only:
@@ -238,13 +238,13 @@ Byte Mapper5::readPRG(Word address) {
 	return value;
 }
 
-void Mapper5::writeCHR(Word address, Byte value) {
+void MMC5::writeCHR(Word address, Byte value) {
 	dout("writeCHR(" << address << ", " << toHex(value) << ")");
 
 	chr[address % chr_size] = value;
 }
 
-Byte Mapper5::readCHR(Word address) {
+Byte MMC5::readCHR(Word address) {
 	Byte value = 0;
 	switch(registers.ext_ram_mode) {
 		case RAM_RW:
@@ -264,7 +264,7 @@ Byte Mapper5::readCHR(Word address) {
 	return value;
 }
 
-void Mapper5::setPRGBankExt(int slot, int bank, int bank_size) {
+void MMC5::setPRGBankExt(int slot, int bank, int bank_size) {
 	bool map_rom = bank & 0x80;
 	if (map_rom) {
 		bank = (bank & 0x7f) >> (bank_size / 0x4000);
@@ -275,7 +275,7 @@ void Mapper5::setPRGBankExt(int slot, int bank, int bank_size) {
 	}
 }
 
-void Mapper5::applyPRG() {
+void MMC5::applyPRG() {
 	// map ram
 	setBank(ram_map, ram, 0, prg_registers[0] & 0x0f, 8*KB);
 
@@ -307,7 +307,7 @@ void Mapper5::applyPRG() {
 	}
 }
 
-void Mapper5::applyChrB() {
+void MMC5::applyChrB() {
 	switch(registers.chr_mode) {
 		case CHR_MODE_8K: setCHRBank(0, chr_registers_b[3], 8*KB); break;
 
@@ -327,7 +327,7 @@ void Mapper5::applyChrB() {
 	}
 }
 
-void Mapper5::applyChrA() {
+void MMC5::applyChrA() {
 	int slots = 1;
 	for(int i = 0; i < registers.chr_mode; i++) slots *= 2;
 
@@ -337,12 +337,12 @@ void Mapper5::applyChrA() {
 	}
 }
 
-Mapper5::SpriteSize Mapper5::spriteSize() {
+MMC5::SpriteSize MMC5::spriteSize() {
 	return (testFlag(PPU::getControl(), 0x20) && testFlag(PPU::getMask(), 0x18))
 		? SPR_8x16 : SPR_8x8;
 }
 
-void Mapper5::signalHBlank() {
+void MMC5::signalHBlank() {
 	fetch_mode = FETCH_SPRITE;
 	if (PPU::renderingEnabled()) {
 		if ((last_chr_set == CHR_SET_A) || spriteSize() == SPR_8x16) {
@@ -353,7 +353,7 @@ void Mapper5::signalHBlank() {
 	}
 }
 
-void Mapper5::signalHRender() {
+void MMC5::signalHRender() {
 	fetch_mode = FETCH_BACKGROUND;
 	if (PPU::renderingEnabled()) {
 		if ((last_chr_set == CHR_SET_B) || spriteSize() == SPR_8x16) {
@@ -364,7 +364,7 @@ void Mapper5::signalHRender() {
 	}
 }
 
-void Mapper5::signalVBlank() {
+void MMC5::signalVBlank() {
 	in_frame = false;
 	irq_pending = false;
 	current_scanline = 0;
@@ -376,7 +376,7 @@ void Mapper5::signalVBlank() {
 	}
 }
 
-void Mapper5::signalScanlineMMC5() {
+void MMC5::signalScanlineMMC5() {
 	if (!PPU::renderingEnabled() || (PPU::getScanline() >= 240)) {
 		in_frame = false;
 	} else if (!in_frame) {

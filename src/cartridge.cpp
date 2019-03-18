@@ -1,11 +1,11 @@
 #include <fstream>
 
 #include "cartridge.hpp"
-#include "mapper1.hpp"
-#include "mapper2.hpp"
-#include "mapper3.hpp"
-#include "mapper4.hpp"
-#include "mapper5.hpp"
+#include "1_mmc1.hpp"
+#include "2_uxrom.hpp"
+#include "3_cnrom.hpp"
+#include "4_mmc3.hpp"
+#include "5_mmc5.hpp"
 #include "assert.hpp"
 
 using namespace std;
@@ -63,11 +63,11 @@ Cartridge* Cartridge::loadFile(std::string filename) {
 	int mapper_number = getMapperNumber(data);
 	switch(mapper_number) {
 		case 0: mapper = new Cartridge(data); break;
-		case 1: mapper = new Mapper1(data); break;
-		case 2: mapper = new Mapper2(data); break;
-		case 3: mapper = new Mapper3(data); break;
-		case 4: mapper = new Mapper4(data); break;
-		case 5: mapper = new Mapper5(data); break;
+		case 1: mapper = new MMC1(data); break;
+		case 2: mapper = new UxROM(data); break;
+		case 3: mapper = new CNROM(data); break;
+		case 4: mapper = new MMC3(data); break;
+		case 5: mapper = new MMC5(data); break;
 		default: assert(false, "mapper " << mapper_number << " is not supported");
 	}
 

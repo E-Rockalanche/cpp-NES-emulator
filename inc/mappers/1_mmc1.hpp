@@ -3,10 +3,10 @@
 
 #include "cartridge.hpp"
 
-class Mapper1 : public Cartridge {
+class MMC1 : public Cartridge {
 public:
-	Mapper1(Byte* data);
-	~Mapper1() {}
+	MMC1(Byte* data);
+	~MMC1() {}
 
 	void writePRG(Word address, Byte value);
 	void writeCHR(Word address, Byte value);

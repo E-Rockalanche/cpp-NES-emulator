@@ -4,10 +4,10 @@
 #include "ppu.hpp"
 #include "cartridge.hpp"
 
-class Mapper4 : public Cartridge {
+class MMC3 : public Cartridge {
 public:
-	Mapper4(Byte* data);
-	~Mapper4() {}
+	MMC3(Byte* data);
+	~MMC3() {}
 
 	void writePRG(Word address, Byte value);
 	void writeCHR(Word address, Byte value);

@@ -4,10 +4,10 @@
 #include "cartridge.hpp"
 
 // MMC5
-class Mapper5 : public Cartridge {
+class MMC5 : public Cartridge {
 public:
-	Mapper5(Byte* data);
-	~Mapper5() {}
+	MMC5(Byte* data);
+	~MMC5() {}
 
 	void reset();
 
