@@ -43,7 +43,6 @@ void renderPixel();
 void setVBlank();
 void clearVBlank();
 
-Word nametableMirror(Word address);
 Byte read(Word address);
 void write(Word address, Byte value);
 
@@ -75,7 +74,8 @@ const int CHR_END = 0x1fff;
 
 const int NAMETABLE_START = 0x2000;
 const int NAMETABLE_END = 0x3eff;
-const int NAMETABLE_SIZE = 0x800;
+const int NAMETABLE_SIZE = 0x0800;
+const int NAMETABLE_MIRROR_SIZE = 0x1000;
 
 const int PALETTE_START = 0x3f00;
 const int PALETTE_END = 0x3fff;
@@ -102,8 +102,26 @@ const int SECONDARY_OAM_SIZE = 8;
 
 Byte nametable[NAMETABLE_SIZE];
 Byte palette[PALETTE_SIZE];
+
+/*
+OAM: Object Attribute Memory
+Contains a display list of up to 64 sprites.
+Each sprites' info occupies 4 bytes
+
+0: y position of top of sprite
+1: tile index number
+2: attributes
+3: x position of left side of sprite
+*/
 Byte primary_oam[PRIMARY_OAM_SIZE * OBJECT_SIZE];
 Byte secondary_oam[PRIMARY_OAM_SIZE * OBJECT_SIZE]; // uses secondary size if sprite flickering is on
+
+// name table mapping set by cartridge
+/*
+NametableReader nt_read_map[4];
+NametableWriter nt_write_map[4];
+*/
+Byte* nt_map[4];
 
 // lets main know when the screen can be drawn
 bool can_draw;
@@ -198,6 +216,10 @@ void power() {
 	
 	sprite_zero_next_scanline = false;
 	sprite_zero_this_scanline = false;
+
+	for(int i = 0; i < 4; i++) {
+		nt_map[i] = nametable + ((i % 2) * KB); // vertical mirroring
+	}
 
 	for(int n = 0; n < PRIMARY_OAM_SIZE * OBJECT_SIZE; n++) {
 		primary_oam[n] = 0xff;
@@ -325,6 +347,49 @@ Byte readByte(Word address) {
 	return open_bus;
 }
 
+Byte getControl() { return control; }
+Byte getMask() { return mask; }
+int getScanline() { return scanline; }
+
+void mapNametable(int from_page, int to_page) {
+	assert(from_page < 4, "invalid from_page");
+	assert(to_page < 2, "invalid to_page");
+	nt_map[from_page] = nametable + (to_page * KB);
+	/*
+	nt_read_map[from_page] = (to_page) ? readNametable1 : readNametable0;
+	nt_write_map[from_page] = (to_page) ? writeNametable1 : writeNametable0;
+	*/
+}
+
+void mapNametable(int page, Byte* location) {
+	assert(page < 4, "Invalid nametable page index");
+	assert(location != NULL, "nametable data location is null");
+	nt_map[page] = location;
+	/*
+	assert(accessor != NULL, "nametable accessor is NULL");
+	nt_read_map[page] = reader;
+	nt_write_map[page] = writer;
+	*/
+}
+
+void mapNametable(Cartridge::NameTableMirroring nt_mirroring) {
+	mapNametable(0, 0);
+	mapNametable(3, 1);
+	switch(nt_mirroring) {
+		case Cartridge::HORIZONTAL:
+			mapNametable(1, 0);
+			mapNametable(2, 1);
+			break;
+
+		case Cartridge::VERTICAL:
+			mapNametable(1, 1);
+			mapNametable(2, 0);
+			break;
+
+		default: assert(false, "Invalid mirroring mode");
+	}
+}
+
 void writeToControl(Byte value) {
 	// manual NMI trigger during vblank
 	if (!testFlag(control, NMI_ENABLE)
@@ -449,12 +514,14 @@ void scanlineCycle() {
 
 	if (s == VBLANK_LINE && cycle == 1) {
 		setVBlank();
+		cartridge->signalVBlank();
 	} else if (s == POSTRENDER && cycle == 0) {
 		can_draw = true;
 	} else if (s == VISIBLE || s == PRERENDER) {
 		// sprites
 		switch(cycle) {
 			case 1:
+				// signal MMC5 to switch to background data
 				clearOAM();
 				if (s == PRERENDER) {
 					setStatusFlag(SPRITE_OVERFLOW, false);
@@ -464,11 +531,14 @@ void scanlineCycle() {
 				break;
 
 			case 257:
+				// signal MMC5 to switch to sprite data
+				cartridge->signalHBlank();
 				loadSpritesOnScanline();
 				break;
 
 			case 321:
 				loadSpriteRegisters();
+				cartridge->signalHRender();
 				break;
 		}
 
@@ -545,8 +615,13 @@ void scanlineCycle() {
 				&& ((control & 0x10)
 				? (cycle == 324 || cycle == 4)
 				: (cycle == 260))) {
-			cartridge->signalScanline();
+			cartridge->signalScanlineMMC3();
 		}
+	}
+
+	// signal scanline to MMC5
+	if (((s == VISIBLE) || (s == POSTRENDER)) && (cycle == 4)) {
+		cartridge->signalScanlineMMC5();
 	}
 }
 
@@ -555,10 +630,6 @@ void incrementXComponent() {
 
 	if ((vram_address & 0x001f) == 31) { // if coarse X == 31
 		vram_address ^= 0x041f;
-		/*
-		vram_address &= ~0x001f; // coarse X = 0
-		vram_address ^= 0x0400; // switch horizontal nametable
-		*/
 	} else {
 		vram_address++;
 	}
@@ -627,24 +698,6 @@ void writeToOAM(Byte value) {
 	primary_oam[oam_address++] = value;
 }
 
-Word nametableMirror(Word address) {
-	Word new_address;
-	switch(cartridge->nameTableMirroring()) {
-		case Cartridge::HORIZONTAL:
-			new_address = ((address / 2) & 0x400) + (address % 0x400);
-			break;
-
-		case Cartridge::VERTICAL:
-			new_address = address % 0x800;
-			break;
-
-		default:
-			assert(false, "invalid nametable mirroring");
-			break;
-	}
-	return new_address;
-}
-
 // PPU read from cartridge / ram
 Byte read(Word address) {
 	Byte value;
@@ -654,9 +707,13 @@ Byte read(Word address) {
 			break;
 
 		case NAMETABLE_START ... NAMETABLE_END: {
-			Word nt_index = nametableMirror(address);
-			assert(nt_index < NAMETABLE_SIZE, "read nametable index out of bounds");
-			value = nametable[nt_index];
+			int nt_index = (address - NAMETABLE_START) % NAMETABLE_MIRROR_SIZE;
+			Byte* nt_data = nt_map[nt_index / KB];
+			value = nt_data[nt_index % KB];
+			/*
+			NametableReader reader = nt_read_map[nt_index / KB];
+			value = (*reader)(nt_index % KB);
+			*/
 			break;
 		}
 
@@ -681,9 +738,13 @@ void write(Word address, Byte value) {
 			break;
 
 		case NAMETABLE_START ... NAMETABLE_END: {
-			Word nt_index = nametableMirror(address);
-			assert(nt_index < NAMETABLE_SIZE, "write nametable index out of bounds");
-			nametable[nt_index] = value;
+			int nt_index = (address - NAMETABLE_START) % NAMETABLE_MIRROR_SIZE;
+			Byte* nt_data = nt_map[nt_index / KB];
+			nt_data[nt_index % KB] = value;
+			/*
+			NametableWriter writer = nt_write_map[nt_index / KB];
+			(*writer)(nt_index % KB, value);
+			*/
 			break;
 		}
 
@@ -801,12 +862,6 @@ void renderPixel() {
 				for(int i = size-1; i >= 0; i--) {
 					Byte attributes = sprite_attribute_latch[i];
 
-					/*
-					if (attributes == 0xff && sprite_x_counter[i] == 0xff) {
-						continue; // empty entry
-					}
-					*/
-
 					int sprite_x = x - sprite_x_counter[i];
 					if (sprite_x < 0 || sprite_x >= 8 || x >= 255) continue; // not in range
 
@@ -852,17 +907,36 @@ void renderPixel() {
 }
 
 void dump() {
-	std::cout << "====== PPU ======\n";
-	std::cout << "         NmHBSInn\n";
-	std::cout << "control: " << toBin(control) << '\n';
-	std::cout << "         bgrSBsbG\n";
-	std::cout << "mask:    " << toBin(control) << '\n';
-	std::cout << "         VHO-----\n";
-	std::cout << "status:  " << toBin(control) << "\n\n";
+	print("===== PPU =====");
+	print("rendering enabled: " << renderingEnabled());
+	print("nt_map: [" << (void*)nt_map[0] << ", " << (void*)nt_map[1] << ", " << (void*)nt_map[2] << ", " << (void*)nt_map[3] << "]");
 
-	std::cout << "scanline: " << scanline << '\n';
-	std::cout << "cycle: " << cycle << '\n';
-	std::cout << "=================\n";
+	print("\nCONTROL: " << toHex(control));
+	int base_nt_addr = 0x2000 + (control & 0x03) * 0x0400;
+	print("base NT addr: " << toHex(base_nt_addr, 2));
+	print("vram inc: " << ((control & 0x04) ? "32" : "1"));
+	bool spr16 = control & 0x20;
+	print("spr addr: " << ((control & 0x80) ? "$1000" : "$0000") << (spr16 ? " (ignored)" : ""));
+	print("bkg addr: " << ((control & 0x10) ? "$1000" : "$0000"));
+	print("sprite size: " << (spr16 ? "8x16" : "8x8"));
+	print("master/slave: " << (bool)(control & 0x40));
+	print("nmi enabled: " << (bool)(control & 0x80));
+
+	print("\nMASK: " << toHex(mask));
+	print("greyscale: " << (bool)(mask & 0x01));
+	print("bkr left 8: " << (bool)(mask & 0x02));
+	print("spr left 8: " << (bool)(mask & 0x04));
+	print("show bkr: " << (bool)(mask & 0x08));
+	print("show spr: " << (bool)(mask & 0x10));
+	print("emphasize red: " << (bool)(mask & 0x20));
+	print("emphasize green: " << (bool)(mask & 0x40));
+	print("emphasize blue: " << (bool)(mask & 0x80));
+
+	print("\nSTATUS: " << toHex(status));
+	print("sprite overflow: " << (bool)(status & 0x20));
+	print("sprite 0 hit: " << (bool)(status & 0x40));
+	print("vblank: " << (bool)(status & 0x80));
+	print("===============");
 }
 
 bool nmiEnabled() {

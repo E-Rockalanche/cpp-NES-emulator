@@ -77,8 +77,6 @@ bool Config::updated() {
 }
 
 int Config::getInt(std::string key, int default_value) {
-	dout("getInt(" << key << ")");
-
 	int value = default_value;
 	auto it = values.find(key);
 	if (it == values.end()) {
@@ -94,8 +92,6 @@ int Config::getInt(std::string key, int default_value) {
 }
 
 float Config::getFloat(std::string key, float default_value) {
-	dout("getFloat(" << key << ")");
-	
 	float value = default_value;
 	auto it = values.find(key);
 	if (it == values.end()) {
@@ -111,8 +107,6 @@ float Config::getFloat(std::string key, float default_value) {
 }
 
 std::string Config::getString(std::string key, std::string default_value) {
-	dout("getString(" << key << ")");
-	
 	std::string value = default_value;
 	auto it = values.find(key);
 	if (it == values.end()) {
@@ -124,8 +118,6 @@ std::string Config::getString(std::string key, std::string default_value) {
 }
 
 bool Config::getBool(std::string key, bool default_value) {
-	dout("getBool(" << key << ")");
-	
 	bool ok = default_value;
 	auto it = values.find(key);
 	if (it == values.end()) {

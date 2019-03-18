@@ -1,7 +1,8 @@
-#include "mapper1.hpp"
+#include "1_mmc1.hpp"
+#include "ppu.hpp"
 
-Mapper1::Mapper1(Byte* data) : Cartridge(data) {
-	dout("Mapper1()");
+MMC1::MMC1(Byte* data) : Cartridge(data) {
+	dout("MMC1()");
 
 	shift_register = SHIFT_REG_INIT;
 
@@ -10,7 +11,7 @@ Mapper1::Mapper1(Byte* data) : Cartridge(data) {
 	setPRGBank(1, -1, 16 * KB);
 }
 
-void Mapper1::writePRG(Word address, Byte value) {
+void MMC1::writePRG(Word address, Byte value) {
 	if (address >= PRG_START) {
 		if (value & 0x80) {
 			shift_register = SHIFT_REG_INIT;
@@ -31,28 +32,28 @@ void Mapper1::writePRG(Word address, Byte value) {
 	}
 }
 
-void Mapper1::writeCHR(Word address, Byte value) {
+void MMC1::writeCHR(Word address, Byte value) {
 	assert(address < chr_size, "chr address out of bounds");
 	chr[address] = value;
 }
 
-int Mapper1::mirrorMode() {
+int MMC1::mirrorMode() {
 	return registers[CONTROL] & 0x03;
 }
 
-int Mapper1::prgBankMode() {
+int MMC1::prgBankMode() {
 	return (registers[CONTROL] >> 2) & 0x03;
 }
 
-bool Mapper1::chrBankMode() {
+bool MMC1::chrBankMode() {
 	return registers[CONTROL] & 0x10;
 }
 
-bool Mapper1::ramEnable() {
+bool MMC1::ramEnable() {
 	return !(registers[PRG_BANK] & 0x10);
 }
 
-void Mapper1::applyBankSwitch() {
+void MMC1::applyBankSwitch() {
 	// switch prg rom
 	switch(prgBankMode()) {
 		case 0:
@@ -84,7 +85,8 @@ void Mapper1::applyBankSwitch() {
 	}
 
 	switch(mirrorMode()) {
-		case 2: nt_mirroring = VERTICAL; break;
-		case 3: nt_mirroring = HORIZONTAL; break;
+		case 2:  PPU::mapNametable(VERTICAL); break;
+		case 3:  PPU::mapNametable(HORIZONTAL); break;
+		default: dout("mirror mode = " << (int)mirrorMode()); break;
 	}
 }

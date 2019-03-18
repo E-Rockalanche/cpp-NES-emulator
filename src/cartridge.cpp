@@ -2,10 +2,11 @@
 
 #include "cartridge.hpp"
 
-#include "mapper1.hpp"
-#include "mapper2.hpp"
-#include "mapper3.hpp"
-#include "mapper4.hpp"
+#include "1_mmc1.hpp"
+#include "2_uxrom.hpp"
+#include "3_cnrom.hpp"
+#include "4_mmc3.hpp"
+#include "5_mmc5.hpp"
 #include "7_axrom.hpp"
 
 #include "assert.hpp"
@@ -65,11 +66,13 @@ Cartridge* Cartridge::loadFile(std::string filename) {
 	int mapper_number = getMapperNumber(data);
 	switch(mapper_number) {
 		case 0: mapper = new Cartridge(data); break;
-		case 1: mapper = new Mapper1(data); break;
-		case 2: mapper = new Mapper2(data); break;
-		case 3: mapper = new Mapper3(data); break;
-		case 4: mapper = new Mapper4(data); break;
+		case 1: mapper = new MMC1(data); break;
+		case 2: mapper = new UxROM(data); break;
+		case 3: mapper = new CNROM(data); break;
+		case 4: mapper = new MMC3(data); break;
+		case 5: mapper = new MMC5(data); break;
 		case 7: mapper = new AxROM(data); break;
+
 		default: assert(false, "mapper " << mapper_number << " is not supported");
 	}
 
@@ -105,13 +108,16 @@ Cartridge::Format Cartridge::getFormat(Byte* data) {
 }
 
 Cartridge::Cartridge(Byte* data) : data(data) {
-	dout("Cartridge()");
-
 	prg_size = data[PRG_SIZE] * 0x4000;
 	chr_size = data[CHR_SIZE] * 0x2000;
 	ram_size = data[RAM_SIZE] ? (data[RAM_SIZE] * 0x2000) : 0x2000;
+	// int ram_size2 = 64 << data[FLAGS_10];
+	dout("PRG size: " << toHex(prg_size));
+	dout("CHR size: " << toHex(prg_size));
+	dout("RAM size: " << toHex(ram_size));
 
 	ram = new Byte[ram_size];
+	assert(ram != NULL, "Could not allocate RAM");
 	for(int n = 0; n < ram_size; n++) ram[n] = 0;
 
 	prg = data + HEADER_SIZE;
@@ -120,15 +126,18 @@ Cartridge::Cartridge(Byte* data) : data(data) {
 		has_chr_ram = false;
 		chr = prg + prg_size;
 	} else {
+		dout("using CHR RAM");
 		has_chr_ram = true;
 		chr_size = 0x2000;
 		chr = new Byte[chr_size];
+		assert(chr != NULL, "Could not allocate CHR RAM");
 	}
 
-	nt_mirroring = (data[FLAGS_6] & 1) ? VERTICAL : HORIZONTAL;
+	PPU::mapNametable(nameTableMirroring());
 
 	setPRGBank(0, 0, 0x8000);
 	setCHRBank(0, 0, 0x2000);
+	ram_map[0] = ram;
 }
 
 Cartridge::~Cartridge() {
@@ -192,17 +201,17 @@ bool Cartridge::loadSave(std::string filename) {
 }
 
 Cartridge::NameTableMirroring Cartridge::nameTableMirroring() {
-	return nt_mirroring;
+	return testFlag(data[FLAGS_6], 0x01) ? VERTICAL : HORIZONTAL;
 }
 
 Byte Cartridge::readPRG(Word address) {
 	if (address >= PRG_START) {
 		int rom_address = address - PRG_START;
-		int offset = prg_map[rom_address / MIN_PRG_BANK_SIZE];
-		return prg[offset + (rom_address % MIN_PRG_BANK_SIZE)];
+		Byte* bank = prg_map[rom_address / MIN_PRG_BANK_SIZE];
+		return bank[rom_address % MIN_PRG_BANK_SIZE];
 
 	} else if (address >= RAM_START) {
-		return ram[address - RAM_START];
+		return ram_map[0][address - RAM_START];
 
 	} else {
 		dout("cartridge read unmapped at " << toHex(address, 2));
@@ -211,23 +220,51 @@ Byte Cartridge::readPRG(Word address) {
 }
 
 Byte Cartridge::readCHR(Word address) {
-	int offset = chr_map[address / MIN_CHR_BANK_SIZE];
-	return chr[offset + (address % MIN_CHR_BANK_SIZE)];
+	Byte* bank = chr_map[address / MIN_CHR_BANK_SIZE];
+	return bank[address % MIN_CHR_BANK_SIZE];
+}
+
+void Cartridge::setBank(Byte* map[], Byte* src, int slot, int bank, int bank_size) {
+	int min_size, src_size;
+
+	if (map == prg_map) min_size = MIN_PRG_BANK_SIZE;
+	else if (map == chr_map) min_size = MIN_CHR_BANK_SIZE;
+	else if (map == ram_map) min_size = 0x2000;
+	else assert(false, "Invalid bank");
+
+	if (src == prg) src_size = prg_size;
+	else if (src == chr) src_size = chr_size;
+	else if (src == ram) src_size = ram_size;
+	else assert(false, "Invalid source");
+
+	if (bank < 0) {
+		bank = (src_size / bank_size) + bank;
+	}
+	int map_size = bank_size / min_size;
+	for(int i = 0; i < map_size; i++) {
+		map[(slot * map_size) + i] = src + (((bank * bank_size) + (i * min_size)) % src_size);
+	}
+
+	
+	// DEBUG
+	int size;
+	if (map == prg_map) size = 4;
+	else if (map == chr_map) size = 8;
+	else size = 1;
+
+	for(int i = slot*map_size; i < map_size*(slot+1); i++) {
+		unsigned long offset = (unsigned long)map[i] - (unsigned long)src;
+		assert(offset <= src_size - min_size, "slot " << i << " mapped out of bounds. offset: " << offset);
+	}
+	
 }
 
 void Cartridge::setPRGBank(int slot, int bank, int bank_size) {
-	if (bank < 0) {
-		bank = (prg_size / bank_size) + bank;
-	}
-	int map_size = bank_size / MIN_PRG_BANK_SIZE;
-	for(int i = 0; i < map_size; i++) {
-		prg_map[(slot * map_size) + i] = ((bank * bank_size) + (i * MIN_PRG_BANK_SIZE)) % prg_size;
-	}
+	assert(slot < 4 / (bank_size / MIN_PRG_BANK_SIZE), "Invalid prg slot");
+	setBank(prg_map, prg, slot, bank, bank_size);
 }
 
 void Cartridge::setCHRBank(int slot, int bank, int bank_size) {
-	int map_size = bank_size / MIN_CHR_BANK_SIZE;
-	for(int i = 0; i < map_size; i++) {
-		chr_map[(slot * map_size) + i] = ((bank * bank_size) + (i * MIN_CHR_BANK_SIZE)) % chr_size;
-	}
+	assert(slot < 8 / (bank_size / MIN_CHR_BANK_SIZE), "Invalid chr slot");
+	setBank(chr_map, chr, slot, bank, bank_size);
 }

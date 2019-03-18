@@ -1,12 +1,12 @@
-#ifndef MAPPER3_HPP
-#define MAPPER3_HPP
+#ifndef MAPPER2_HPP
+#define MAPPER2_HPP
 
 #include "cartridge.hpp"
 
-class Mapper3 : public Cartridge {
+class UxROM : public Cartridge {
 public:
-	Mapper3(Byte* data);
-	~Mapper3() {}
+	UxROM(Byte* data);
+	~UxROM() {}
 
 	void writePRG(Word address, Byte value);
 	void writeCHR(Word address, Byte value);

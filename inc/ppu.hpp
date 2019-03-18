@@ -15,20 +15,27 @@ namespace PPU {
 	bool readyToDraw();
 	void writeToOAM(Byte value);
 	bool renderingEnabled();
+	
+	Byte getControl();
+	Byte getMask();
+	int getScanline();
+
+	void mapNametable(int page, Byte* location);
+	void mapNametable(int from_page, int to_page);
+	void mapNametable(Cartridge::NameTableMirroring nt_mirroring);
+
+	/*
+	// nametable accessors
+	typedef Byte (*NametableReader)(Word);
+	Byte readNametable0(Word address);
+	Byte readNametable1(Word address);
+	typedef void (*NametableWriter)(Word, Byte);
+	void writeNametable0(Word address, Byte value);
+	void writeNametable1(Word address, Byte value);
+	*/
 
 	void dump();
 	bool nmiEnabled();
-
-	/*
-	OAM: Object Attribute Memory
-	Contains a display list of up to 64 sprites.
-	Each sprites' info occupies 4 bytes
-
-	0: y position of top of sprite
-	1: tile index number
-	2: attributes
-	3: x position of left side of sprite
-	*/
 
 	enum Register {
 		PPU_CONTROL,

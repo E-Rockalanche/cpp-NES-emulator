@@ -5,6 +5,7 @@
 #include "Nes_Apu.h"
 
 #include "cpu.hpp"
+#include "ppu.hpp"
 #include "debugging.hpp"
 #include "common.hpp"
 #include "controller.hpp"
@@ -635,8 +636,6 @@ void execute() {
 	test_ticks = 0;
 
 	if (!_halt) {
-		_irq = getStatusFlag(DISABLE_INTERRUPTS) ? -1 : _irq;
-
 		if (_nmi > 1) {
 			_nmi = -1;
 			nmi();
@@ -647,7 +646,7 @@ void execute() {
 				dout("wait cycles: " << wait_cycles);
 				dout("test ticks: " << test_ticks);
 			}
-		} else if (_irq > 1) {
+		} else if ((_irq > 1) && !getStatusFlag(DISABLE_INTERRUPTS)) {
 			_irq = -1;
 			irq();
 
@@ -993,7 +992,6 @@ void forceBreak(AddressMode address_mode) {
 	pushByteToStack(status);
 	setStatusFlag(DISABLE_INTERRUPTS, Constant<bool, true>());
 	program_counter = readWord(IRQ_VECTOR);
-	dout("Forced IRQ, pc = " << toHex(program_counter));
 }
 
 void branchOnOverflowClear(AddressMode address_mode) {
