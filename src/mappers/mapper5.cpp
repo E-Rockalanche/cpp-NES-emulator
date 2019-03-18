@@ -140,8 +140,6 @@ void Mapper5::writePRG(Word address, Byte value) {
 
 		case IRQ_SCANLINE:
 			irq_scanline = value;
-			current_scanline = 0;
-			dout("irq scanline = " << (int)irq_scanline);
 			break;
 
 		case IRQ_STATUS:
@@ -381,10 +379,6 @@ void Mapper5::signalVBlank() {
 void Mapper5::signalScanlineMMC5() {
 	if (!PPU::renderingEnabled() || (PPU::getScanline() >= 240)) {
 		in_frame = false;
-		if (PPU::getScanline() == 241) {
-			irq_pending = false;
-			current_scanline = 0;
-		}
 	} else if (!in_frame) {
 		in_frame = true;
 		current_scanline = 0;

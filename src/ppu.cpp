@@ -596,7 +596,7 @@ void scanlineCycle() {
 	}
 
 	// signal scanline to MMC5
-	if ((scanline <= 240) && cycle == 4) {
+	if (((s == VISIBLE) || (s == POSTRENDER)) && (cycle == 4)) {
 		cartridge->signalScanlineMMC5();
 	}
 }
