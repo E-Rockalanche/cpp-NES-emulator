@@ -1,10 +1,13 @@
 #include <fstream>
 
 #include "cartridge.hpp"
+
 #include "mapper1.hpp"
 #include "mapper2.hpp"
 #include "mapper3.hpp"
 #include "mapper4.hpp"
+#include "7_axrom.hpp"
+
 #include "assert.hpp"
 
 using namespace std;
@@ -66,6 +69,7 @@ Cartridge* Cartridge::loadFile(std::string filename) {
 		case 2: mapper = new Mapper2(data); break;
 		case 3: mapper = new Mapper3(data); break;
 		case 4: mapper = new Mapper4(data); break;
+		case 7: mapper = new AxROM(data); break;
 		default: assert(false, "mapper " << mapper_number << " is not supported");
 	}
 
@@ -128,6 +132,7 @@ Cartridge::Cartridge(Byte* data) : data(data) {
 }
 
 Cartridge::~Cartridge() {
+	dout("~Cartridge()");
 	delete[] data;
 	delete[] ram;
 	if (has_chr_ram) delete[] chr;

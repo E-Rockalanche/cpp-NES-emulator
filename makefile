@@ -19,7 +19,7 @@ MAP_OBJECTS = $(patsubst src/mappers/%.cpp, obj/mappers/%.o, $(MAP_SOURCES))
 MAKE_OBJ = $(CXX) $< -o $@ $(CFLAGS) $(INCLUDE)
 MAKE_EXE = $(CXX) $^ -o $@ $(LFLAGS)
 
-$(TARGET): $(OBJECTS) $(MAP_OBJECTS) $(LIB_OBJECTS)
+$(TARGET): $(LIB_OBJECTS) $(MAP_OBJECTS) $(OBJECTS)
 	$(MAKE_EXE)
 
 obj/mappers/%.o: src/mappers/%.cpp inc/mappers/%.hpp inc/cartridge.hpp inc/common.hpp inc/debugging.hpp
