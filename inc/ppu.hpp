@@ -18,6 +18,7 @@ namespace PPU {
 	
 	Byte getControl();
 	Byte getMask();
+	int getScanline();
 
 	void mapNametable(int page, Byte* location);
 	void mapNametable(int from_page, int to_page);

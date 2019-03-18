@@ -40,7 +40,7 @@ public:
 	virtual Byte readPRG(Word address);
 	virtual void writePRG(Word address, Byte value) {}
 
-	Byte readCHR(Word address);
+	virtual Byte readCHR(Word address);
 	virtual void writeCHR(Word address, Byte value) {}
 
 	NameTableMirroring nameTableMirroring();

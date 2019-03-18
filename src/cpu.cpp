@@ -636,8 +636,6 @@ void execute() {
 	test_ticks = 0;
 
 	if (!_halt) {
-		_irq = getStatusFlag(DISABLE_INTERRUPTS) ? -1 : _irq;
-
 		if (_nmi > 1) {
 			_nmi = -1;
 			nmi();
@@ -648,7 +646,7 @@ void execute() {
 				dout("wait cycles: " << wait_cycles);
 				dout("test ticks: " << test_ticks);
 			}
-		} else if (_irq > 1) {
+		} else if ((_irq > 1) && !getStatusFlag(DISABLE_INTERRUPTS)) {
 			_irq = -1;
 			irq();
 

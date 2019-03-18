@@ -334,6 +334,7 @@ Byte readByte(Word address) {
 
 Byte getControl() { return control; }
 Byte getMask() { return mask; }
+int getScanline() { return scanline; }
 
 void mapNametable(int from_page, int to_page) {
 	assert(from_page < 4, "invalid from_page");
@@ -497,7 +498,6 @@ void scanlineCycle() {
 		switch(cycle) {
 			case 1:
 				// signal MMC5 to switch to background data
-				cartridge->signalHRender();
 				clearOAM();
 				if (s == PRERENDER) {
 					setStatusFlag(SPRITE_OVERFLOW, false);
@@ -514,6 +514,7 @@ void scanlineCycle() {
 
 			case 321:
 				loadSpriteRegisters();
+				cartridge->signalHRender();
 				break;
 		}
 

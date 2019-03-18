@@ -11,9 +11,12 @@ public:
 
 	void reset();
 
-	void writePRG(Word address, Byte value);
 	Byte readPRG(Word address);
+	void writePRG(Word address, Byte value);
+
+	Byte readCHR(Word address);
 	void writeCHR(Word address, Byte value);
+
 	void signalVBlank();
 	void signalHBlank();
 	void signalHRender();
@@ -36,9 +39,11 @@ protected:
 		PRG_BANKSWITCH_START = 0x5113,
 		PRG_BANKSWITCH_END = 0x5117,
 
-		CHR_BANKSWITCH_START = 0x5120,
+		CHR_BANKSWITCH_A_START = 0x5120,
+		CHR_BANKSWITCH_A_END = 0x5127,
+		
 		CHR_BANKSWITCH_B_START = 0x5128,
-		CHR_BANKSWITCH_END = 0x512b,
+		CHR_BANKSWITCH_B_END = 0x512b,
 
 		UPPER_CHR_BITS = 0x5130,
 
@@ -105,7 +110,14 @@ protected:
 		NT_FILL_MODE,
 	};
 
+	enum FetchMode {
+		FETCH_NONE,
+		FETCH_BACKGROUND,
+		FETCH_SPRITE
+	};
+
 	SpriteSize sprite_size;
+	FetchMode fetch_mode;
 	bool rendering_enabled;
 
 	union Registers {
@@ -124,9 +136,9 @@ protected:
 
 	Registers registers;
 
-	// Byte registers[8];
 	Byte prg_registers[5];
-	Byte chr_registers[12];
+	Byte chr_registers_a[8];
+	Byte chr_registers_b[4];
 	int upper_chr_bits;
 	ChrSet last_chr_set;
 
@@ -147,9 +159,6 @@ protected:
 	Word result;
 
 	Byte ext_ram[EXT_RAM_SIZE];
-
-	// prg map source (ROM or RAM)
-	Byte* source(int index);
 
 	SpriteSize spriteSize();
 
