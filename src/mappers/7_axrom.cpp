@@ -1,11 +1,14 @@
 #include "7_axrom.hpp"
+#include "ppu.hpp"
 
 AxROM::AxROM(Byte* data) : Cartridge(data) {
 	dout("AxROM()");
 }
 
+AxROM::~AxROM() {}
+
 void AxROM::writePRG(Word address, Byte value) {
-	value &= readPRG(value); // bus conflict
+	value &= readPRG(address); // bus conflict
 
 	int prg_bank = value & 0x07;
 	int nt_page = (value >> 4) & 0x01;

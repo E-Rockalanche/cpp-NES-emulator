@@ -33,6 +33,8 @@ MMC5::MMC5(Byte* data) : Cartridge(data) {
 	}
 }
 
+MMC5::~MMC5() {}
+
 void MMC5::reset() {
 	irq_enabled = false;
 	CPU::setIRQ(false);

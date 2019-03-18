@@ -214,7 +214,6 @@ Byte Cartridge::readPRG(Word address) {
 		return ram_map[0][address - RAM_START];
 
 	} else {
-		dout("cartridge read unmapped at " << toHex(address, 2));
 		return address >> 8; // unmapped
 	}
 }

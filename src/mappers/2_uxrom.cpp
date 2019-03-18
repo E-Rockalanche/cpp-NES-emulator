@@ -9,6 +9,8 @@ UxROM::UxROM(Byte* data) : Cartridge(data) {
 	setCHRBank(0, 0, 8 * KB);
 }
 
+UxROM::~UxROM() {}
+
 void UxROM::writePRG(Word address, Byte value) {
 	if (address & 0x8000) {
 		setPRGBank(0, value & 0x0f, 16 * KB);

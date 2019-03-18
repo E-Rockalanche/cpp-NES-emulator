@@ -5,6 +5,8 @@ CNROM::CNROM(Byte* data) : Cartridge(data) {
 	dout("CNROM()");
 }
 
+CNROM::~CNROM() {}
+
 void CNROM::writePRG(Word address, Byte value) {
 	if (address & 0x8000) {
 		// ANDing with rom emulates bus conflict

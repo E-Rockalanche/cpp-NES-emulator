@@ -566,6 +566,7 @@ Byte read(Word address) {
 			break;
 
 		case CARTRIDGE_START ... CARTRIDGE_END:
+			assert(address >= 0x4020, "reading cartridge at address " << toHex(address, 2));
 			value = cartridge->readPRG(address);
 			break;
 

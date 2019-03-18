@@ -6,7 +6,7 @@
 class CNROM : public Cartridge {
 public:
 	CNROM(Byte* data);
-	~CNROM() {}
+	~CNROM();
 
 	void writePRG(Word address, Byte value);
 	void writeCHR(Word address, Byte value);

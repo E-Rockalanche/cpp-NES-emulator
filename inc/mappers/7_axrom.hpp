@@ -6,7 +6,7 @@
 class AxROM : public Cartridge {
 public:
 	AxROM(Byte* data);
-	~AxROM() {}
+	~AxROM();
 
 	void writePRG(Word address, Byte value);
 	void writeCHR(Word address, Byte value);

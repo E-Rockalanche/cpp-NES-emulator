@@ -14,6 +14,8 @@ MMC3::MMC3(Byte* data) : Cartridge(data) {
 	applyBankSwitch();
 }
 
+MMC3::~MMC3() {}
+
 void MMC3::writePRG(Word address, Byte value) {
 	if (address >= 0x8000) {
 		switch(address & 0xe001) {

@@ -6,7 +6,7 @@
 class MMC1 : public Cartridge {
 public:
 	MMC1(Byte* data);
-	~MMC1() {}
+	~MMC1();
 
 	void writePRG(Word address, Byte value);
 	void writeCHR(Word address, Byte value);

@@ -7,7 +7,7 @@
 class MMC5 : public Cartridge {
 public:
 	MMC5(Byte* data);
-	~MMC5() {}
+	~MMC5();
 
 	void reset();
 

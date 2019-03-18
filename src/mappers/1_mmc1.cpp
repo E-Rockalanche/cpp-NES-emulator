@@ -11,6 +11,8 @@ MMC1::MMC1(Byte* data) : Cartridge(data) {
 	setPRGBank(1, -1, 16 * KB);
 }
 
+MMC1::~MMC1() {}
+
 void MMC1::writePRG(Word address, Byte value) {
 	if (address >= PRG_START) {
 		if (value & 0x80) {
