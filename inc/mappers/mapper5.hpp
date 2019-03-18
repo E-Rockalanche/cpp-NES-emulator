@@ -12,6 +12,9 @@ public:
 	void writePRG(Word address, Byte value);
 	Byte readPRG(Word address);
 	void writeCHR(Word address, Byte value);
+	void signalVBlank();
+	void signalHBlank();
+	void signalHRender();
 	void signalScanline();
 
 protected:
@@ -29,7 +32,10 @@ protected:
 		PRG_BANKSWITCH_END = 0x5117,
 
 		CHR_BANKSWITCH_START = 0x5120,
-		CHR_BANKSWITCH_END = 0x5130,
+		CHR_BANKSWITCH_B_START = 0x5128,
+		CHR_BANKSWITCH_END = 0x512b,
+
+		UPPER_CHR_BITS = 0x5130,
 
 		VERTICAL_SPLIT_MODE = 0x5200,
 		VERTICAL_SPLIT_SCROLL,
@@ -46,9 +52,28 @@ protected:
 		CLSL_STATUS,
 		TIMER_IRQ,
 
-		EXP_RAM_START = 0x5c00,
-		EXP_RAM_END = 0x5fff,
-		EXP_RAM_SIZE = 0x0400
+		EXT_RAM_START = 0x5c00,
+		EXT_RAM_END = 0x5fff,
+		EXT_RAM_SIZE = 0x0400
+	};
+
+	enum {
+		PRG_MODE_32K,
+		PRG_MODE_16K,
+		PRG_MODE_16K_8K,
+		PRG_MODE_8K
+	};
+
+	enum {
+		CHR_MODE_8K,
+		CHR_MODE_4K,
+		CHR_MODE_2K,
+		CHR_MODE_1K
+	};
+
+	enum ChrSet {
+		CHR_SET_A,
+		CHR_SET_B
 	};
 
 	enum VSplitSide {
@@ -56,7 +81,35 @@ protected:
 		RIGHT
 	};
 
-	Byte registers[8];
+	enum SpriteSize {
+		SPR_8x8,
+		SPR_8x16
+	};
+
+	SpriteSize sprite_size;
+	bool rendering_enabled;
+
+	union Registers {
+		Byte r[8];
+		struct {
+			Byte prg_mode;
+			Byte chr_mode;
+			Byte ram_protect_1;
+			Byte ram_protect_2;
+			Byte ext_ram_mode;
+			Byte nt_mapping;
+			Byte fill_tile;
+			Byte fill_colour;
+		};
+	};
+
+	Registers registers;
+
+	// Byte registers[8];
+	Byte prg_registers[5];
+	Byte chr_registers[12];
+	int upper_chr_bits;
+	ChrSet last_chr_set;
 
 	int vsplit_tile;
 	VSplitSide vsplit_side;
@@ -66,113 +119,25 @@ protected:
 
 	Byte irq_scanline;
 	bool irq_enabled;
+	bool irq_pending;
+	bool in_frame;
+	int current_scanline;
 
 	Byte multiplicand;
 	Byte multiplier;
 	Word result;
+
+	Byte* ext_ram;
+
+	// prg map source (ROM or RAM)
+	Byte* source(int index);
+
+	SpriteSize spriteSize();
+
+	void setPRGBankExt(int slot, int bank, int bank_size);
+	void applyPRG();
+	void applyChrA();
+	void applyChrB();
 };
 
 #endif
-
-Mapper5::Mapper5(Byte* date) : Cartridge(date) {
-	registers[PRG_MODE] = 3;
-	registers[CHR_MODE] = 3;
-}
-
-void writePRG(Word address, Byte value) {
-	switch(address) {
-		case PRG_MODE ... FILL_COLOUR:
-			registers[address - PRG_MODE] = value;
-			break;
-
-		case PRG_BANKSWITCH_START ... PRG_BANKSWITCH_END:
-			prgSwitch(address, value);
-			break;
-
-		case CHR_BANKSWITCH_START ... CHR_BANKSWITCH_END:
-			chrSwitch(address, value);
-			break;
-
-		case VERTICAL_SPLIT_MODE:
-			vsplit_tile = value & 0x1f;
-			vsplit_side = testFlag(value, 0x40) ? RIGHT : LEFT;
-			vsplit_enabled = testFlag(value, 0x80);
-			break;
-
-		case VERTICAL_SPLIT_SCROLL:
-			vsplit_scroll = value;
-			break;
-
-		case VERTICAL_SPLIT_BANK:
-			vsplit_bank = value;
-			break;
-
-		case IRQ_SCANLINE:
-			irq_scanline = value;
-			break;
-
-		case IRQ_STATUS:
-			irq_enabled = testFlag(value, 0x80);
-			break;
-
-		case MULTIPLICAND:
-			multilicand = value;
-			result = multiplicand * multiplier;
-			break;
-
-		case MULTIPLIER:
-			multiplier = value;
-			result = multiplicand * multiplier;
-			break;
-
-		// MMC5A only:
-		// TODO
-	}
-}
-
-Byte readPRG(Word address) {
-	Byte value = 0;
-	if (address >= 0x6000) {
-		value = Cartridge::readPRG(address);
-	} else {
-		switch(address) {
-			IRQ_STATUS:
-				value = (irq_pending*0x80) | (in_frame*0x40);
-				break;
-
-			case MULTIPLICAND:
-				value = result & 0xff;
-				break;
-
-			case MULTIPLIER:
-				value = result >> 8;
-				break;
-
-			// MMC5A only:
-			// TODO
-		}
-	}
-	return value;
-}
-
-void prgSwitch(Word address, Byte value) {
-	bool rom_toggle = testFlag(value, 0x80);
-	value &= 0x7f;
-	switch(address) {
-		case 0x5113: mapRAM(0, value, 0x2000); break;
-
-		case 0x5114:
-			if (prgMode() == 3) map
-		case 0x5115:
-		case 0x5116:
-
-		case 0x5117: 
-			switch(prgMode()) {
-				case 3: mapROM(3, value, 0x2000); break;
-				case 2: mapROM(3, value, 0x2000); break;
-				case 1: mapROM(1, value, 0x4000); break;
-				case 0: mapROM(0, value, 0x8000); break;
-			}
-			break;
-	}
-}

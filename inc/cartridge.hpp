@@ -43,6 +43,9 @@ public:
 	NameTableMirroring nameTableMirroring();
 
 	virtual void signalScanline() {}
+	virtual void signalHBlank() {}
+	virtual void signalHRender() {}
+	virtual void signalVBlank() {}
 
 protected:
 	enum Header {

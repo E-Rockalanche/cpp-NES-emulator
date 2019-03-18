@@ -15,6 +15,9 @@ namespace PPU {
 	bool readyToDraw();
 	void writeToOAM(Byte value);
 	bool renderingEnabled();
+	
+	Byte getControl();
+	Byte getMask();
 
 	void dump();
 	bool nmiEnabled();

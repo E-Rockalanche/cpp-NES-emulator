@@ -325,6 +325,9 @@ Byte readByte(Word address) {
 	return open_bus;
 }
 
+Byte getControl() { return control; }
+Byte getMask() { return mask; }
+
 void writeToControl(Byte value) {
 	// manual NMI trigger during vblank
 	if (!testFlag(control, NMI_ENABLE)
@@ -449,12 +452,15 @@ void scanlineCycle() {
 
 	if (s == VBLANK_LINE && cycle == 1) {
 		setVBlank();
+		cartridge->signalVBlank();
 	} else if (s == POSTRENDER && cycle == 0) {
 		can_draw = true;
 	} else if (s == VISIBLE || s == PRERENDER) {
 		// sprites
 		switch(cycle) {
 			case 1:
+				// signal MMC5 to switch to background data
+				cartridge->signalHRender();
 				clearOAM();
 				if (s == PRERENDER) {
 					setStatusFlag(SPRITE_OVERFLOW, false);
@@ -464,6 +470,8 @@ void scanlineCycle() {
 				break;
 
 			case 257:
+				// signal MMC5 to switch to sprite data
+				cartridge->signalHBlank();
 				loadSpritesOnScanline();
 				break;
 
@@ -540,7 +548,7 @@ void scanlineCycle() {
 				nametable_latch = read(address);
 		}
 
-		// signal scanline to MMC3
+		// signal scanline to MMC3/MMC5
 		if (renderingEnabled()
 				&& ((control & 0x10)
 				? (cycle == 324 || cycle == 4)

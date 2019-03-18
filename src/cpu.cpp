@@ -993,7 +993,6 @@ void forceBreak(AddressMode address_mode) {
 	pushByteToStack(status);
 	setStatusFlag(DISABLE_INTERRUPTS, Constant<bool, true>());
 	program_counter = readWord(IRQ_VECTOR);
-	dout("Forced IRQ, pc = " << toHex(program_counter));
 }
 
 void branchOnOverflowClear(AddressMode address_mode) {
