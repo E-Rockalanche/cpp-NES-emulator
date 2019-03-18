@@ -102,10 +102,25 @@ const int SECONDARY_OAM_SIZE = 8;
 
 Byte nametable[NAMETABLE_SIZE];
 Byte palette[PALETTE_SIZE];
+
+/*
+OAM: Object Attribute Memory
+Contains a display list of up to 64 sprites.
+Each sprites' info occupies 4 bytes
+
+0: y position of top of sprite
+1: tile index number
+2: attributes
+3: x position of left side of sprite
+*/
 Byte primary_oam[PRIMARY_OAM_SIZE * OBJECT_SIZE];
 Byte secondary_oam[PRIMARY_OAM_SIZE * OBJECT_SIZE]; // uses secondary size if sprite flickering is on
 
 // name table mapping set by cartridge
+/*
+NametableReader nt_read_map[4];
+NametableWriter nt_write_map[4];
+*/
 Byte* nt_map[4];
 
 // lets main know when the screen can be drawn
@@ -340,12 +355,21 @@ void mapNametable(int from_page, int to_page) {
 	assert(from_page < 4, "invalid from_page");
 	assert(to_page < 2, "invalid to_page");
 	nt_map[from_page] = nametable + (to_page * KB);
+	/*
+	nt_read_map[from_page] = (to_page) ? readNametable1 : readNametable0;
+	nt_write_map[from_page] = (to_page) ? writeNametable1 : writeNametable0;
+	*/
 }
 
 void mapNametable(int page, Byte* location) {
 	assert(page < 4, "Invalid nametable page index");
-	assert(location != NULL, "nametable page location is NULL")
+	assert(location != NULL, "nametable data location is null");
 	nt_map[page] = location;
+	/*
+	assert(accessor != NULL, "nametable accessor is NULL");
+	nt_read_map[page] = reader;
+	nt_write_map[page] = writer;
+	*/
 }
 
 void mapNametable(Cartridge::NameTableMirroring nt_mirroring) {
@@ -606,10 +630,6 @@ void incrementXComponent() {
 
 	if ((vram_address & 0x001f) == 31) { // if coarse X == 31
 		vram_address ^= 0x041f;
-		/*
-		vram_address &= ~0x001f; // coarse X = 0
-		vram_address ^= 0x0400; // switch horizontal nametable
-		*/
 	} else {
 		vram_address++;
 	}
@@ -688,8 +708,14 @@ Byte read(Word address) {
 
 		case NAMETABLE_START ... NAMETABLE_END: {
 			int nt_index = (address - NAMETABLE_START) % NAMETABLE_MIRROR_SIZE;
+			/*
+			NametableReader reader = nt_read_map[nt_index / KB];
+			value = (*reader)(nt_index % KB);
+			*/
+			
 			Byte* nt_data = nt_map[nt_index / KB];
 			value = nt_data[nt_index % KB];
+			
 			break;
 		}
 
@@ -715,8 +741,14 @@ void write(Word address, Byte value) {
 
 		case NAMETABLE_START ... NAMETABLE_END: {
 			int nt_index = (address - NAMETABLE_START) % NAMETABLE_MIRROR_SIZE;
+			/*
+			NametableWriter writer = nt_write_map[nt_index / KB];
+			(*writer)(nt_index % KB, value);
+			*/
+			
 			Byte* nt_data = nt_map[nt_index / KB];
 			nt_data[nt_index % KB] = value;
+			
 			break;
 		}
 
