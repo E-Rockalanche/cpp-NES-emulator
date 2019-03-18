@@ -43,7 +43,6 @@ void renderPixel();
 void setVBlank();
 void clearVBlank();
 
-// Word nametableMirror(Word address);
 Byte read(Word address);
 void write(Word address, Byte value);
 
@@ -366,27 +365,6 @@ void mapNametable(Cartridge::NameTableMirroring nt_mirroring) {
 	}
 }
 
-
-/*
-Word nametableMirror(Word address) {
-	Word new_address;
-	switch(cartridge->nameTableMirroring()) {
-		case Cartridge::HORIZONTAL:
-			new_address = ((address / 2) & 0x400) + (address % 0x400);
-			break;
-
-		case Cartridge::VERTICAL:
-			new_address = address % 0x800;
-			break;
-
-		default:
-			assert(false, "invalid nametable mirroring");
-			break;
-	}
-	return new_address;
-}
-*/
-
 void writeToControl(Byte value) {
 	// manual NMI trigger during vblank
 	if (!testFlag(control, NMI_ENABLE)
@@ -607,13 +585,18 @@ void scanlineCycle() {
 				nametable_latch = read(address);
 		}
 
-		// signal scanline to MMC3/MMC5
+		// signal scanline to MMC3
 		if (renderingEnabled()
 				&& ((control & 0x10)
 				? (cycle == 324 || cycle == 4)
 				: (cycle == 260))) {
-			cartridge->signalScanline();
+			cartridge->signalScanlineMMC3();
 		}
+	}
+
+	// signal scanline to MMC5
+	if ((scanline <= 240) && cycle == 4) {
+		cartridge->signalScanlineMMC5();
 	}
 }
 
@@ -694,26 +677,6 @@ void writeToOAM(Byte value) {
 	primary_oam[oam_address++] = value;
 }
 
-/*
-Word nametableMirror(Word address) {
-	Word new_address;
-	switch(cartridge->nameTableMirroring()) {
-		case Cartridge::HORIZONTAL:
-			new_address = ((address / 2) & 0x400) + (address % 0x400);
-			break;
-
-		case Cartridge::VERTICAL:
-			new_address = address % 0x800;
-			break;
-
-		default:
-			assert(false, "invalid nametable mirroring");
-			break;
-	}
-	return new_address;
-}
-*/
-
 // PPU read from cartridge / ram
 Byte read(Word address) {
 	Byte value;
@@ -726,11 +689,6 @@ Byte read(Word address) {
 			int nt_index = (address - NAMETABLE_START) % NAMETABLE_MIRROR_SIZE;
 			Byte* nt_data = nt_map[nt_index / KB];
 			value = nt_data[nt_index % KB];
-			/*
-			Word nt_index = nametableMirror(address);
-			assert(nt_index < NAMETABLE_SIZE, "read nametable index out of bounds");
-			value = nametable[nt_index];
-			*/
 			break;
 		}
 
@@ -758,11 +716,6 @@ void write(Word address, Byte value) {
 			int nt_index = (address - NAMETABLE_START) % NAMETABLE_MIRROR_SIZE;
 			Byte* nt_data = nt_map[nt_index / KB];
 			nt_data[nt_index % KB] = value;
-			/*
-			Word nt_index = nametableMirror(address);
-			assert(nt_index < NAMETABLE_SIZE, "write nametable index out of bounds");
-			nametable[nt_index] = value;
-			*/
 			break;
 		}
 
@@ -880,12 +833,6 @@ void renderPixel() {
 				for(int i = size-1; i >= 0; i--) {
 					Byte attributes = sprite_attribute_latch[i];
 
-					/*
-					if (attributes == 0xff && sprite_x_counter[i] == 0xff) {
-						continue; // empty entry
-					}
-					*/
-
 					int sprite_x = x - sprite_x_counter[i];
 					if (sprite_x < 0 || sprite_x >= 8 || x >= 255) continue; // not in range
 
@@ -931,17 +878,36 @@ void renderPixel() {
 }
 
 void dump() {
-	std::cout << "====== PPU ======\n";
-	std::cout << "         NmHBSInn\n";
-	std::cout << "control: " << toBin(control) << '\n';
-	std::cout << "         bgrSBsbG\n";
-	std::cout << "mask:    " << toBin(control) << '\n';
-	std::cout << "         VHO-----\n";
-	std::cout << "status:  " << toBin(control) << "\n\n";
+	print("===== PPU =====");
+	print("rendering enabled: " << renderingEnabled());
+	print("nt_map: [" << (void*)nt_map[0] << ", " << (void*)nt_map[1] << ", " << (void*)nt_map[2] << ", " << (void*)nt_map[3] << "]");
 
-	std::cout << "scanline: " << scanline << '\n';
-	std::cout << "cycle: " << cycle << '\n';
-	std::cout << "=================\n";
+	print("\nCONTROL: " << toHex(control));
+	int base_nt_addr = 0x2000 + (control & 0x03) * 0x0400;
+	print("base NT addr: " << toHex(base_nt_addr, 2));
+	print("vram inc: " << ((control & 0x04) ? "32" : "1"));
+	bool spr16 = control & 0x20;
+	print("spr addr: " << ((control & 0x80) ? "$1000" : "$0000") << (spr16 ? " (ignored)" : ""));
+	print("bkg addr: " << ((control & 0x10) ? "$1000" : "$0000"));
+	print("sprite size: " << (spr16 ? "8x16" : "8x8"));
+	print("master/slave: " << (bool)(control & 0x40));
+	print("nmi enabled: " << (bool)(control & 0x80));
+
+	print("\nMASK: " << toHex(mask));
+	print("greyscale: " << (bool)(mask & 0x01));
+	print("bkr left 8: " << (bool)(mask & 0x02));
+	print("spr left 8: " << (bool)(mask & 0x04));
+	print("show bkr: " << (bool)(mask & 0x08));
+	print("show spr: " << (bool)(mask & 0x10));
+	print("emphasize red: " << (bool)(mask & 0x20));
+	print("emphasize green: " << (bool)(mask & 0x40));
+	print("emphasize blue: " << (bool)(mask & 0x80));
+
+	print("\nSTATUS: " << toHex(status));
+	print("sprite overflow: " << (bool)(status & 0x20));
+	print("sprite 0 hit: " << (bool)(status & 0x40));
+	print("vblank: " << (bool)(status & 0x80));
+	print("===============");
 }
 
 bool nmiEnabled() {

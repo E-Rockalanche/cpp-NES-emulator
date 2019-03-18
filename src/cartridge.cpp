@@ -103,8 +103,6 @@ Cartridge::Format Cartridge::getFormat(Byte* data) {
 }
 
 Cartridge::Cartridge(Byte* data) : data(data) {
-	dout("Cartridge()");
-
 	prg_size = data[PRG_SIZE] * 0x4000;
 	chr_size = data[CHR_SIZE] * 0x2000;
 	ram_size = data[RAM_SIZE] ? (data[RAM_SIZE] * 0x2000) : 0x2000;
@@ -241,18 +239,18 @@ void Cartridge::setBank(Byte* map[], Byte* src, int slot, int bank, int bank_siz
 		map[(slot * map_size) + i] = src + (((bank * bank_size) + (i * min_size)) % src_size);
 	}
 
-	/*
+	
 	// DEBUG
 	int size;
 	if (map == prg_map) size = 4;
 	else if (map == chr_map) size = 8;
 	else size = 1;
 
-	for(int i = 0; i < size; i++) {
-		unsigned long offset = map[i] - src;
+	for(int i = slot*map_size; i < map_size*(slot+1); i++) {
+		unsigned long offset = (unsigned long)map[i] - (unsigned long)src;
 		assert(offset <= src_size - min_size, "slot " << i << " mapped out of bounds. offset: " << offset);
 	}
-	*/
+	
 }
 
 void Cartridge::setPRGBank(int slot, int bank, int bank_size) {

@@ -9,13 +9,15 @@ public:
 	Mapper5(Byte* data);
 	~Mapper5() {}
 
+	void reset();
+
 	void writePRG(Word address, Byte value);
 	Byte readPRG(Word address);
 	void writeCHR(Word address, Byte value);
 	void signalVBlank();
 	void signalHBlank();
 	void signalHRender();
-	void signalScanline();
+	void signalScanlineMMC5();
 
 protected:
 	enum Register {

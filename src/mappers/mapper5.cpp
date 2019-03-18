@@ -25,8 +25,13 @@ Mapper5::Mapper5(Byte* data) : Cartridge(data) {
 	applyChrA();
 
 	for(int i = EXT_RAM_START; i <= EXT_RAM_END; i++) {
-		ext_ram[i] = 0;
+		ext_ram[i - EXT_RAM_START] = 0;
 	}
+}
+
+void Mapper5::reset() {
+	irq_enabled = false;
+	CPU::setIRQ(false);
 }
 
 void Mapper5::writePRG(Word address, Byte value) {
@@ -36,17 +41,23 @@ void Mapper5::writePRG(Word address, Byte value) {
 			break;
 
 		case PRG_MODE:
-			registers.prg_mode = value & 0x03;
-			applyPRG();
+			value &= 0x03;
+			if (registers.prg_mode != value) {
+				registers.prg_mode = value;
+				applyPRG();
+			}
 			break;
 
 		case CHR_MODE:
-			registers.chr_mode = value & 0x03;
-			if (spriteSize() == SPR_8x8 || !in_frame) {
-				if (last_chr_set == CHR_SET_A) {
-					applyChrA();
-				} else {
-					applyChrB();
+			value &= 0x03;
+			if (registers.chr_mode != value) {
+				registers.chr_mode = value;
+				if (spriteSize() == SPR_8x8 || !PPU::renderingEnabled() || !in_frame) {
+					if (last_chr_set == CHR_SET_A) {
+						applyChrA();
+					} else {
+						applyChrB();
+					}
 				}
 			}
 			break;
@@ -72,8 +83,6 @@ void Mapper5::writePRG(Word address, Byte value) {
 			break;
 
 		case PRG_BANKSWITCH_START ... PRG_BANKSWITCH_END:
-			// dout("prg_reg[" << (address - PRG_BANKSWITCH_START) << "] = " << (int)(value & 0x7f));
-			// dout("rom: " << (bool)(value & 0x80));
 			if (prg_registers[address - PRG_BANKSWITCH_START] != value) {
 				prg_registers[address - PRG_BANKSWITCH_START] = value;
 				applyPRG();
@@ -81,7 +90,6 @@ void Mapper5::writePRG(Word address, Byte value) {
 			break;
 
 		case CHR_BANKSWITCH_START ... CHR_BANKSWITCH_END: {
-			// dout("chr_reg[" << (address - CHR_BANKSWITCH_START) << "] = " << (int)value);
 			ChrSet this_chr_set = (address < CHR_BANKSWITCH_B_START)
 				? CHR_SET_A : CHR_SET_B;
 			if (chr_registers[address - CHR_BANKSWITCH_START] != value
@@ -120,12 +128,10 @@ void Mapper5::writePRG(Word address, Byte value) {
 
 		case IRQ_SCANLINE:
 			irq_scanline = value;
-			dout("irq_scanline = " << (int)value);
 			break;
 
 		case IRQ_STATUS:
 			irq_enabled = testFlag(value, 0x80);
-			dout("irq_enabled = " << (irq_enabled ? "TRUE" : "FALSE"));
 			break;
 
 		case MULTIPLICAND:
@@ -158,6 +164,7 @@ void Mapper5::writePRG(Word address, Byte value) {
 				Byte* bank = ram_map[0];
 				bank[address - Cartridge::RAM_START] = value;
 			}
+			break;
 
 		default:
 			dout("Mapper5::writePRG(" << toHex(address, 2) << ", " << toHex(value, 1) << ")");
@@ -179,6 +186,13 @@ Byte Mapper5::readPRG(Word address) {
 	Byte value = 0;
 	if (address >= 0x6000) {
 		value = Cartridge::readPRG(address);
+
+		// reading from NMI vector resets scanline detection
+		if (address >= 0xfffa && address <= 0xfffb) {
+			in_frame = false;
+			current_scanline = 0;
+			irq_pending = false;
+		}
 	} else {
 		switch(address) {
 			case AUDIO_START ... AUDIO_END:
@@ -238,25 +252,25 @@ void Mapper5::applyPRG() {
 	// map prg rom
 	switch(registers.prg_mode) {
 		case PRG_MODE_32K:
-			setPRGBank(0, (prg_registers[4] & 0x7f) >> 2, 32*KB); // cannot be RAM
+			setPRGBank(0, prg_registers[4] >> 2, 32*KB); // cannot be RAM
 			break;
 
 		case PRG_MODE_16K:
 			setPRGBankExt(0, prg_registers[2], 16*KB);
-			setPRGBank(1, (prg_registers[4] & 0x7f) >> 1, 16*KB); // cannot be RAM
+			setPRGBank(1, prg_registers[4] >> 1, 16*KB); // cannot be RAM
 			break;
 
 		case PRG_MODE_16K_8K:
-			setPRGBankExt(0, (prg_registers[2] & 0x7f) >> 1, 16*KB);
+			setPRGBankExt(0, prg_registers[2], 16*KB);
 			setPRGBankExt(2, prg_registers[3], 8*KB);
-			setPRGBank(3, prg_registers[4] & 0x7f, 8*KB); //cannot be RAM
+			setPRGBank(3, prg_registers[4], 8*KB); //cannot be RAM
 			break;
 
 		case PRG_MODE_8K:
 			for(int i = 0; i < 3; i++) {
 				setPRGBankExt(i, prg_registers[i+1], 8*KB);
 			}
-			setPRGBank(3, prg_registers[4] & 0x7f, 8*KB); // cannot be RAM
+			setPRGBank(3, prg_registers[4], 8*KB); // cannot be RAM
 			break;
 
 		default: assert(false, "Invalid prg mode"); break;
@@ -266,6 +280,7 @@ void Mapper5::applyPRG() {
 void Mapper5::applyChrB() {
 	switch(registers.chr_mode) {
 		case CHR_MODE_8K: setCHRBank(0, chr_registers[11], 8*KB); break;
+
 		case CHR_MODE_4K ... CHR_MODE_1K: {
 			int slots = 1;
 			for(int i = 1; i < registers.chr_mode; i++) slots *= 2;
@@ -276,7 +291,9 @@ void Mapper5::applyChrB() {
 				setCHRBank(i + slots, bank, 4 * KB / slots);
 			}
 		}
-		default: assert(false, "Invalid chr mode"); break;
+			break;
+
+		default: assert(false, "Invalid chr mode: " << (int)registers.chr_mode); break;
 	}
 }
 
@@ -296,24 +313,31 @@ Mapper5::SpriteSize Mapper5::spriteSize() {
 }
 
 void Mapper5::signalHBlank() {
-	if ((last_chr_set == CHR_SET_A) || spriteSize() == SPR_8x16) {
-		applyChrA();
-	} else {
-		applyChrB();
+	if (PPU::renderingEnabled()) {
+		if ((last_chr_set == CHR_SET_A) || spriteSize() == SPR_8x16) {
+			applyChrA();
+		} else {
+			applyChrB();
+		}
 	}
 }
 
 void Mapper5::signalHRender() {
-	if ((last_chr_set == CHR_SET_B) || spriteSize() == SPR_8x16) {
-		applyChrB();
-	} else {
-		applyChrA();
+	if (PPU::renderingEnabled()) {
+		if ((last_chr_set == CHR_SET_B) || spriteSize() == SPR_8x16) {
+			applyChrB();
+		} else {
+			applyChrA();
+		}
 	}
 }
 
 void Mapper5::signalVBlank() {
+	/*
 	in_frame = false;
 	current_scanline = 0;
+	irq_pending = false;
+	*/
 	if (last_chr_set == CHR_SET_A || spriteSize() == SPR_8x8) {
 		applyChrA();
 	} else {
@@ -321,14 +345,20 @@ void Mapper5::signalVBlank() {
 	}
 }
 
-void Mapper5::signalScanline() {
-	in_frame = true;
-	if ((++current_scanline == irq_scanline) && (irq_scanline != 0)) {
-		irq_pending = true;
-		if (irq_enabled) {
-			CPU::setIRQ();
-		}
+void Mapper5::signalScanlineMMC5() {
+	if (!PPU::renderingEnabled() || (current_scanline == 240)) {
+		in_frame = false;
+	} else if (!in_frame) {
+		in_frame = true;
+		current_scanline = 0;
 	} else {
-		irq_pending = false;
+		if (++current_scanline == irq_scanline) {
+			irq_pending = true;
+			if (irq_enabled) {
+				CPU::setIRQ();
+			}
+		} else {
+			irq_pending = false;
+		}
 	}
 }

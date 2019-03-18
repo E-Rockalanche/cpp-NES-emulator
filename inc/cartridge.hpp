@@ -30,6 +30,9 @@ public:
 
 	Cartridge(Byte* data);
 	virtual ~Cartridge();
+
+	virtual void reset() {}
+
 	bool hasSRAM();
 	bool saveGame(std::string);
 	bool loadSave(std::string);
@@ -42,7 +45,8 @@ public:
 
 	NameTableMirroring nameTableMirroring();
 
-	virtual void signalScanline() {}
+	virtual void signalScanlineMMC3() {}
+	virtual void signalScanlineMMC5() {}
 	virtual void signalHBlank() {}
 	virtual void signalHRender() {}
 	virtual void signalVBlank() {}

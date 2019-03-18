@@ -72,7 +72,7 @@ void Mapper4::applyBankSwitch() {
 	}
 }
 
-void Mapper4::signalScanline() {
+void Mapper4::signalScanlineMMC3() {
 	if (irq_counter == 0) {
 		irq_counter = irq_latch;
 	} else {

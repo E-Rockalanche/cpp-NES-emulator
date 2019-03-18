@@ -16,6 +16,8 @@
 #define toHex(...) GET_MACRO(__VA_ARGS__, toHex3, toHex2, toHex1)(__VA_ARGS__)
 
 #define toBin(number) (std::bitset<8>((number)))
+	
+#define print(message) std::cout << message << '\n'
 
 #ifndef NULL
 	#define NULL 0

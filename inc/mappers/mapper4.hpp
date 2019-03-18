@@ -11,7 +11,7 @@ public:
 
 	void writePRG(Word address, Byte value);
 	void writeCHR(Word address, Byte value);
-	void signalScanline();
+	void signalScanlineMMC3();
 
 protected:
 	Byte bank_select;
