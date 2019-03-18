@@ -3,10 +3,7 @@
 
 #include <vector>
 
-#include "apu.hpp"
-#include "ppu.hpp"
-#include "controller.hpp"
-#include "cartridge.hpp"
+#include "Nes_Apu.h"
 #include "common.hpp"
 
 namespace CPU {

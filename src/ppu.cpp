@@ -43,7 +43,7 @@ void renderPixel();
 void setVBlank();
 void clearVBlank();
 
-Word nametableMirror(Word address);
+// Word nametableMirror(Word address);
 Byte read(Word address);
 void write(Word address, Byte value);
 
@@ -75,7 +75,8 @@ const int CHR_END = 0x1fff;
 
 const int NAMETABLE_START = 0x2000;
 const int NAMETABLE_END = 0x3eff;
-const int NAMETABLE_SIZE = 0x800;
+const int NAMETABLE_SIZE = 0x0800;
+const int NAMETABLE_MIRROR_SIZE = 0x1000;
 
 const int PALETTE_START = 0x3f00;
 const int PALETTE_END = 0x3fff;
@@ -104,6 +105,9 @@ Byte nametable[NAMETABLE_SIZE];
 Byte palette[PALETTE_SIZE];
 Byte primary_oam[PRIMARY_OAM_SIZE * OBJECT_SIZE];
 Byte secondary_oam[PRIMARY_OAM_SIZE * OBJECT_SIZE]; // uses secondary size if sprite flickering is on
+
+// name table mapping set by cartridge
+Byte* nt_map[4];
 
 // lets main know when the screen can be drawn
 bool can_draw;
@@ -198,6 +202,10 @@ void power() {
 	
 	sprite_zero_next_scanline = false;
 	sprite_zero_this_scanline = false;
+
+	for(int i = 0; i < 4; i++) {
+		nt_map[i] = nametable + ((i % 2) * KB); // vertical mirroring
+	}
 
 	for(int n = 0; n < PRIMARY_OAM_SIZE * OBJECT_SIZE; n++) {
 		primary_oam[n] = 0xff;
@@ -327,6 +335,57 @@ Byte readByte(Word address) {
 
 Byte getControl() { return control; }
 Byte getMask() { return mask; }
+
+void mapNametable(int from_page, int to_page) {
+	assert(from_page < 4, "invalid from_page");
+	assert(to_page < 2, "invalid to_page");
+	nt_map[from_page] = nametable + (to_page * KB);
+}
+
+void mapNametable(int page, Byte* location) {
+	assert(page < 4, "Invalid nametable page index");
+	assert(location != NULL, "nametable page location is NULL")
+	nt_map[page] = location;
+}
+
+void mapNametable(Cartridge::NameTableMirroring nt_mirroring) {
+	mapNametable(0, 0);
+	mapNametable(3, 1);
+	switch(nt_mirroring) {
+		case Cartridge::HORIZONTAL:
+			mapNametable(1, 0);
+			mapNametable(2, 1);
+			break;
+
+		case Cartridge::VERTICAL:
+			mapNametable(1, 1);
+			mapNametable(2, 0);
+			break;
+
+		default: assert(false, "Invalid mirroring mode");
+	}
+}
+
+
+/*
+Word nametableMirror(Word address) {
+	Word new_address;
+	switch(cartridge->nameTableMirroring()) {
+		case Cartridge::HORIZONTAL:
+			new_address = ((address / 2) & 0x400) + (address % 0x400);
+			break;
+
+		case Cartridge::VERTICAL:
+			new_address = address % 0x800;
+			break;
+
+		default:
+			assert(false, "invalid nametable mirroring");
+			break;
+	}
+	return new_address;
+}
+*/
 
 void writeToControl(Byte value) {
 	// manual NMI trigger during vblank
@@ -635,6 +694,7 @@ void writeToOAM(Byte value) {
 	primary_oam[oam_address++] = value;
 }
 
+/*
 Word nametableMirror(Word address) {
 	Word new_address;
 	switch(cartridge->nameTableMirroring()) {
@@ -652,6 +712,7 @@ Word nametableMirror(Word address) {
 	}
 	return new_address;
 }
+*/
 
 // PPU read from cartridge / ram
 Byte read(Word address) {
@@ -662,9 +723,14 @@ Byte read(Word address) {
 			break;
 
 		case NAMETABLE_START ... NAMETABLE_END: {
+			int nt_index = (address - NAMETABLE_START) % NAMETABLE_MIRROR_SIZE;
+			Byte* nt_data = nt_map[nt_index / KB];
+			value = nt_data[nt_index % KB];
+			/*
 			Word nt_index = nametableMirror(address);
 			assert(nt_index < NAMETABLE_SIZE, "read nametable index out of bounds");
 			value = nametable[nt_index];
+			*/
 			break;
 		}
 
@@ -689,9 +755,14 @@ void write(Word address, Byte value) {
 			break;
 
 		case NAMETABLE_START ... NAMETABLE_END: {
+			int nt_index = (address - NAMETABLE_START) % NAMETABLE_MIRROR_SIZE;
+			Byte* nt_data = nt_map[nt_index / KB];
+			nt_data[nt_index % KB] = value;
+			/*
 			Word nt_index = nametableMirror(address);
 			assert(nt_index < NAMETABLE_SIZE, "write nametable index out of bounds");
 			nametable[nt_index] = value;
+			*/
 			break;
 		}
 

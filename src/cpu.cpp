@@ -5,6 +5,7 @@
 #include "Nes_Apu.h"
 
 #include "cpu.hpp"
+#include "ppu.hpp"
 #include "debugging.hpp"
 #include "common.hpp"
 #include "controller.hpp"

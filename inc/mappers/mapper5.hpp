@@ -19,6 +19,9 @@ public:
 
 protected:
 	enum Register {
+		AUDIO_START = 0x5000,
+		AUDIO_END = 0x5015,
+
 		PRG_MODE = 0x5100,
 		CHR_MODE,
 		RAM_PROTECT_1,
@@ -86,6 +89,20 @@ protected:
 		SPR_8x16
 	};
 
+	enum ExtRamMode {
+		EXTRA_NAMETABLE,
+		EXT_ATTRIBUTE_DATA,
+		RAM_RW,
+		RAM_READ_ONLY
+	};
+
+	enum NametableMode {
+		NT_VRAM_0,
+		NT_VRAM_1,
+		NT_EXT_RAM,
+		NT_FILL_MODE,
+	};
+
 	SpriteSize sprite_size;
 	bool rendering_enabled;
 
@@ -127,7 +144,7 @@ protected:
 	Byte multiplier;
 	Word result;
 
-	Byte* ext_ram;
+	Byte ext_ram[EXT_RAM_SIZE];
 
 	// prg map source (ROM or RAM)
 	Byte* source(int index);

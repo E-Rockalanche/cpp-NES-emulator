@@ -162,7 +162,9 @@ protected:
 	};
 
 	static const int RAM_START = 0x6000;
+	static const int RAM_END = 0x7fff;
 	static const int PRG_START = 0x8000;
+	static const int PRG_END = 0xffff;
 
 	static const int MIN_PRG_BANK_SIZE = 0x2000;
 	static const int MIN_CHR_BANK_SIZE = 0x0400;
@@ -178,8 +180,6 @@ protected:
 
 	Byte* ram;
 	int ram_size;
-
-	NameTableMirroring nt_mirroring;
 
 	// bank switching
 	Byte* prg_map[4];

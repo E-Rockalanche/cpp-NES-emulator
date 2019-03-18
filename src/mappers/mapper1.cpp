@@ -1,4 +1,5 @@
 #include "mapper1.hpp"
+#include "ppu.hpp"
 
 Mapper1::Mapper1(Byte* data) : Cartridge(data) {
 	dout("Mapper1()");
@@ -84,7 +85,8 @@ void Mapper1::applyBankSwitch() {
 	}
 
 	switch(mirrorMode()) {
-		case 2: nt_mirroring = VERTICAL; break;
-		case 3: nt_mirroring = HORIZONTAL; break;
+		case 2:  PPU::mapNametable(VERTICAL); break;
+		case 3:  PPU::mapNametable(HORIZONTAL); break;
+		default: dout("mirror mode = " << (int)mirrorMode()); break;
 	}
 }

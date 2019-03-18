@@ -123,20 +123,18 @@ Cartridge::Cartridge(Byte* data) : data(data) {
 		has_chr_ram = false;
 		chr = prg + prg_size;
 	} else {
+		dout("using CHR RAM");
 		has_chr_ram = true;
 		chr_size = 0x2000;
 		chr = new Byte[chr_size];
 		assert(chr != NULL, "Could not allocate CHR RAM");
 	}
 
-	nt_mirroring = (data[FLAGS_6] & 1) ? VERTICAL : HORIZONTAL;
+	PPU::mapNametable(nameTableMirroring());
 
-	dout("setting mapper0 banks");
 	setPRGBank(0, 0, 0x8000);
 	setCHRBank(0, 0, 0x2000);
 	ram_map[0] = ram;
-
-	dout("end of Cartridge()");
 }
 
 Cartridge::~Cartridge() {
@@ -199,7 +197,7 @@ bool Cartridge::loadSave(std::string filename) {
 }
 
 Cartridge::NameTableMirroring Cartridge::nameTableMirroring() {
-	return nt_mirroring;
+	return testFlag(data[FLAGS_6], 0x01) ? VERTICAL : HORIZONTAL;
 }
 
 Byte Cartridge::readPRG(Word address) {

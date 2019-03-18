@@ -1,11 +1,13 @@
 #include "mapper5.hpp"
+#include "ppu.hpp"
 
 Mapper5::Mapper5(Byte* data) : Cartridge(data) {
-	registers.prg_mode = 3;
-	registers.chr_mode = 3;
+	registers.prg_mode = PRG_MODE_8K;
+	registers.chr_mode = CHR_MODE_8K;
+	registers.ext_ram_mode = EXTRA_NAMETABLE;
+	multiplicand = 0;
+	multiplier = 0;
 
-	upper_chr_bits = 0;
-	last_chr_set = CHR_SET_A;
 	irq_scanline = 0;
 	in_frame = false;
 	current_scanline = 240;
@@ -13,12 +15,26 @@ Mapper5::Mapper5(Byte* data) : Cartridge(data) {
 	for(int i = 0; i < 5; i++) {
 		prg_registers[i] = 0xff;
 	}
+	for(int i = 0; i < 8; i++) {
+		chr_registers[i] = i;
+	}
+	upper_chr_bits = 0;
+	last_chr_set = CHR_SET_A;
 
 	applyPRG();
+	applyChrA();
+
+	for(int i = EXT_RAM_START; i <= EXT_RAM_END; i++) {
+		ext_ram[i] = 0;
+	}
 }
 
 void Mapper5::writePRG(Word address, Byte value) {
 	switch(address) {
+		case AUDIO_START ... AUDIO_END:
+			dout("write to audio " << toHex(address, 2) << ", value: " << toHex(value, 1));
+			break;
+
 		case PRG_MODE:
 			registers.prg_mode = value & 0x03;
 			applyPRG();
@@ -35,7 +51,23 @@ void Mapper5::writePRG(Word address, Byte value) {
 			}
 			break;
 
-		case RAM_PROTECT_1 ... FILL_COLOUR:
+		case RAM_PROTECT_1 ... EXT_RAM_MODE:
+			registers.r[address - PRG_MODE] = value & 0x03;
+			break;
+
+		case NT_MAPPING:
+			for(int i = 0; i < 4; i++) {
+				int mode = (registers.nt_mapping >> i*2) & 0x03;
+				switch(mode) {
+					case NT_VRAM_0: PPU::mapNametable(i, 0); break;
+					case NT_VRAM_1: PPU::mapNametable(i, 1); break;
+					case NT_EXT_RAM: PPU::mapNametable(i, ext_ram); break;
+					case NT_FILL_MODE: break; // TODO
+				}
+			}
+			break;
+
+		case FILL_TILE ... FILL_COLOUR:
 			registers.r[address - PRG_MODE] = value;
 			break;
 
@@ -107,7 +139,28 @@ void Mapper5::writePRG(Word address, Byte value) {
 			break;
 
 		case EXT_RAM_START ... EXT_RAM_END:
-			// TODO
+			switch(registers.ext_ram_mode) {
+				case EXTRA_NAMETABLE:
+				case EXT_ATTRIBUTE_DATA:
+					break;
+
+				case RAM_RW:
+					ext_ram[address - EXT_RAM_START] = value;
+					break;
+
+				case RAM_READ_ONLY:
+					break;
+			}
+			break;
+
+		case Cartridge::RAM_START ... Cartridge::RAM_END:
+			if (registers.ram_protect_1 == 0x02 && registers.ram_protect_2 == 0x01) {
+				Byte* bank = ram_map[0];
+				bank[address - Cartridge::RAM_START] = value;
+			}
+
+		default:
+			dout("Mapper5::writePRG(" << toHex(address, 2) << ", " << toHex(value, 1) << ")");
 			break;
 
 
@@ -128,7 +181,11 @@ Byte Mapper5::readPRG(Word address) {
 		value = Cartridge::readPRG(address);
 	} else {
 		switch(address) {
-			IRQ_STATUS:
+			case AUDIO_START ... AUDIO_END:
+				dout("read from audio " << toHex(address, 2));
+				break;
+
+			case IRQ_STATUS:
 				value = (irq_pending*0x80) | (in_frame*0x40);
 				irq_pending = false;
 				break;
@@ -147,6 +204,10 @@ Byte Mapper5::readPRG(Word address) {
 				} else {
 					value = (address >> 8);
 				}
+				break;
+
+			default:
+				dout("Mapper5::readPRG(" << toHex(address, 2) << ", " << toHex(value, 1) << ")");
 				break;
 
 			// MMC5A only:

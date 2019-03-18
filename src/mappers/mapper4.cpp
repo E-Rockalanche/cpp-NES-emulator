@@ -5,7 +5,7 @@ Mapper4::Mapper4(Byte* data) : Cartridge(data) {
 	irq_latch = 0;
 	irq_counter = 0;
 	bank_select = 0;
-	nt_mirroring = HORIZONTAL;
+	PPU::mapNametable(HORIZONTAL);
 
 	for(int i = 0; i < 8; i++) {
 		bank_registers[i] = 0;
@@ -23,7 +23,7 @@ void Mapper4::writePRG(Word address, Byte value) {
 				applyBankSwitch();
 				break;
 			case 0xa000:
-				nt_mirroring = (value & 1) ? HORIZONTAL : VERTICAL;
+				PPU::mapNametable((value & 1) ? HORIZONTAL : VERTICAL);
 				break;
 			case 0xa001: /* ram protection */ break;
 			case 0xc000: irq_latch = value; break;

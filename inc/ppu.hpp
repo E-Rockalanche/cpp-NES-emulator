@@ -19,6 +19,10 @@ namespace PPU {
 	Byte getControl();
 	Byte getMask();
 
+	void mapNametable(int page, Byte* location);
+	void mapNametable(int from_page, int to_page);
+	void mapNametable(Cartridge::NameTableMirroring nt_mirroring);
+
 	void dump();
 	bool nmiEnabled();
 
