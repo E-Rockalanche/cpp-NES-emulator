@@ -20,14 +20,12 @@
 #include "config.hpp"
 
 // graphics
-#include <GL/gl.h>
-#include <GL/glu.h>
-#include "GL/glut.h"
-#include <windows.h>
+#include "SDL2/SDL.h"
 
 Joypad joypad[4];
 Zapper zapper;
 
+const int SCREEN_BPP = 24; // bits per pixel
 Pixel screen[SCREEN_WIDTH * SCREEN_HEIGHT];
 
 // paths
@@ -38,7 +36,7 @@ std::string screenshot_path = "./";
 
 // window size
 bool fullscreen = false;
-float window_scale = 2;
+float window_scale = 1;
 int screen_width = SCREEN_WIDTH;
 int screen_height = SCREEN_HEIGHT;
 int x_offset = 0;
@@ -91,10 +89,12 @@ void loadConfig() {
 		dout("saving config");
 		config.save(CONFIG_FILE);
 	}
-		
+	
+	/*
 	if (fullscreen) glutFullScreen();
 	else glutReshapeWindow(SCREEN_WIDTH * window_scale,
 						   SCREEN_HEIGHT * window_scale);
+	*/
 }
 
 bool loadFile(std::string filename) {
@@ -174,6 +174,7 @@ int readAddress() {
 
 int next_frame = false;
 
+/*
 void keyboard(unsigned char key, int x, int y)  {
 	switch(key) {
 		case 'x': // execute
@@ -288,6 +289,8 @@ void specialKeyboard(int key, int x, int y) {
 								  SCREEN_HEIGHT * window_scale);
 				glutPositionWindow(100, 100);
 			}
+			break;
+
 		default:
 			for(int i = 0; i < 4; i++) joypad[i].pressKey(key);
 			break;
@@ -373,6 +376,7 @@ void idle() {
 	glutPostRedisplay();
 }
 
+
 void initializeGlut(int& argc, char* argv[]) {
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGB);
@@ -399,14 +403,28 @@ void initializeGlut(int& argc, char* argv[]) {
 
 	glutIgnoreKeyRepeat(GLUT_DEVICE_IGNORE_KEY_REPEAT);
 }
-
+*/
 
 int main(int argc, char* argv[]) {
-	initializeGlut(argc, argv);
-
 	srand(time(NULL));
 
 	loadConfig();
+
+	assert(SDL_Init(SDL_INIT_VIDEO) == 0, "failed to initialize SDL");
+
+	SDL_Window* sdl_window = SDL_CreateWindow("NES emulator",
+		SDL_WINDOWPOS_UNDEFINED,
+		SDL_WINDOWPOS_UNDEFINED,
+		SCREEN_WIDTH, SCREEN_HEIGHT,
+		SDL_WINDOW_OPENGL);
+	assert(sdl_window != NULL, "failed to create screen");
+
+	SDL_Renderer* sdl_renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_PRESENTVSYNC);
+
+	SDL_Texture* sdl_texture = SDL_CreateTexture(sdl_renderer,
+		SDL_PIXELFORMAT_RGB888,
+		SDL_TEXTUREACCESS_STREAMING,
+		SCREEN_WIDTH, SCREEN_HEIGHT);
 
 	controller_ports[0] = &joypad[0];
 	controller_ports[1] = &zapper;
@@ -415,8 +433,10 @@ int main(int argc, char* argv[]) {
     sound_queue = new Sound_Queue;
     sound_queue->init(96000);
 
+    /*
 	joypad[0].mapButtons((const int[8]){ 'v', 'c', ' ', 13,
 		GLUT_KEY_UP, GLUT_KEY_DOWN, GLUT_KEY_LEFT, GLUT_KEY_RIGHT });
+	*/
 
 	std::string filename;
 	if (argc > 1) {
@@ -433,9 +453,17 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	last_time = glutGet(GLUT_ELAPSED_TIME);
+	// last_time = glutGet(GLUT_ELAPSED_TIME);
 
-	glutMainLoop();
+	// glutMainLoop();
 
+	SDL_UpdateTexture(sdl_texture, NULL, screen, SCREEN_WIDTH * sizeof (Pixel));
+
+	SDL_RenderClear(sdl_renderer);
+	SDL_RenderCopy(sdl_renderer, sdl_texture, NULL, NULL);
+	SDL_RenderPresent(sdl_renderer);
+
+	SDL_Quit();
+	dout("Goodbye!");
 	return 0;
 }
