@@ -16,19 +16,16 @@ namespace CPU {
 	bool debug = false;
 
 #define debugOperation(pc, opcode) if (debug) std::cout \
-	<< std::string(subroutine_depth, ' ') << "[" << toHex(pc, 2) \
-	<< "] op: " << toHex(opcode, 1) << ", " \
+	<< "[" << toHex(pc, 2) << "] op: " << toHex(opcode, 1) << ", " \
 	<< instruction_names[operations[opcode].instruction] << ' ' \
 	<< ((operations[opcode].address_mode != IMPLIED) \
 		? address_mode_names[operations[opcode].address_mode] \
 		: "") \
 	<< '\n'
 
-#define debugSpecific(message) if (debug) std::cout \
-	<< std::string(subroutine_depth, ' ') << message << '\n'
+#define debugSpecific(message) if (debug) std::cout << message << '\n'
 
-#define debugStatus(flag) if (debug) std::cout \
-	<< std::string(subroutine_depth, ' ') << #flag << ": " \
+#define debugStatus(flag) if (debug) std::cout << #flag << ": " \
 	<< getStatusFlag(flag) << '\n'
 
 int test_ticks;
@@ -401,7 +398,6 @@ InstructionFunction instruction_functions[NUM_INSTRUCTIONS];
 
 
 
-int subroutine_depth = 0;
 
 struct Breakpoint {
 	BreakpointCondition condition;
@@ -1018,8 +1014,13 @@ void clearDecimalFlag(AddressMode address_mode) {
 }
 
 void clearInterruptDisableFlag(AddressMode address_mode) {
+	bool was_disabled = getStatusFlag(DISABLE_INTERRUPTS);
 	setStatusFlag(DISABLE_INTERRUPTS, Constant<bool, false>());
 	clockTick();
+	if (was_disabled && _irq >= 0) {
+		// too late to do interrupt. Next opcode is already being fetched
+		_irq = 0;
+	}
 
 	debugStatus(DISABLE_INTERRUPTS);
 }
@@ -1113,7 +1114,6 @@ void jumpToSubroutine(AddressMode address_mode) {
 	program_counter = readWord(program_counter);
 
 	debugSpecific("pc = " << toHex(program_counter));
-	subroutine_depth++;
 }
 
 void loadAcc(AddressMode address_mode) {
@@ -1300,7 +1300,6 @@ void returnFromSubroutine(AddressMode address_mode) {
 	clockTick();
 
 	debugSpecific("pc = " << toHex(program_counter));
-	subroutine_depth--;
 }
 
 void subtractFromAcc(AddressMode address_mode) {
@@ -1328,6 +1327,8 @@ void setDecimalFlag(AddressMode address_mode) {
 void setInterruptDisableFlag(AddressMode address_mode) {
 	setStatusFlag(DISABLE_INTERRUPTS, Constant<bool, true>());
 	clockTick();
+
+	// TODO should interrupt next instruction if irq is being asserted right now
 
 	debugStatus(DISABLE_INTERRUPTS);
 }
