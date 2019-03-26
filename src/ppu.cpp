@@ -837,8 +837,8 @@ void renderPixel() {
 			}
 
 			int palette_index = read(PALETTE_START + (renderingEnabled() ? palette : 0));
-			int y = (SCREEN_HEIGHT - 1 - scanline);
-			screen[y * SCREEN_WIDTH + x] = Pixel(nes_palette[palette_index]);
+			
+			screen[scanline * SCREEN_WIDTH + x] = Pixel(nes_palette[palette_index]);
 		}
 	}
 

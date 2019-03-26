@@ -422,7 +422,7 @@ int main(int argc, char* argv[]) {
 	SDL_Renderer* sdl_renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_PRESENTVSYNC);
 
 	SDL_Texture* sdl_texture = SDL_CreateTexture(sdl_renderer,
-		SDL_PIXELFORMAT_RGB888,
+		(sizeof(Pixel) == 32) ? SDL_PIXELFORMAT_RGBA32 : SDL_PIXELFORMAT_RGB24,
 		SDL_TEXTUREACCESS_STREAMING,
 		SCREEN_WIDTH, SCREEN_HEIGHT);
 
@@ -455,13 +455,15 @@ int main(int argc, char* argv[]) {
 
 	// last_time = glutGet(GLUT_ELAPSED_TIME);
 
-	// glutMainLoop();
+	while(true) {
+		CPU::runFrame();
 
-	SDL_UpdateTexture(sdl_texture, NULL, screen, SCREEN_WIDTH * sizeof (Pixel));
+		SDL_UpdateTexture(sdl_texture, NULL, screen, SCREEN_WIDTH * sizeof (Pixel));
 
-	SDL_RenderClear(sdl_renderer);
-	SDL_RenderCopy(sdl_renderer, sdl_texture, NULL, NULL);
-	SDL_RenderPresent(sdl_renderer);
+		SDL_RenderClear(sdl_renderer);
+		SDL_RenderCopy(sdl_renderer, sdl_texture, NULL, NULL);
+		SDL_RenderPresent(sdl_renderer);
+	}
 
 	SDL_Quit();
 	dout("Goodbye!");
