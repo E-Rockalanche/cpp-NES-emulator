@@ -5,10 +5,10 @@ A catch-up style cycle acurate NES emulator written in c++
 ## Controls
 
 ### Port 1
-* A: V
-* B: C
+* A: X
+* B: Z
 * Start: enter
-* Select: spacebar
+* Select: right shift
 * Directional buttons: arrow keys
 
 ### Port 2
