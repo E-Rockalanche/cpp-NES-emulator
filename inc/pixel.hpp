@@ -16,6 +16,16 @@ struct Pixel {
 	operator int() {
 		return red << 16 | green << 8 | blue;
 	}
+
+	Byte operator [](int index) {
+		switch(index) {
+			case 0: return red;
+			case 1: return green;
+			case 2: return blue;
+			default: assert(false, "invalid pixel index");
+		}
+		return 0;
+	}
 };
 
 #endif
