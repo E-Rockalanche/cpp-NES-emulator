@@ -25,7 +25,7 @@ void Zapper::update() {
 bool Zapper::detectingLight() {
 	bool light = false;
 	if (x >= 0 && x < 256 && y >= 0 && y < 240) {
-		Pixel p = screen[x + (239 - y) * 256];
+		Pixel p = screen[x + y * 256];
 		light = (p.red >= 0xf8) && (p.blue >= 0xf8) && (p.green >= 0xf8);
 	}
 	return light;
