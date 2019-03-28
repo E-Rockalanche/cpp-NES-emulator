@@ -28,6 +28,8 @@ public:
 	Byte read();
 	void write(Byte value);
 	void reset();
+	void mapButtons(const int keys[NUM_BUTTONS]);
+	void mapButton(Button button, int key);
 
 private:
 	static const char* button_names[NUM_BUTTONS];

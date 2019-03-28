@@ -11,14 +11,14 @@ std::string getPath(std::string filename);
 
 std::string getFilename(std::string path) {
 	std::string filename = "";
-	int end = path.size();
-	int i = path.size();
+	unsigned int end = path.size();
+	unsigned int i = path.size();
 	while(i > 0) {
 		i--;
-		if (path[i] == '.' && end == path.size()) {
+		if ((path[i] == '.') && (end == path.size())) {
 		end = i;
 		}
-		if (path[i] == '/' || path[i] == '\\') {
+		if ((path[i] == '/') || (path[i] == '\\')) {
 			i++;
 			break;
 		}
@@ -31,10 +31,10 @@ std::string getFilename(std::string path) {
 
 std::string getFileExt(std::string filename) {
 	std::string ext = "";
-	int i = filename.size();
+	unsigned int i = filename.size();
 	while(i > 0) {
 		i--;
-		if (filename[i] = '.') {
+		if (filename[i] == '.') {
 			i++;
 			break;
 		}
@@ -48,10 +48,10 @@ std::string getFileExt(std::string filename) {
 std::string getPath(std::string filename) {
 	std::string path;
 	std::string buffer;
-	for(int i = 0; i < filename.size(); i++) {
+	for(unsigned int i = 0; i < filename.size(); i++) {
 		char c = filename[i];
 		buffer += c;
-		if (c == '/' || c == '\\') {
+		if ((c == '/') || (c == '\\')) {
 			path += buffer;
 			buffer = "";
 		}

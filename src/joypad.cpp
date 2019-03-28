@@ -12,7 +12,7 @@ const char* Joypad::button_names[] = {
 };
 
 Joypad::Joypad() {
-	for(int n = 0; n < 8; n++) {
+	for(int n = 0; n < NUM_BUTTONS; n++) {
 		buttons[n] = false;
 	}
 	strobe = false;
@@ -22,7 +22,7 @@ Byte Joypad::read() {
 	if (strobe) {
 		current_button = 0;
 	}
-	return buttons[current_button++ % 8];
+	return buttons[current_button++ % NUM_BUTTONS];
 }
 
 void Joypad::write(Byte value) {
@@ -33,13 +33,13 @@ void Joypad::write(Byte value) {
 }
 
 void Joypad::reset() {
-	for(int n = 0; n < 8; n++) {
+	for(int n = 0; n < NUM_BUTTONS; n++) {
 		buttons[n] = false;
 	}
 }
 
 void Joypad::pressKey(int key) {
-	for(int n = 0; n < 8; n++) {
+	for(int n = 0; n < NUM_BUTTONS; n++) {
 		if (keymap[n] == key) {
 			buttons[n] = true;
 		}
@@ -47,9 +47,19 @@ void Joypad::pressKey(int key) {
 }
 
 void Joypad::releaseKey(int key) {
-	for(int n = 0; n < 8; n++) {
+	for(int n = 0; n < NUM_BUTTONS; n++) {
 		if (keymap[n] == key) {
 			buttons[n] = false;
 		}
 	}
+}
+
+void Joypad::mapButtons(const int keys[Joypad::NUM_BUTTONS]) {
+	for(int n = 0; n < NUM_BUTTONS; n++) {
+		keymap[n] = keys[n];
+	}
+}
+
+void Joypad::mapButton(Joypad::Button button, int key) {
+	keymap[button] = key;
 }
