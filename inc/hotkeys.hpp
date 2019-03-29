@@ -14,7 +14,6 @@ void togglePaused() {
 	paused = !paused || (cartridge == NULL);
 }
 
-typedef void(*Callback)(void);
 struct Hotkey {
 	enum Type {
 		QUIT,

@@ -44,6 +44,6 @@
     "general": {
         "fullscreen": false,
         "scale": 2.0,
-        "sprite_flickering": false
+        "sprite_flickering": true
     }
 }

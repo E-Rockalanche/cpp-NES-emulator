@@ -72,9 +72,6 @@ float total_real_fps = 0;
 #define ave_fps (total_fps / total_frames)
 #define ave_real_fps (total_real_fps / total_frames)
 
-// config
-json config;
-
 Sound_Queue* sound_queue = NULL;
 void newSamples(const blip_sample_t* samples, size_t count)
 {
@@ -151,18 +148,24 @@ int readAddress() {
 void resizeRender() {
 	dout("resize render");
 
+	int last_width = window_width;
+	int last_height = window_height;
+
 	SDL_GetWindowSize(sdl_window, &window_width, &window_height);
 
-	// calculate largest screen scale in current window size
-	float x_scale = (float)window_width / SCREEN_WIDTH;
-	float y_scale = (float)window_height / SCREEN_HEIGHT;
-	float scale = MIN(x_scale, y_scale);
+	if (window_width != last_width || window_height != last_height) {
 
-	// set new screen size
-	render_width = scale * SCREEN_WIDTH;
-	render_height = scale * SCREEN_HEIGHT;
+		// calculate largest screen scale in current window size
+		float x_scale = (float)window_width / SCREEN_WIDTH;
+		float y_scale = (float)window_height / SCREEN_HEIGHT;
+		float scale = MIN(x_scale, y_scale);
 
-	SDL_RenderSetLogicalSize(sdl_renderer, render_width, render_height);
+		// set new screen size
+		render_width = scale * SCREEN_WIDTH;
+		render_height = scale * SCREEN_HEIGHT;
+
+		SDL_RenderSetLogicalSize(sdl_renderer, render_width, render_height);
+	}
 }
 
 void resizeWindow(int width, int height) {
@@ -260,7 +263,7 @@ int main(int argc, char* argv[]) {
 	SDL_SetWindowResizable(sdl_window, SDL_bool(true));
 
 	// create renderer
-	sdl_renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_PRESENTVSYNC);
+	sdl_renderer = SDL_CreateRenderer(sdl_window, -1, 0 /*SDL_RENDERER_PRESENTVSYNC*/);
 	assert(sdl_renderer != NULL, "failed to create renderer");
 	resizeRender();
 
@@ -288,20 +291,42 @@ int main(int argc, char* argv[]) {
 		power();
 	}
 
+	int frame_start = SDL_GetTicks();
+	double lag = 0;
+
 	// run emulator
 	while(true) {
 		pollEvents();
 
 		if (!paused) {
+			int frame_start = SDL_GetTicks();
+
 			CPU::runFrame();
 			zapper.update();
 			total_frames++;
+
+			int elapsed = SDL_GetTicks() - frame_start;
+			if (elapsed > TIME_PER_FRAME) {
+				dout("emulator time: " << elapsed << "ms");
+			}
 		}
 
 		SDL_UpdateTexture(sdl_texture, NULL, screen, SCREEN_WIDTH * sizeof (Pixel));
 		SDL_RenderClear(sdl_renderer);
 		SDL_RenderCopy(sdl_renderer, sdl_texture, NULL, NULL);
 		SDL_RenderPresent(sdl_renderer);
+
+		int now = SDL_GetTicks();
+		int elapsed = (now - frame_start);
+		double wait_time = TIME_PER_FRAME - elapsed - lag;
+		if (wait_time >= 0) {
+			lag = 0;
+			SDL_Delay(wait_time);
+		} else {
+			lag = -wait_time;
+			std::cout << "lag: " << lag << '\n';
+		}
+		frame_start = now;
 	}
 
 	return 0;

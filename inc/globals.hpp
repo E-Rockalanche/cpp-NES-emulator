@@ -3,13 +3,9 @@
 
 #include "SDL2/SDL.h"
 #include "joypad.hpp"
-#include "json.hpp"
-using nlohmann::json;
 
 extern SDL_Window* sdl_window;
 extern SDL_Renderer* sdl_renderer;
-
-extern json config;
 
 extern Joypad joypad[4];
 extern bool paused;
