@@ -19,8 +19,6 @@ public:
 		NUM_BUTTONS
 	};
 
-	int keymap[NUM_BUTTONS];
-
 	Joypad();
 	~Joypad() {}
 	void pressKey(int key);
@@ -31,8 +29,12 @@ public:
 	void mapButtons(const int keys[NUM_BUTTONS]);
 	void mapButton(Button button, int key);
 
+	static const char* getButtonName(Button button);
+
 private:
 	static const char* button_names[NUM_BUTTONS];
+
+	int keymap[NUM_BUTTONS];
 	int current_button;
 	bool buttons[NUM_BUTTONS];
 	bool strobe;

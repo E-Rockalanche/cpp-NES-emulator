@@ -1,0 +1,54 @@
+{
+    "controls": [
+        {
+            "A": "X",
+            "B": "Z",
+            "down": "DOWN",
+            "left": "LEFT",
+            "right": "RIGHT",
+            "select": "RIGHTSHIFT",
+            "start": "RETURN",
+            "up": "UP"
+        },
+        {
+            "A": "X",
+            "B": "Z",
+            "down": "DOWN",
+            "left": "LEFT",
+            "right": "RIGHT",
+            "select": "RIGHTSHIFT",
+            "start": "RETURN",
+            "up": "UP"
+        },
+        {
+            "A": "X",
+            "B": "Z",
+            "down": "DOWN",
+            "left": "LEFT",
+            "right": "RIGHT",
+            "select": "RIGHTSHIFT",
+            "start": "RETURN",
+            "up": "UP"
+        },
+        {
+            "A": "X",
+            "B": "Z",
+            "down": "DOWN",
+            "left": "LEFT",
+            "right": "RIGHT",
+            "select": "RIGHTSHIFT",
+            "start": "RETURN",
+            "up": "UP"
+        }
+    ],
+    "general": {
+        "fullscreen": false,
+        "scale": 2.0,
+        "sprite_flickering": false
+    },
+    "hotkeys": {
+        "fullscreen": "F11",
+        "pause": "P",
+        "quit": "Q"
+    }
+}

@@ -1,8 +1,10 @@
 // standard library
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <ctime>
 #include <cstdlib>
+#include <fstream>
 
 // nes
 #include "common.hpp"
@@ -17,11 +19,16 @@
 #include "file_path.hpp"
 #include "program_end.hpp"
 #include "screen.hpp"
-#include "config.hpp"
 #include "keyboard.hpp"
+
+// config
+#include "json.hpp"
+using nlohmann::json;
 
 // graphics
 #include "SDL2/SDL.h"
+
+#include "assert.hpp"
 
 // SDL
 SDL_Window* sdl_window = NULL;
@@ -64,6 +71,9 @@ float total_fps = 0;
 float total_real_fps = 0;
 #define ave_fps (total_fps / total_frames)
 #define ave_real_fps (total_real_fps / total_frames)
+
+// config
+json config;
 
 // hotkeys
 void quit() { exit(0); }
@@ -109,32 +119,93 @@ void newSamples(const blip_sample_t* samples, size_t count)
     sound_queue->write(samples, count);
 }
 
-#define CONFIG_FILE "nes.cfg"
-Config config;
+const char* CONFIG_FILE = "config.json";
 void loadConfig() {
 	dout("load config");
 
-	if (!config.load(CONFIG_FILE)) {
-		dout("could not load configuration file");
-	} else dout("setting variables");
+	config = R"(
+	{
+		"general": {
+			"fullscreen": false,
+			"scale": 2.0,
+			"sprite_flickering": false
+		},
+		"hotkeys": {
+			"quit": "Q",
+			"fullscreen": "F11",
+			"pause": "P"
+		},
+		"controls": [{
+			"A": "X",
+			"B": "Z",
+			"select": "RIGHTSHIFT",
+			"start": "RETURN",
+			"up": "UP",
+			"down": "DOWN",
+			"left": "LEFT",
+			"right": "RIGHT"
+		}, {
+			"A": "X",
+			"B": "Z",
+			"select": "RIGHTSHIFT",
+			"start": "RETURN",
+			"up": "UP",
+			"down": "DOWN",
+			"left": "LEFT",
+			"right": "RIGHT"
+		}, {
+			"A": "X",
+			"B": "Z",
+			"select": "RIGHTSHIFT",
+			"start": "RETURN",
+			"up": "UP",
+			"down": "DOWN",
+			"left": "LEFT",
+			"right": "RIGHT"
+		}, {
+			"A": "X",
+			"B": "Z",
+			"select": "RIGHTSHIFT",
+			"start": "RETURN",
+			"up": "UP",
+			"down": "DOWN",
+			"left": "LEFT",
+			"right": "RIGHT"
+		}]
+	})"_json;
 
-	// ppu options
-	PPU::sprite_flickering = config.getBool("sprite_flickering", true);
+	std::ifstream fin(CONFIG_FILE);
+	if (fin.is_open()) {
+		// load config
+		json config_patch;
+		fin >> config_patch;
+		fin.close();
+		config.merge_patch(config_patch);
+	} else {
+		// save default config
+		std::ofstream fout(CONFIG_FILE);
+		assert((fout.is_open()), "Cannot save default config");
+		fout << std::setw(4) << config;
+		fout.close();
+	}
 
-	// file options
-	rom_path = config.getString("rom_path", "./");
-	save_path = config.getString("save_path", "./");
-	screenshot_path = config.getString("screenshot_path", "./");
-
-	// window options
-	fullscreen = config.getBool("fullscreen", false);
-	render_scale = config.getFloat("render_scale", 2.0);
+	// general
+	const json& general = config["general"];
+	PPU::sprite_flickering = general["sprite_flickering"].get<bool>();
+	fullscreen = general["fullscreen"].get<bool>();
+	render_scale = general["scale"].get<float>();
 	window_width = render_scale * SCREEN_WIDTH;
 	window_height = render_scale * SCREEN_HEIGHT;
 
-	if (config.updated()) {
-		dout("saving config");
-		config.save(CONFIG_FILE);
+	//joypad 1
+	for(int j = 0; j < 4; j++) {
+		const json& keys = config["controls"][j];
+		for(int b = 0; b < Joypad::NUM_BUTTONS; b++) {
+			const char* button_name = Joypad::getButtonName((Joypad::Button)b);
+			std::string key_name = keys[button_name].get<std::string>();
+			SDL_Keycode keycode = getKeycode(key_name);
+			joypad[j].mapButton((Joypad::Button)b, keycode);
+		}
 	}
 }
 
@@ -168,7 +239,6 @@ void saveGame() {
 	if (cartridge && cartridge->hasSRAM()) {
 		cartridge->saveGame(save_path + file_name + ".sav");
 	}
-	config.save();
 }
 ProgramEnd pe(saveGame);
 

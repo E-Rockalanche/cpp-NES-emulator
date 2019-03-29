@@ -11,6 +11,10 @@ const char* Joypad::button_names[] = {
 	"right"
 };
 
+const char* Joypad::getButtonName(Joypad::Button button) {
+	return button_names[button];
+}
+
 Joypad::Joypad() {
 	for(int n = 0; n < NUM_BUTTONS; n++) {
 		buttons[n] = false;
