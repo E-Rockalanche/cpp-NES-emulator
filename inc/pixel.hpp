@@ -1,6 +1,8 @@
 #ifndef PIXEL_HPP
 #define PIXEL_HPP
 
+#include "assert.hpp"
+
 struct Pixel {
 	Byte red;
 	Byte green;

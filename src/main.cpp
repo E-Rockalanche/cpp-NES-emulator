@@ -210,6 +210,10 @@ void resizeRender() {
 	dout("resize render");
 
 	SDL_GetWindowSize(sdl_window, &window_width, &window_height);
+	dout("resized to " << window_width << "x" << window_height);
+
+	/*
+	// I don't think I need this part at all
 
 	// calculate largest screen scale in current window size
 	float x_scale = (float)window_width / SCREEN_WIDTH;
@@ -221,6 +225,7 @@ void resizeRender() {
 	render_height = scale * SCREEN_HEIGHT;
 
 	SDL_RenderSetLogicalSize(sdl_renderer, render_width, render_height);
+	*/
 }
 
 void resizeWindow(int width, int height) {
@@ -241,6 +246,7 @@ void keyboardEvent(const SDL_Event& event) {
 }
 
 void windowEvent(const SDL_Event& event) {
+	dout("window event: " << static_cast<int>(event.window.event));
 	switch(event.window.event) {
 		case SDL_WINDOWEVENT_SIZE_CHANGED:
 		case SDL_WINDOWEVENT_MAXIMIZED:
@@ -320,7 +326,8 @@ int main(int argc, char* argv[]) {
 	// create renderer
 	sdl_renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_PRESENTVSYNC);
 	assert(sdl_renderer != NULL, "failed to create renderer");
-	resizeRender();
+	SDL_RenderSetLogicalSize(sdl_renderer, SCREEN_WIDTH, SCREEN_HEIGHT);
+	// resizeRender();
 
 	// create texture
 	SDL_Texture* sdl_texture = SDL_CreateTexture(sdl_renderer,
