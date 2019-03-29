@@ -20,10 +20,10 @@
 #include "program_end.hpp"
 #include "screen.hpp"
 #include "keyboard.hpp"
+#include "hotkeys.hpp"
 
 // config
-#include "json.hpp"
-using nlohmann::json;
+#include "config.hpp"
 
 // graphics
 #include "SDL2/SDL.h"
@@ -75,138 +75,10 @@ float total_real_fps = 0;
 // config
 json config;
 
-// hotkeys
-void quit() { exit(0); }
-
-void toggleFullscreen() {
-	fullscreen = !fullscreen;
-	SDL_SetWindowFullscreen(sdl_window, fullscreen);
-}
-
-void togglePaused() {
-	paused = !paused || (cartridge == NULL);
-}
-
-typedef void(*Callback)(void);
-struct Hotkey {
-	enum Type {
-		QUIT,
-		FULLSCREEN,
-		PAUSE,
-
-		NUM_HOTKEYS
-	};
-	SDL_Keycode key;
-	Callback callback;
-};
-Hotkey hotkeys[Hotkey::NUM_HOTKEYS] = {
-	{ SDLK_ESCAPE, quit },
-	{ SDLK_F11, toggleFullscreen},
-	{ SDLK_p, togglePaused}
-};
-
-void pressHotkey(SDL_Keycode key) {
-	for(int i = 0; i < Hotkey::NUM_HOTKEYS; i++) {
-		if (key == hotkeys[i].key) {
-			(*hotkeys[i].callback)();
-		}
-	}
-}
-
 Sound_Queue* sound_queue = NULL;
 void newSamples(const blip_sample_t* samples, size_t count)
 {
     sound_queue->write(samples, count);
-}
-
-const char* CONFIG_FILE = "config.json";
-void loadConfig() {
-	dout("load config");
-
-	config = R"(
-	{
-		"general": {
-			"fullscreen": false,
-			"scale": 2.0,
-			"sprite_flickering": false
-		},
-		"hotkeys": {
-			"quit": "Q",
-			"fullscreen": "F11",
-			"pause": "P"
-		},
-		"controls": [{
-			"A": "X",
-			"B": "Z",
-			"select": "RIGHTSHIFT",
-			"start": "RETURN",
-			"up": "UP",
-			"down": "DOWN",
-			"left": "LEFT",
-			"right": "RIGHT"
-		}, {
-			"A": "X",
-			"B": "Z",
-			"select": "RIGHTSHIFT",
-			"start": "RETURN",
-			"up": "UP",
-			"down": "DOWN",
-			"left": "LEFT",
-			"right": "RIGHT"
-		}, {
-			"A": "X",
-			"B": "Z",
-			"select": "RIGHTSHIFT",
-			"start": "RETURN",
-			"up": "UP",
-			"down": "DOWN",
-			"left": "LEFT",
-			"right": "RIGHT"
-		}, {
-			"A": "X",
-			"B": "Z",
-			"select": "RIGHTSHIFT",
-			"start": "RETURN",
-			"up": "UP",
-			"down": "DOWN",
-			"left": "LEFT",
-			"right": "RIGHT"
-		}]
-	})"_json;
-
-	std::ifstream fin(CONFIG_FILE);
-	if (fin.is_open()) {
-		// load config
-		json config_patch;
-		fin >> config_patch;
-		fin.close();
-		config.merge_patch(config_patch);
-	} else {
-		// save default config
-		std::ofstream fout(CONFIG_FILE);
-		assert((fout.is_open()), "Cannot save default config");
-		fout << std::setw(4) << config;
-		fout.close();
-	}
-
-	// general
-	const json& general = config["general"];
-	PPU::sprite_flickering = general["sprite_flickering"].get<bool>();
-	fullscreen = general["fullscreen"].get<bool>();
-	render_scale = general["scale"].get<float>();
-	window_width = render_scale * SCREEN_WIDTH;
-	window_height = render_scale * SCREEN_HEIGHT;
-
-	//joypad 1
-	for(int j = 0; j < 4; j++) {
-		const json& keys = config["controls"][j];
-		for(int b = 0; b < Joypad::NUM_BUTTONS; b++) {
-			const char* button_name = Joypad::getButtonName((Joypad::Button)b);
-			std::string key_name = keys[button_name].get<std::string>();
-			SDL_Keycode keycode = getKeycode(key_name);
-			joypad[j].mapButton((Joypad::Button)b, keycode);
-		}
-	}
 }
 
 bool loadFile(std::string filename) {

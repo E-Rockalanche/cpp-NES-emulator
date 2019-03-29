@@ -8,5 +8,8 @@
 # illegal stuff
 roms/
 
-# tests
+# test roms
 tests/
+
+# config
+config.json

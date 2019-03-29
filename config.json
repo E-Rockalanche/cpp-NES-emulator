@@ -45,10 +45,5 @@
         "fullscreen": false,
         "scale": 2.0,
         "sprite_flickering": false
-    },
-    "hotkeys": {
-        "fullscreen": "F11",
-        "pause": "P",
-        "quit": "Q"
     }
 }
