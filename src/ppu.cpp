@@ -443,6 +443,7 @@ void clockTick() {
 	}
 }
 
+// <Scanline> 24.34% of runtime according to gprof
 template <Scanline s>
 void scanlineCycle() {
 	static Word address = 0;
@@ -774,6 +775,7 @@ void loadSpriteRegisters() {
 
 #define bit(value, n) (((value) >> (n)) & 1)
 
+// 31.85% of runtime according to gprof
 void renderPixel() {
 	if (renderingEnabled()) {
 		Byte palette = 0;

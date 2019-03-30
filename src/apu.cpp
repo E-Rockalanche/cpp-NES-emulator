@@ -3,7 +3,7 @@
 #include "apu.hpp"
 #include "common.hpp"
 #include "cpu.hpp"
-#include "main.hpp"
+#include "Sound_Queue.h"
 
 namespace APU {
 
@@ -13,6 +13,12 @@ Blip_Buffer buffer;
 const int OUT_SIZE = 4096;
 blip_sample_t outBuf[OUT_SIZE];
 
+Sound_Queue* sound_queue = NULL;
+
+void newSamples(const blip_sample_t* samples, size_t count)
+{
+    sound_queue->write(samples, count);
+}
 
 void init() {
     buffer.sample_rate(96000);
@@ -20,6 +26,9 @@ void init() {
 
     apu.output(&buffer);
     apu.dmc_reader(CPU::readDMC);
+
+    sound_queue = new Sound_Queue;
+    sound_queue->init(96000);
 }
 
 void reset() {

@@ -103,12 +103,6 @@ void pressHotkey(SDL_Keycode key) {
 	}
 }
 
-Sound_Queue* sound_queue = NULL;
-void newSamples(const blip_sample_t* samples, size_t count)
-{
-    sound_queue->write(samples, count);
-}
-
 #define CONFIG_FILE "nes.cfg"
 Config config;
 void loadConfig() {
@@ -309,7 +303,7 @@ void pollEvents() {
 int main(int argc, char* argv[]) {
 	srand(time(NULL));
 
-	assert(SDL_Init(SDL_INIT_VIDEO) == 0, "failed to initialize SDL");
+	assert(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) == 0, "failed to initialize SDL");
 
 	loadConfig();
 
@@ -341,8 +335,6 @@ int main(int argc, char* argv[]) {
 	controller_ports[1] = &zapper;
 	CPU::init();
 	APU::init();
-    sound_queue = new Sound_Queue;
-    sound_queue->init(96000);
 
 	// A, B, select, start, up, down, left, right
 	joypad[0].mapButtons((const int[8]){ SDLK_x, SDLK_z, SDLK_RSHIFT, SDLK_RETURN,
