@@ -31,6 +31,7 @@ SDL_Renderer* sdl_renderer = NULL;
 Joypad joypad[4];
 Zapper zapper;
 bool paused = true;
+bool muted = false;
 
 const int SCREEN_BPP = 24; // bits per pixel
 Pixel screen[SCREEN_WIDTH * SCREEN_HEIGHT];
@@ -59,8 +60,8 @@ double last_wait_time = 0;
 // frame rate
 int total_frames = 0;
 float fps = 0;
-float real_fps = 0;
 float total_fps = 0;
+float real_fps = 0;
 float total_real_fps = 0;
 #define ave_fps (total_fps / total_frames)
 #define ave_real_fps (total_real_fps / total_frames)
@@ -77,12 +78,18 @@ void togglePaused() {
 	paused = !paused || (cartridge == NULL);
 }
 
+void toggleMute() {
+	muted = !muted;
+	APU::mute(muted);
+}
+
 typedef void(*Callback)(void);
 struct Hotkey {
 	enum Type {
 		QUIT,
 		FULLSCREEN,
 		PAUSE,
+		MUTE,
 
 		NUM_HOTKEYS
 	};
@@ -92,7 +99,8 @@ struct Hotkey {
 Hotkey hotkeys[Hotkey::NUM_HOTKEYS] = {
 	{ SDLK_ESCAPE, quit },
 	{ SDLK_F11, toggleFullscreen},
-	{ SDLK_p, togglePaused}
+	{ SDLK_p, togglePaused},
+	{ SDLK_m, toggleMute}
 };
 
 void pressHotkey(SDL_Keycode key) {
@@ -232,6 +240,11 @@ void resizeWindow(int width, int height) {
 void keyboardEvent(const SDL_Event& event) {
 	SDL_Keycode key = event.key.keysym.sym;
 	if (event.key.state == SDL_PRESSED) {
+		if (key == SDLK_f) {
+			dout("fps: " << ave_fps);
+			dout("real fps: " << ave_real_fps);
+		}
+
 		pressHotkey(key);
 		for(int i = 0; i < 4; i++) joypad[i].pressKey(key);
 	} else {
@@ -240,7 +253,6 @@ void keyboardEvent(const SDL_Event& event) {
 }
 
 void windowEvent(const SDL_Event& event) {
-	dout("window event: " << static_cast<int>(event.window.event));
 	switch(event.window.event) {
 		case SDL_WINDOWEVENT_SIZE_CHANGED:
 		case SDL_WINDOWEVENT_MAXIMIZED:
@@ -275,7 +287,9 @@ void pollEvents() {
 		switch(event.type) {
 			case SDL_KEYDOWN:
 			case SDL_KEYUP:
-				keyboardEvent(event);
+				if (!event.key.repeat) {
+					keyboardEvent(event);
+				}
 				break;
 
 			case SDL_MOUSEMOTION:
@@ -345,20 +359,32 @@ int main(int argc, char* argv[]) {
 		power();
 	}
 
+	int last_time = SDL_GetTicks();
+
 	// run emulator
 	while(true) {
 		pollEvents();
 
 		if (!paused) {
+
 			CPU::runFrame();
 			zapper.update();
 			total_frames++;
+			double elapsed = SDL_GetTicks() - last_time;
+			total_real_fps += 1000.0/elapsed;
 		}
 
 		SDL_UpdateTexture(sdl_texture, NULL, screen, SCREEN_WIDTH * sizeof (Pixel));
 		SDL_RenderClear(sdl_renderer);
 		SDL_RenderCopy(sdl_renderer, sdl_texture, NULL, NULL);
 		SDL_RenderPresent(sdl_renderer);
+
+		int now = SDL_GetTicks();
+		if (!paused) {
+			double elapsed = now - last_time;
+			total_fps += 1000.0/elapsed;
+		}
+		last_time = now;
 	}
 
 	return 0;
