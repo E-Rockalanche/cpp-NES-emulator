@@ -302,6 +302,8 @@ void mouseWheelEvent(const SDL_Event& event) {
 }
 
 void pollEvents() {
+	Mouse::update();
+	
 	SDL_Event event;
 	while(SDL_PollEvent(&event)) {
 		switch(event.type) {
@@ -338,10 +340,13 @@ void pollEvents() {
 	}
 }
 
+#include "gui.hpp" // test
+
 int main(int argc, char* argv[]) {
 	srand(time(NULL));
 
 	assert(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) == 0, "failed to initialize SDL");
+	Gui::init();
 
 	loadConfig();
 
@@ -383,11 +388,13 @@ int main(int argc, char* argv[]) {
 		power();
 	}
 
+
+	Gui::TextElement te({ 0, 0, 256, 240 }, "Hello, World!");
+
 	int last_time = SDL_GetTicks();
 
 	// run emulator
 	while(true) {
-		Mouse::update();
 		pollEvents();
 
 		if (!paused) {
@@ -401,7 +408,12 @@ int main(int argc, char* argv[]) {
 
 		SDL_UpdateTexture(sdl_texture, NULL, screen, SCREEN_WIDTH * sizeof (Pixel));
 		SDL_RenderClear(sdl_renderer);
+
+		// render
 		SDL_RenderCopy(sdl_renderer, sdl_texture, NULL, NULL);
+		te.render();
+
+		// preset screen
 		SDL_RenderPresent(sdl_renderer);
 
 		int now = SDL_GetTicks();

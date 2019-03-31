@@ -1,7 +1,7 @@
 TARGET := nes.exe
 CXX := g++
 
-SDL_LINK := -Wl,-Bdynamic -lSDL2main -lSDL2 -Wl,-Bstatic
+SDL_LINK := -Wl,-Bdynamic -lSDL2main -lSDL2 -lSDL2_ttf -Wl,-Bstatic
 
 LFLAGS := -O3 -lmingw32 -lm -mwindows -mconsole $(SDL_LINK)
 CLEAN := del .\obj\*.o .\obj\mappers\*.o .\lib\obj\*.o $(TARGET)
