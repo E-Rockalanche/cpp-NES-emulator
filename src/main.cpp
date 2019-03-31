@@ -18,7 +18,10 @@
 #include "program_end.hpp"
 #include "screen.hpp"
 #include "config.hpp"
+
+// input
 #include "keyboard.hpp"
+#include "mouse.hpp"
 
 // graphics
 #include "SDL2/SDL.h"
@@ -271,14 +274,31 @@ void mouseMotionEvent(const SDL_Event& event) {
 	int tv_y = event.motion.y / render_scale;
 
 	zapper.aim(tv_x, tv_y);
+
+	Mouse::setPos(event.motion.x, event.motion.y);
 }
 
 void mouseButtonEvent(const SDL_Event& event) {
+	Mouse::Button mb = Mouse::MB_NONE;
+	switch(event.button.button) {
+		case SDL_BUTTON_LEFT: mb = Mouse::MB_LEFT; break;
+		case SDL_BUTTON_MIDDLE: mb = Mouse::MB_MIDDLE; break;
+		case SDL_BUTTON_RIGHT: mb = Mouse::MB_RIGHT; break;
+		default: break;
+	}
+
 	if (event.button.state == SDL_PRESSED) {
 		if (event.button.button == SDL_BUTTON_LEFT) {
 			zapper.pull();
 		}
+		Mouse::pressButton(mb);
+	} else if (event.button.state == SDL_RELEASED) {
+		Mouse::releaseButton(mb);
 	}
+}
+
+void mouseWheelEvent(const SDL_Event& event) {
+	Mouse::setWheel(event.wheel.y);
 }
 
 void pollEvents() {
@@ -299,6 +319,10 @@ void pollEvents() {
 			case SDL_MOUSEBUTTONDOWN:
 			case SDL_MOUSEBUTTONUP:
 				mouseButtonEvent(event);
+				break;
+
+			case SDL_MOUSEWHEEL:
+				mouseWheelEvent(event);
 				break;
 
 			case SDL_QUIT:
@@ -363,6 +387,7 @@ int main(int argc, char* argv[]) {
 
 	// run emulator
 	while(true) {
+		Mouse::update();
 		pollEvents();
 
 		if (!paused) {
