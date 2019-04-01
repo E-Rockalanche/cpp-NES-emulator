@@ -9,7 +9,7 @@ configurable through config.json
 * A: X
 * B: Z
 * Start: enter
-* Select: spacebar
+* Select: right shift
 * Directional buttons: arrow keys
 
 ### Port 2
