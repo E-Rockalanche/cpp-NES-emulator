@@ -6,7 +6,7 @@ SDL_LINK := -Wl,-Bdynamic -lSDL2main -lSDL2 -Wl,-Bstatic
 LFLAGS := -lmingw32 -lm -mwindows -mconsole $(SDL_LINK)
 CLEAN := del .\obj\*.o .\obj\mappers\*.o .\lib\obj\*.o $(TARGET)
 
-CFLAGS := -c -Wall -Wno-unused-parameter -std=c++17 -Ofast
+CFLAGS := -c -std=c++17 -Ofast
 INCLUDE := -I./inc -I./inc/mappers -I./lib/inc -I./lib/inc/boost
 
 SOURCES = $(wildcard src/*.cpp)
