@@ -443,6 +443,7 @@ void clockTick() {
 	}
 }
 
+// <Scanline> 24.34% of runtime according to gprof
 template <Scanline s>
 void scanlineCycle() {
 	static Word address = 0;
@@ -774,6 +775,7 @@ void loadSpriteRegisters() {
 
 #define bit(value, n) (((value) >> (n)) & 1)
 
+// 31.85% of runtime according to gprof
 void renderPixel() {
 	if (renderingEnabled()) {
 		Byte palette = 0;
@@ -854,11 +856,11 @@ void renderPixel() {
 void dump() {
 	std::cout << "====== PPU ======\n";
 	std::cout << "         NmHBSInn\n";
-	std::cout << "control: " << toBin(control) << '\n';
+	std::cout << "control: " << toByte(control) << '\n';
 	std::cout << "         bgrSBsbG\n";
-	std::cout << "mask:    " << toBin(control) << '\n';
+	std::cout << "mask:    " << toByte(control) << '\n';
 	std::cout << "         VHO-----\n";
-	std::cout << "status:  " << toBin(control) << "\n\n";
+	std::cout << "status:  " << toByte(control) << "\n\n";
 
 	std::cout << "scanline: " << scanline << '\n';
 	std::cout << "cycle: " << cycle << '\n';
