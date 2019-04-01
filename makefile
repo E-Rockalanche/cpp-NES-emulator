@@ -3,8 +3,8 @@ CXX := g++
 CLEAN := del .\obj\*.o .\obj\mappers\*.o .\lib\obj\*.o $(TARGET)
 
 LFLAGS := -std=c++17 -O3 -lmingw32 -lm -mwindows -mconsole -Wl,-Bdynamic  -lSDL2main -lSDL2 -lSDL2_ttf -Wl,-Bstatic
-CCFLAGS := -c -std=c++17 -O3 -Wall -Wno-unused-parameter
-INCLUDE := -I./inc -I./inc/mappers -I./lib/inc -I./lib/inc/boost
+CCFLAGS := -c -std=c++17 -O3
+INCLUDE := -I./inc -I./inc/mappers -isystem ./lib/inc -isystem ./lib/inc/boost
 
 ifeq ($(OS),Windows_NT)
     CCFLAGS += -D WIN32
@@ -34,13 +34,13 @@ $(TARGET): $(LIB_OBJECTS) $(MAP_OBJECTS) $(OBJECTS)
 	$(MAKE_EXE)
 
 obj/mappers/%.o: src/mappers/%.cpp inc/mappers/%.hpp inc/cartridge.hpp inc/common.hpp inc/debugging.hpp
-	$(MAKE_OBJ)
+	$(MAKE_OBJ) -Wall -Wextra -Wno-unused-parameter
 
 lib/obj/%.o: lib/src/%.cpp lib/inc/%.h
 	$(MAKE_OBJ)
 
 obj/%.o: src/%.cpp inc/%.hpp inc/common.hpp inc/debugging.hpp
-	$(MAKE_OBJ)
+	$(MAKE_OBJ) -Wall -Wextra -Wno-unused-parameter
 
 clean:
 	$(CLEAN)

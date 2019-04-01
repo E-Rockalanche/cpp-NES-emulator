@@ -36,7 +36,9 @@ namespace Gui {
 		return inRect(x, y, rect);
 	}
 
-	void Element::mouseMotion(int x, int y) {}
+	bool Element::mouseMotion(int x, int y) {
+		return inRect(x, y, rect);
+	}
 
 	TextElement::TextElement(SDL_Rect rect, std::string text) : Element(rect) {
 		// create text surface
@@ -102,15 +104,21 @@ namespace Gui {
 	bool Container::click(int x, int y) {
 		bool clicked = false;
 		for(auto element : elements) {
-			clicked = clicked || element->click(x, y);
+			if (element->click(x, y)) {
+				clicked = true;
+			}
 		}
 		return clicked;
 	}
 
-	void Container::mouseMotion(int x, int y) {
+	bool Container::mouseMotion(int x, int y) {
+		bool in_menu = false;
 		for(auto element : elements) {
-			element->mouseMotion(x, y);
+			if (element->mouseMotion(x, y)) {
+				in_menu = true;
+			}
 		}
+		return in_menu;
 	}
 
 	void Container::setPosition(int x, int y) {
@@ -160,9 +168,8 @@ namespace Gui {
 		}
 	}
 
-	DropDown::DropDown(SDL_Rect rect, std::string text, Callback open_callback)
-			: Container(rect), text(rect, text), open_callback(open_callback),
-			list({rect.x, rect.y + rect.h, 0, 0}) {
+	DropDown::DropDown(SDL_Rect rect, std::string text) : Container(rect),
+			text(rect, text), list({rect.x, rect.y + rect.h, 0, 0}) {
 		elements.push_back(&list);
 		open = false;
 	}
@@ -181,19 +188,16 @@ namespace Gui {
 		if (inRect(x, y, rect)) {
 			open = !open;
 			clicked = true;
-			if (open && open_callback != NULL) {
-				(*open_callback)();
-			}
 		} else if (open) {
 			clicked = list.click(x, y);
 		}
 		return clicked;
 	}
 
-	void DropDown::mouseMotion(int x, int y) {
-		if (!inRect(x, y, rect) && !inRect(x, y, list.rect)) {
-			open = false;
-		}
+	bool DropDown::mouseMotion(int x, int y) {
+		bool in_menu = inRect(x, y, rect) || (open && list.mouseMotion(x, y));
+		if (!in_menu) open = false;
+		return in_menu;
 	}
 
 	void DropDown::addElement(Element& element) {
@@ -204,20 +208,38 @@ namespace Gui {
 	}
 
 	void DropDown::setPosition(int x, int y) {
+		int dx = x - rect.x;
+		int dy = y - rect.y;
 		Container::setPosition(x, y);
-		list.setPosition(x, y + rect.h);
 		text.setPosition(x, y);
+		list.setPosition(list.rect.x + dx, list.rect.y + dy);
 	}
 
 	void DropDown::setSize(int width, int height) {
+		int dh = height - rect.h;
 		Container::setSize(width, height);
 		text.setSize(width, height);
+		list.rect.y += dh;
 	}
 
-	RadioButton::RadioButton(SDL_Rect rect, std::string text, RadioCallback callback,
-			bool default_on) : TextElement(rect, text), callback(callback),
-			on(default_on) {
-		radio_rect.w = radio_rect.h = text_rect.h;
+	SubDropDown::SubDropDown(SDL_Rect rect, std::string text) : DropDown(rect, text) {
+		list.rect.x = rect.x + rect.w;
+		list.rect.y = rect.y;
+	}
+
+	SubDropDown::~SubDropDown() {}
+
+	void SubDropDown::setSize(int width, int height) {
+		int dw = width - rect.w;
+		Container::setSize(width, height);
+		text.setSize(width, height);
+		list.rect.x += dw;
+	}
+
+	RadioButton::RadioButton(SDL_Rect rect, std::string text, bool* boolean,
+			RadioCallback callback) : TextElement(rect, text), boolean(boolean),
+			callback(callback) {
+		radio_rect.w = radio_rect.h = text_rect.h - 4;
 		setTextPlacement();
 	}
 
@@ -226,20 +248,27 @@ namespace Gui {
 	void RadioButton::render() {
 		TextElement::render();
 		// render button
+		SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // black
+		if (*boolean) {
+			SDL_RenderFillRect(renderer, &radio_rect);
+		} else {
+			SDL_RenderDrawRect(renderer, &radio_rect);
+		}
 	}
 
 	void RadioButton::setTextPlacement() {
-		text_rect.x = rect.x + (rect.w - text_rect.w - radio_rect.w)/2;
-		text_rect.y = rect.y + (rect.h - text_rect.h - radio_rect.h)/2;
-		radio_rect.x = text_rect.x + text_rect.w;
-		radio_rect.y = text_rect.y;
+		int seperation = (rect.w - text_rect.w - radio_rect.w) / 3;
+		text_rect.x = rect.x + seperation;
+		text_rect.y = rect.y + (rect.h - text_rect.h) / 2;
+		radio_rect.x = text_rect.x + text_rect.w + seperation;
+		radio_rect.y = rect.y + (rect.h - radio_rect.h) / 2;
 	}
 
 	bool RadioButton::click(int x, int y) {
 		if (inRect(x, y, rect)) {
-			on = !on;
+			*boolean = !*boolean;
 			if (callback != NULL) {
-				(*callback)(on);
+				(*callback)(*boolean);
 			}
 			return true;
 		}

@@ -17,7 +17,7 @@ namespace Gui {
 	typedef void(*SliderCallback)(float);
 
 	extern TTF_Font* font;
-	const SDL_Color TEXT_COLOUR = { 0, 0, 0 };
+	const SDL_Color TEXT_COLOUR = { 0, 0, 0, 255 };
 
 	void init();
 
@@ -25,10 +25,22 @@ namespace Gui {
 	public:
 		Element(SDL_Rect rect);
 		virtual ~Element();
+
+		// render element
 		virtual void render();
-		virtual void mouseMotion(int x, int y);
+
+		// tell element where mouse is
+		// returns true if mouse is on element or sub-element
+		virtual bool mouseMotion(int x, int y);
+
+		// tell element where the mouse clicked
+		// returns true if element or sub-element was clicked on
 		virtual bool click(int x, int y);
+
+		// sets x/y position of element
 		virtual void setPosition(int x, int y);
+
+		// sets width/height of element
 		virtual void setSize(int width, int height);
 
 		SDL_Rect rect;
@@ -67,10 +79,14 @@ namespace Gui {
 		virtual ~Container();
 		virtual void render();
 		virtual bool click(int x, int y);
-		virtual void mouseMotion(int x, int y);
+		virtual bool mouseMotion(int x, int y);
 		virtual void setPosition(int x, int y);
 		virtual void setSize(int width, int height);
+
+		// adds element to container
 		virtual void addElement(Element& element);
+
+		// sets x/y positions of sub-elements starting at index start
 		virtual void placeElements(int start = 0);
 
 	protected:
@@ -95,26 +111,32 @@ namespace Gui {
 
 	class DropDown : public Container {
 	public:
-		DropDown(SDL_Rect rect, std::string text, Callback open_callback = NULL);
+		DropDown(SDL_Rect rect, std::string text);
 		virtual ~DropDown();
 		virtual void render();
 		virtual bool click(int x, int y);
-		virtual void mouseMotion(int x, int y);
+		virtual bool mouseMotion(int x, int y);
 		virtual void addElement(Element& element);
 		virtual void setPosition(int x, int y);
 		virtual void setSize(int width, int height);
 
+		bool open;
+
 	protected:
 		TextElement text;
-		Callback open_callback;
 		VBox list;
-		bool open;
+	};
+
+	class SubDropDown : public DropDown {
+	public:
+		SubDropDown(SDL_Rect rect, std::string text);
+		virtual ~SubDropDown();
+		virtual void setSize(int width, int height);
 	};
 
 	class RadioButton : public TextElement {
 	public:
-		RadioButton(SDL_Rect rect, std::string text, RadioCallback callback,
-			bool default_on = false);
+		RadioButton(SDL_Rect rect, std::string text, bool* boolean = NULL, RadioCallback callback = NULL);
 		virtual ~RadioButton();
 		virtual void render();
 		virtual bool click(int x, int y);
@@ -122,8 +144,8 @@ namespace Gui {
 	protected:
 		virtual void setTextPlacement();
 		SDL_Rect radio_rect;
+		bool* boolean;
 		RadioCallback callback;
-		bool on;
 	};
 };
 
