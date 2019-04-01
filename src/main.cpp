@@ -62,6 +62,53 @@ float total_real_fps = 0;
 #define ave_fps (total_fps / total_frames)
 #define ave_real_fps (total_real_fps / total_frames)
 
+void reset() {
+	if (cartridge != NULL) {
+		clearScreen();
+		CPU::reset();
+		PPU::reset();
+		APU::reset();
+		paused = false;
+	} else {
+		paused = true;
+	}
+}
+
+void power() {
+	if (cartridge != NULL) {
+		clearScreen();
+		CPU::power();
+		PPU::power();
+		APU::reset();
+		paused = false;
+	} else {
+		paused = true;
+	}
+}
+
+bool loadFile(std::string filename) {
+	if (cartridge) delete cartridge;
+	cartridge = Cartridge::loadFile(filename);
+	if (!cartridge) {
+		dout("could not load " << filename);
+		return false;
+	} else {
+		if (cartridge->hasSRAM()) {
+			file_name = getFilename(filename);
+			cartridge->loadSave(save_path + file_name + ".sav");
+		}
+		return true;
+	}
+}
+
+bool loadSave(std::string filename) {
+	if (cartridge && cartridge->hasSRAM()) {
+		return cartridge->loadSave(filename);
+	} else {
+		return false;
+	}
+}
+
 // hotkeys
 void quit() { exit(0); }
 
@@ -77,6 +124,30 @@ void togglePaused() {
 void toggleMute() {
 	muted = !muted;
 	APU::mute(muted);
+}
+
+void selectRom() {
+	dout("selectRom()");
+
+	char filename[MAX_PATH];
+	ZeroMemory(filename, MAX_PATH);
+
+	OPENFILENAME ofn;
+	ZeroMemory(&ofn, sizeof(ofn));
+
+	ofn.lStructSize = sizeof(ofn);
+	ofn.hwndOwner = NULL;
+	ofn.lpstrFilter = "NES ROM\0*.nes\0Any file\0*.*\0";
+	ofn.lpstrFile = filename;
+	ofn.nMaxFile = MAX_PATH;
+	ofn.lpstrTitle = "Select a ROM";
+	ofn.Flags = OFN_EXPLORER | OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
+
+	if (GetOpenFileNameA(&ofn)) {
+		if (loadFile(filename)) {
+			power();
+		}
+	}
 }
 
 typedef void(*Callback)(void);
@@ -134,29 +205,6 @@ void loadConfig() {
 	}
 }
 
-bool loadFile(std::string filename) {
-	if (cartridge) delete cartridge;
-	cartridge = Cartridge::loadFile(filename);
-	if (!cartridge) {
-		dout("could not load " << filename);
-		return false;
-	} else {
-		if (cartridge->hasSRAM()) {
-			file_name = getFilename(filename);
-			cartridge->loadSave(save_path + file_name + ".sav");
-		}
-		return true;
-	}
-}
-
-bool loadSave(std::string filename) {
-	if (cartridge && cartridge->hasSRAM()) {
-		return cartridge->loadSave(filename);
-	} else {
-		return false;
-	}
-}
-
 // guaranteed close program callback
 void saveGame() {
 	std::cout << "Goodbye!\n";
@@ -167,26 +215,6 @@ void saveGame() {
 	config.save();
 }
 ProgramEnd pe(saveGame);
-
-void reset() {
-	if (cartridge != NULL) {
-		CPU::reset();
-		PPU::reset();
-		paused = false;
-	} else {
-		paused = true;
-	}
-}
-
-void power() {
-	if (cartridge != NULL) {
-		CPU::power();
-		PPU::power();
-		paused = false;
-	} else {
-		paused = true;
-	}
-}
 
 void step() {
 	if (CPU::halted()) {
@@ -352,50 +380,30 @@ int main(int argc, char* argv[]) {
 	CPU::init();
 	APU::init();
 
+	// load ROM from command line
+	if (argc > 1) {
+		if (loadFile(argv[1])) {
+			power();
+		}
+	}
+
 	// A, B, select, start, up, down, left, right
 	joypad[0].mapButtons((const int[8]){ SDLK_x, SDLK_z, SDLK_RSHIFT, SDLK_RETURN,
 		SDLK_UP, SDLK_DOWN, SDLK_LEFT, SDLK_RIGHT });
 
-	// load ROM from command line
-	std::string rom_filename;
-	if (argc > 1) {
-		rom_filename = argv[1];
-	} else {
-		dout("attempting file dialog");
-
-		char filename[256];
-		OPENFILENAME ofn;
-		ZeroMemory(&ofn, sizeof(ofn));
-		ofn.lStructSize = sizeof(ofn);
-		ofn.hwndOwner = NULL;
-		ofn.lpstrFilter = "NES ROM\0*.nes\0Any file\0*.*\0";
-		ofn.lpstrFile = filename;
-		ofn.nMaxFile = 256;
-		ofn.lpstrTitle = "Select a ROM";
-		ofn.Flags = OFN_EXPLORER | OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
-		if (GetOpenFileNameA(&ofn)) {
-			rom_filename = filename;
-		} else {
-			dout("windows dialog error");
-		}
-	}
-
-	if (loadFile(rom_filename)) power();
-	else dout("Could not load ROM");
-
+	// build gui bar
 	const SDL_Rect gui_button_rect = { 0, 0, 64, GUI_BAR_HEIGHT };
-
+	Gui::Button load_rom_button = Gui::Button(gui_button_rect, "Load", selectRom);
 	Gui::Button fullscreen_button = Gui::Button(gui_button_rect, "Fullscreen", toggleFullscreen);
 	Gui::Button pause_button = Gui::Button(gui_button_rect, "Pause", togglePaused);
 	Gui::Button mute_button = Gui::Button(gui_button_rect, "Mute", toggleMute);
-
+	top_gui.addElement(&load_rom_button);
 	top_gui.addElement(&fullscreen_button);
 	top_gui.addElement(&pause_button);
 	top_gui.addElement(&mute_button);
 
-	int last_time = SDL_GetTicks();
-
 	// run emulator
+	int last_time = SDL_GetTicks();
 	while(true) {
 		pollEvents();
 
