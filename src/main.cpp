@@ -3,6 +3,8 @@
 #include <string>
 #include <ctime>
 #include <cstdlib>
+#include <windows.h>
+#include <commdlg.h>
 
 // nes
 #include "common.hpp"
@@ -20,10 +22,8 @@
 #include "config.hpp"
 #include "sdl.hpp"
 #include "gui.hpp"
-
-// input
 #include "keyboard.hpp"
-#include "mouse.hpp"
+#include "assert.hpp"
 
 // GUI
 Gui::HBox top_gui({ 0, 0, window_width, GUI_BAR_HEIGHT });
@@ -231,7 +231,7 @@ void resizeRenderArea(bool round_scale = false) {
 }
 
 void resizeWindow(int width, int height) {
-	SDL_SetWindowSize(window, width + GUI_BAR_HEIGHT, height);
+	SDL_SetWindowSize(window, width, height + GUI_BAR_HEIGHT);
 	resizeRenderArea();
 }
 
@@ -269,19 +269,9 @@ void mouseMotionEvent(const SDL_Event& event) {
 	int tv_y = event.motion.y / render_scale;
 
 	zapper.aim(tv_x, tv_y);
-
-	Mouse::setPos(event.motion.x, event.motion.y);
 }
 
 void mouseButtonEvent(const SDL_Event& event) {
-	Mouse::Button mb = Mouse::MB_NONE;
-	switch(event.button.button) {
-		case SDL_BUTTON_LEFT: mb = Mouse::MB_LEFT; break;
-		case SDL_BUTTON_MIDDLE: mb = Mouse::MB_MIDDLE; break;
-		case SDL_BUTTON_RIGHT: mb = Mouse::MB_RIGHT; break;
-		default: break;
-	}
-
 	if (event.button.state == SDL_PRESSED) {
 		if (event.button.button == SDL_BUTTON_LEFT) {
 			if (active_menu) {
@@ -289,19 +279,11 @@ void mouseButtonEvent(const SDL_Event& event) {
 			}
 			zapper.pull();
 		}
-		Mouse::pressButton(mb);
 	} else if (event.button.state == SDL_RELEASED) {
-		Mouse::releaseButton(mb);
 	}
 }
 
-void mouseWheelEvent(const SDL_Event& event) {
-	Mouse::setWheel(event.wheel.y);
-}
-
 void pollEvents() {
-	Mouse::update();
-	
 	SDL_Event event;
 	while(SDL_PollEvent(&event)) {
 		switch(event.type) {
@@ -321,10 +303,6 @@ void pollEvents() {
 				mouseButtonEvent(event);
 				break;
 
-			case SDL_MOUSEWHEEL:
-				mouseWheelEvent(event);
-				break;
-
 			case SDL_QUIT:
 				exit(0);
 				break;
@@ -337,8 +315,6 @@ void pollEvents() {
 		}
 	}
 }
-
-#include "gui.hpp" // test
 
 int main(int argc, char* argv[]) {
 	srand(time(NULL));
@@ -381,9 +357,31 @@ int main(int argc, char* argv[]) {
 		SDLK_UP, SDLK_DOWN, SDLK_LEFT, SDLK_RIGHT });
 
 	// load ROM from command line
-	if ((argc > 1) && loadFile(argv[1])) {
-		power();
+	std::string rom_filename;
+	if (argc > 1) {
+		rom_filename = argv[1];
+	} else {
+		dout("attempting file dialog");
+
+		char filename[256];
+		OPENFILENAME ofn;
+		ZeroMemory(&ofn, sizeof(ofn));
+		ofn.lStructSize = sizeof(ofn);
+		ofn.hwndOwner = NULL;
+		ofn.lpstrFilter = "NES ROM\0*.nes\0Any file\0*.*\0";
+		ofn.lpstrFile = filename;
+		ofn.nMaxFile = 256;
+		ofn.lpstrTitle = "Select a ROM";
+		ofn.Flags = OFN_EXPLORER | OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
+		if (GetOpenFileNameA(&ofn)) {
+			rom_filename = filename;
+		} else {
+			dout("windows dialog error");
+		}
 	}
+
+	if (loadFile(rom_filename)) power();
+	else dout("Could not load ROM");
 
 	const SDL_Rect gui_button_rect = { 0, 0, 64, GUI_BAR_HEIGHT };
 
