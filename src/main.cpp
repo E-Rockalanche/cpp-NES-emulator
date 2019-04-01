@@ -32,12 +32,12 @@ Gui::Element* active_menu = &top_gui;
 // SDL
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
-SDL_Rect render_area = { 0, GUI_BAR_HEIGHT, 256, 240 };
 
 // NES
 Joypad joypad[4];
 Zapper zapper;
 bool paused = true;
+bool in_menu = false;
 bool muted = false;
 
 const int SCREEN_BPP = 24; // bits per pixel
@@ -55,8 +55,7 @@ int window_width;
 int window_height;
 bool fullscreen;
 float render_scale;
-int render_width;
-int render_height;
+SDL_Rect render_area = { 0, GUI_BAR_HEIGHT, 256, 240 };
 
 // frame timing
 const unsigned int TARGET_FPS = 60;
@@ -73,6 +72,20 @@ float real_fps = 0;
 float total_real_fps = 0;
 #define ave_fps (total_fps / total_frames)
 #define ave_real_fps (total_real_fps / total_frames)
+
+std::string stripFilename(std::string path) {
+	bool found_ext = false;
+	int start = path.size() - 1;
+	int end = path.size();
+	while(start > 0 && path[start-1] != '/' && path[start-1] != '\\') {
+		if (!found_ext && path[start] == '.') {
+			end = start;
+			found_ext = true;
+		}
+		start--;
+	}
+	return std::string(path, start, end - start);
+}
 
 void reset() {
 	if (cartridge != NULL) {
@@ -105,7 +118,7 @@ bool loadFile(std::string filename) {
 		dout("could not load " << filename);
 		return false;
 	} else {
-		rom_filename = filename;
+		rom_filename = stripFilename(filename);
 		save_filename = save_folder + rom_filename + ".sav";
 		if (cartridge->hasSRAM()) {
 			cartridge->loadSave(save_filename);
@@ -119,6 +132,12 @@ bool loadSave(std::string filename) {
 		return cartridge->loadSave(filename);
 	} else {
 		return false;
+	}
+}
+
+void saveGame() {
+	if (cartridge && cartridge->hasSRAM()) {
+		cartridge->saveGame(save_filename);
 	}
 }
 
@@ -145,6 +164,16 @@ void selectRom() {
 	if ((filename.size() > 0) && loadFile(filename)) {
 		power();
 	}
+}
+
+void closeFile() {
+	saveGame();
+	delete cartridge;
+	cartridge = NULL;
+	paused = true;
+	rom_filename = "";
+	save_filename = "";
+	clearScreen();
 }
 
 typedef void(*Callback)(void);
@@ -177,11 +206,8 @@ void pressHotkey(SDL_Keycode key) {
 
 // guaranteed close program callback
 ProgramEnd pe([](void){
+	saveGame();
 	std::cout << "Goodbye!\n";
-
-	if (cartridge && cartridge->hasSRAM()) {
-		cartridge->saveGame(save_filename);
-	}
 });
 
 void step() {
@@ -260,18 +286,24 @@ void windowEvent(const SDL_Event& event) {
 void mouseMotionEvent(const SDL_Event& event) {
 	active_menu->mouseMotion(event.motion.x, event.motion.y);
 
-	int tv_x = event.motion.x / render_scale;
-	int tv_y = event.motion.y / render_scale;
+	int tv_x = (event.motion.x - render_area.x) / render_scale;
+	int tv_y = (event.motion.y - render_area.y) / render_scale;
 	zapper.aim(tv_x, tv_y);
 }
 
 void mouseButtonEvent(const SDL_Event& event) {
 	if (event.button.state == SDL_PRESSED) {
 		if (event.button.button == SDL_BUTTON_LEFT) {
+			bool clicked_menu = false;
 			if (active_menu) {
-				active_menu->click(event.button.x, event.button.y);
+				clicked_menu = active_menu->click(event.button.x, event.button.y);
 			}
-			zapper.pull();
+			if (!clicked_menu) {
+				int gui_height = fullscreen ? 0 : GUI_BAR_HEIGHT;
+				if (event.button.y > gui_height) {
+					zapper.pull();
+				}
+			}
 		}
 	} else if (event.button.state == SDL_RELEASED) {
 	}
@@ -360,16 +392,25 @@ int main(int argc, char* argv[]) {
 	// build gui bar
 	const SDL_Rect gui_button_rect = { 0, 0, 64, GUI_BAR_HEIGHT };
 	Gui::DropDown file_dropdown = Gui::DropDown(gui_button_rect, "File");
+	Gui::DropDown view_dropdown = Gui::DropDown(gui_button_rect, "View");
+	Gui::DropDown options_dropdown = Gui::DropDown(gui_button_rect, "Options");
+	top_gui.addElement(file_dropdown);
+	top_gui.addElement(view_dropdown);
+	top_gui.addElement(options_dropdown);
+
 	Gui::Button load_rom_button = Gui::Button(gui_button_rect, "Load", selectRom);
+	Gui::Button close_rom_button = Gui::Button(gui_button_rect, "Close", closeFile);
 	file_dropdown.addElement(load_rom_button);
+	file_dropdown.addElement(close_rom_button);
 
 	Gui::Button fullscreen_button = Gui::Button(gui_button_rect, "Fullscreen", toggleFullscreen);
+	view_dropdown.addElement(fullscreen_button);
+
 	Gui::Button pause_button = Gui::Button(gui_button_rect, "Pause", togglePaused);
 	Gui::Button mute_button = Gui::Button(gui_button_rect, "Mute", toggleMute);
-	top_gui.addElement(file_dropdown);
-	top_gui.addElement(fullscreen_button);
-	top_gui.addElement(pause_button);
-	top_gui.addElement(mute_button);
+	options_dropdown.addElement(pause_button);
+	options_dropdown.addElement(mute_button);
+
 
 	// run emulator
 	int last_time = SDL_GetTicks();

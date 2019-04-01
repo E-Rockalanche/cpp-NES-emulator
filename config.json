@@ -42,9 +42,9 @@
         }
     ],
     "folders": {
-        "rom folder": "roms/",
-        "save folder": "saves/",
-        "screenshot folder": "screenshots/"
+        "rom folder": "./roms/",
+        "save folder": "./",
+        "screenshot folder": "./screenshots/"
     },
     "general": {
         "fullscreen": false,

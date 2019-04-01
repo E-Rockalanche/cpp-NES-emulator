@@ -25,9 +25,9 @@ const char* DEFAULT_CONFIG = R"(
 			"sprite flickering": true
 		},
 		"folders": {
-			"rom folder": "roms/",
-			"save folder": "saves/",
-			"screenshot folder": "screenshots/"
+			"rom folder": "./roms/",
+			"save folder": "./saves/",
+			"screenshot folder": "./screenshots/"
 		},
 		"controls": [
 			{

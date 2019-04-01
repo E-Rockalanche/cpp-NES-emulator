@@ -25,7 +25,8 @@ std::string getFilename(const char* title, const char* filter) {
 	ofn.lpstrFile = filename_buffer;
 	ofn.nMaxFile = MAX_PATH;
 	ofn.lpstrTitle = title;
-	ofn.Flags = OFN_EXPLORER | OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
+	ofn.Flags = OFN_EXPLORER | OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST
+		| OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
 
 	if (GetOpenFileNameA(&ofn)) {
 		filename = filename_buffer;

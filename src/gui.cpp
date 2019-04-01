@@ -32,7 +32,9 @@ namespace Gui {
 		rect.h = height;
 	}
 
-	void Element::click(int x, int y) {}
+	bool Element::click(int x, int y) {
+		return inRect(x, y, rect);
+	}
 
 	void Element::mouseMotion(int x, int y) {}
 
@@ -71,15 +73,19 @@ namespace Gui {
 		text_rect.y = rect.y + (rect.h - text_rect.h)/2;
 	}
 
-	Button::Button(SDL_Rect rect, std::string text, ButtonCallback callback)
+	Button::Button(SDL_Rect rect, std::string text, Callback callback)
 		: TextElement(rect, text), callback(callback) {}
 
 	Button::~Button() {}
 
-	void Button::click(int x, int y) {
-		if (inRect(x, y, rect) && (callback != NULL)) {
-			(*callback)();
+	bool Button::click(int x, int y) {
+		if (inRect(x, y, rect)) {
+			if (callback != NULL) {
+				(*callback)();
+			}
+			return true;
 		}
+		return false;
 	}
 
 	Container::Container(SDL_Rect rect) : Element(rect) {}
@@ -93,10 +99,12 @@ namespace Gui {
 		}
 	}
 
-	void Container::click(int x, int y) {
+	bool Container::click(int x, int y) {
+		bool clicked = false;
 		for(auto element : elements) {
-			element->click(x, y);
+			clicked = clicked || element->click(x, y);
 		}
+		return clicked;
 	}
 
 	void Container::mouseMotion(int x, int y) {
@@ -152,8 +160,9 @@ namespace Gui {
 		}
 	}
 
-	DropDown::DropDown(SDL_Rect rect, std::string text) : Container(rect),
-			list({rect.x, rect.y + rect.h, 0, 0}), text(rect, text) {
+	DropDown::DropDown(SDL_Rect rect, std::string text, Callback open_callback)
+			: Container(rect), text(rect, text), open_callback(open_callback),
+			list({rect.x, rect.y + rect.h, 0, 0}) {
 		elements.push_back(&list);
 		open = false;
 	}
@@ -167,12 +176,18 @@ namespace Gui {
 		}
 	}
 
-	void DropDown::click(int x, int y) {
+	bool DropDown::click(int x, int y) {
+		bool clicked = false;
 		if (inRect(x, y, rect)) {
 			open = !open;
+			clicked = true;
+			if (open && open_callback != NULL) {
+				(*open_callback)();
+			}
 		} else if (open) {
-			list.click(x, y);
+			clicked = list.click(x, y);
 		}
+		return clicked;
 	}
 
 	void DropDown::mouseMotion(int x, int y) {
@@ -186,5 +201,48 @@ namespace Gui {
 		int new_height = list.rect.h + element.rect.h;
 		list.setSize(new_width, new_height);
 		list.addElement(element);
+	}
+
+	void DropDown::setPosition(int x, int y) {
+		Container::setPosition(x, y);
+		list.setPosition(x, y + rect.h);
+		text.setPosition(x, y);
+	}
+
+	void DropDown::setSize(int width, int height) {
+		Container::setSize(width, height);
+		text.setSize(width, height);
+	}
+
+	RadioButton::RadioButton(SDL_Rect rect, std::string text, RadioCallback callback,
+			bool default_on) : TextElement(rect, text), callback(callback),
+			on(default_on) {
+		radio_rect.w = radio_rect.h = text_rect.h;
+		setTextPlacement();
+	}
+
+	RadioButton::~RadioButton() {}
+
+	void RadioButton::render() {
+		TextElement::render();
+		// render button
+	}
+
+	void RadioButton::setTextPlacement() {
+		text_rect.x = rect.x + (rect.w - text_rect.w - radio_rect.w)/2;
+		text_rect.y = rect.y + (rect.h - text_rect.h - radio_rect.h)/2;
+		radio_rect.x = text_rect.x + text_rect.w;
+		radio_rect.y = text_rect.y;
+	}
+
+	bool RadioButton::click(int x, int y) {
+		if (inRect(x, y, rect)) {
+			on = !on;
+			if (callback != NULL) {
+				(*callback)(on);
+			}
+			return true;
+		}
+		return false;
 	}
 };
