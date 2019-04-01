@@ -1,5 +1,7 @@
 #include "joypad.hpp"
 
+Joypad joypad[4];
+
 const char* Joypad::button_names[] = {
 	"A",
 	"B",
@@ -40,6 +42,14 @@ void Joypad::reset() {
 	for(int n = 0; n < NUM_BUTTONS; n++) {
 		buttons[n] = false;
 	}
+}
+
+void Joypad::pressButton(Joypad::Button button) {
+	buttons[button] = true;
+}
+
+void Joypad::releaseButton(Joypad::Button button) {
+	buttons[button] = false;
 }
 
 void Joypad::pressKey(int key) {

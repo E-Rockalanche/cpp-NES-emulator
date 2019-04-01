@@ -7,7 +7,8 @@
 class Joypad : public Controller{
 public:
 	enum Button {
-		A,
+		NONE = -1,
+		A = 0,
 		B,
 		SELECT,
 		START,
@@ -23,6 +24,8 @@ public:
 	~Joypad() {}
 	void pressKey(int key);
 	void releaseKey(int key);
+	void pressButton(Button button);
+	void releaseButton(Button button);
 	Byte read();
 	void write(Byte value);
 	void reset();
@@ -39,5 +42,7 @@ private:
 	bool buttons[NUM_BUTTONS];
 	bool strobe;
 };
+
+extern Joypad joypad[4];
 
 #endif

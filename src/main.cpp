@@ -34,7 +34,6 @@ SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
 
 // NES
-Joypad joypad[4];
 Zapper zapper;
 bool paused = false;
 bool step_frame = false;
