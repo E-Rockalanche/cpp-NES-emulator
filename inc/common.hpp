@@ -5,7 +5,14 @@
 #include <iomanip>
 #include <bitset>
 #include "debugging.hpp"
-#include "assert.hpp"
+
+#if defined __WIN32__
+	#define OS_WINDOWS true
+	#define OS_UNIX false
+#elif defined __unix__
+	#define OS_UNIX true
+	#define OS_WINDOWS false
+#endif
 
 #define GET_MACRO(_1, _2, _3, MACRO_NAME, ...) MACRO_NAME
 

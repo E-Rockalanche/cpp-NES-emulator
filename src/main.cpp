@@ -1,14 +1,12 @@
-// standard library
 #include <iostream>
 #include <iomanip>
 #include <string>
 #include <ctime>
 #include <cstdlib>
 #include <fstream>
-#include <windows.h>
-#include <commdlg.h>
 
-// nes
+#include "SDL2/SDL.h"
+
 #include "common.hpp"
 #include "main.hpp"
 #include "debugging.hpp"
@@ -18,14 +16,13 @@
 #include "cartridge.hpp"
 #include "joypad.hpp"
 #include "zapper.hpp"
-#include "file_path.hpp"
 #include "program_end.hpp"
 #include "screen.hpp"
 #include "config.hpp"
 #include "gui.hpp"
 #include "keyboard.hpp"
 #include "globals.hpp"
-#include "SDL2/SDL.h"
+#include "api.hpp"
 #include "assert.hpp"
 
 // GUI
@@ -47,10 +44,11 @@ const int SCREEN_BPP = 24; // bits per pixel
 Pixel screen[SCREEN_WIDTH * SCREEN_HEIGHT];
 
 // paths
-std::string file_name = "";
-std::string save_path = "./";
-std::string rom_path = "./";
-std::string screenshot_path = "./";
+std::string rom_filename;
+std::string save_filename;
+std::string save_folder;
+std::string rom_folder;
+std::string screenshot_folder;
 
 // window size
 int window_width;
@@ -107,9 +105,10 @@ bool loadFile(std::string filename) {
 		dout("could not load " << filename);
 		return false;
 	} else {
+		rom_filename = filename;
+		save_filename = save_folder + rom_filename + ".sav";
 		if (cartridge->hasSRAM()) {
-			file_name = getFilename(filename);
-			cartridge->loadSave(save_path + file_name + ".sav");
+			cartridge->loadSave(save_filename);
 		}
 		return true;
 	}
@@ -142,25 +141,9 @@ void toggleMute() {
 
 void selectRom() {
 	dout("selectRom()");
-
-	char filename[MAX_PATH];
-	ZeroMemory(filename, MAX_PATH);
-
-	OPENFILENAME ofn;
-	ZeroMemory(&ofn, sizeof(ofn));
-
-	ofn.lStructSize = sizeof(ofn);
-	ofn.hwndOwner = NULL;
-	ofn.lpstrFilter = "NES ROM\0*.nes\0Any file\0*.*\0";
-	ofn.lpstrFile = filename;
-	ofn.nMaxFile = MAX_PATH;
-	ofn.lpstrTitle = "Select a ROM";
-	ofn.Flags = OFN_EXPLORER | OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
-
-	if (GetOpenFileNameA(&ofn)) {
-		if (loadFile(filename)) {
-			power();
-		}
+	std::string filename = API::getFilename("Select a ROM", "NES ROM\0*.nes\0Any file\0*.*\0");
+	if ((filename.size() > 0) && loadFile(filename)) {
+		power();
 	}
 }
 
@@ -197,7 +180,7 @@ ProgramEnd pe([](void){
 	std::cout << "Goodbye!\n";
 
 	if (cartridge && cartridge->hasSRAM()) {
-		cartridge->saveGame(save_path + file_name + ".sav");
+		cartridge->saveGame(save_filename);
 	}
 });
 

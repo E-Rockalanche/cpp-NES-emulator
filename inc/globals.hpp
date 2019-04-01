@@ -22,10 +22,11 @@ extern bool paused;
 extern bool muted;
 
 // paths
-extern std::string file_name;
-extern std::string save_path;
-extern std::string rom_path;
-extern std::string screenshot_path;
+extern std::string rom_filename;
+extern std::string save_filename;
+extern std::string save_folder;
+extern std::string rom_folder;
+extern std::string screenshot_folder;
 
 // window size
 extern int window_width;
