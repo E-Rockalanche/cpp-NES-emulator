@@ -22,8 +22,7 @@ void mute(bool m) {
     apu.output(muted ? NULL : &buffer);
 }
 
-void newSamples(const blip_sample_t* samples, size_t count)
-{
+void newSamples(const blip_sample_t* samples, size_t count) {
     sound_queue->write(samples, count);
 }
 

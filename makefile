@@ -3,10 +3,10 @@ CXX := g++
 
 SDL_LINK := -Wl,-Bdynamic  -lSDL2main -lSDL2 -lSDL2_ttf -Wl,-Bstatic
 
-LFLAGS := -O3 -lmingw32 -lm -mwindows  -mconsole $(SDL_LINK)
+LFLAGS := -std=c++17 -O3 -lmingw32 -lm -mwindows  -mconsole $(SDL_LINK)
 CLEAN := del .\obj\*.o .\obj\mappers\*.o .\lib\obj\*.o $(TARGET)
 
-CFLAGS := -O3 -c -Wall -Wno-unused-parameter -std=c++17
+CFLAGS := -c -std=c++17 -O3 -Wall -Wno-unused-parameter
 INCLUDE := -I./inc -I./inc/mappers -I./lib/inc -I./lib/inc/boost
 
 SOURCES = $(wildcard src/*.cpp)

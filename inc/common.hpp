@@ -31,6 +31,7 @@
 
 typedef unsigned char Byte;
 typedef unsigned short Word;
+typedef void(*Callback)(void);
 
 #define BL(bit) (1 << (bit))
 

@@ -1,8 +1,10 @@
 // standard library
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <ctime>
 #include <cstdlib>
+#include <fstream>
 #include <windows.h>
 #include <commdlg.h>
 
@@ -20,14 +22,20 @@
 #include "program_end.hpp"
 #include "screen.hpp"
 #include "config.hpp"
-#include "sdl.hpp"
 #include "gui.hpp"
 #include "keyboard.hpp"
+#include "globals.hpp"
+#include "SDL2/SDL.h"
 #include "assert.hpp"
 
 // GUI
 Gui::HBox top_gui({ 0, 0, window_width, GUI_BAR_HEIGHT });
 Gui::Element* active_menu = &top_gui;
+
+// SDL
+SDL_Window* window = NULL;
+SDL_Renderer* renderer = NULL;
+SDL_Rect render_area = { 0, GUI_BAR_HEIGHT, 256, 240 };
 
 // NES
 Joypad joypad[4];
@@ -45,6 +53,12 @@ std::string rom_path = "./";
 std::string screenshot_path = "./";
 
 // window size
+int window_width;
+int window_height;
+bool fullscreen;
+float render_scale;
+int render_width;
+int render_height;
 
 // frame timing
 const unsigned int TARGET_FPS = 60;
@@ -178,43 +192,14 @@ void pressHotkey(SDL_Keycode key) {
 	}
 }
 
-#define CONFIG_FILE "nes.cfg"
-Config config;
-void loadConfig() {
-	if (!config.load(CONFIG_FILE)) {
-		dout("could not load configuration file");
-	} else dout("setting variables");
-
-	// ppu options
-	PPU::sprite_flickering = config.getBool("sprite_flickering", true);
-
-	// file options
-	rom_path = config.getString("rom_path", "./");
-	save_path = config.getString("save_path", "./");
-	screenshot_path = config.getString("screenshot_path", "./");
-
-	// window options
-	fullscreen = config.getBool("fullscreen", false);
-	render_scale = config.getFloat("render_scale", 2.0);
-	window_width = render_scale * SCREEN_WIDTH;
-	window_height = render_scale * SCREEN_HEIGHT;
-
-	if (config.updated()) {
-		dout("saving config");
-		config.save(CONFIG_FILE);
-	}
-}
-
 // guaranteed close program callback
-void saveGame() {
+ProgramEnd pe([](void){
 	std::cout << "Goodbye!\n";
 
 	if (cartridge && cartridge->hasSRAM()) {
 		cartridge->saveGame(save_path + file_name + ".sav");
 	}
-	config.save();
-}
-ProgramEnd pe(saveGame);
+});
 
 void step() {
 	if (CPU::halted()) {
@@ -256,6 +241,7 @@ void resizeRenderArea(bool round_scale = false) {
 
 	dout("render area: (" << render_area.x << ", " << render_area.y << ", "
 		<< render_area.w << ", " << render_area.h << ")");
+
 }
 
 void resizeWindow(int width, int height) {

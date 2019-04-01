@@ -1,6 +1,6 @@
 #include "gui.hpp"
-#include "sdl.hpp"
 #include "common.hpp"
+#include "globals.hpp"
 
 #define inRect(x, y, rect) inBounds(x, y, rect.x, rect.y, rect.w, rect.h)
 
