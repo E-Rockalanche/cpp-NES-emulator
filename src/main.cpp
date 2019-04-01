@@ -1,8 +1,10 @@
 // standard library
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <ctime>
 #include <cstdlib>
+#include <fstream>
 
 // nes
 #include "common.hpp"
@@ -17,12 +19,16 @@
 #include "file_path.hpp"
 #include "program_end.hpp"
 #include "screen.hpp"
-#include "config.hpp"
 #include "keyboard.hpp"
+#include "globals.hpp"
+
+// config
+#include "config.hpp"
 
 // graphics
 #include "SDL2/SDL.h"
 
+#include "assert.hpp"
 // SDL
 SDL_Window* sdl_window = NULL;
 SDL_Renderer* sdl_renderer = NULL;
@@ -111,35 +117,6 @@ void pressHotkey(SDL_Keycode key) {
 	}
 }
 
-#define CONFIG_FILE "nes.cfg"
-Config config;
-void loadConfig() {
-	dout("load config");
-
-	if (!config.load(CONFIG_FILE)) {
-		dout("could not load configuration file");
-	} else dout("setting variables");
-
-	// ppu options
-	PPU::sprite_flickering = config.getBool("sprite_flickering", true);
-
-	// file options
-	rom_path = config.getString("rom_path", "./");
-	save_path = config.getString("save_path", "./");
-	screenshot_path = config.getString("screenshot_path", "./");
-
-	// window options
-	fullscreen = config.getBool("fullscreen", false);
-	render_scale = config.getFloat("render_scale", 2.0);
-	window_width = render_scale * SCREEN_WIDTH;
-	window_height = render_scale * SCREEN_HEIGHT;
-
-	if (config.updated()) {
-		dout("saving config");
-		config.save(CONFIG_FILE);
-	}
-}
-
 bool loadFile(std::string filename) {
 	if (cartridge) delete cartridge;
 	cartridge = Cartridge::loadFile(filename);
@@ -170,7 +147,6 @@ void saveGame() {
 	if (cartridge && cartridge->hasSRAM()) {
 		cartridge->saveGame(save_path + file_name + ".sav");
 	}
-	config.save();
 }
 ProgramEnd pe(saveGame);
 
@@ -210,24 +186,8 @@ int readAddress() {
 
 void resizeRender() {
 	dout("resize render");
-
 	SDL_GetWindowSize(sdl_window, &window_width, &window_height);
 	dout("resized to " << window_width << "x" << window_height);
-
-	/*
-	// I don't think I need this part at all
-
-	// calculate largest screen scale in current window size
-	float x_scale = (float)window_width / SCREEN_WIDTH;
-	float y_scale = (float)window_height / SCREEN_HEIGHT;
-	float scale = MIN(x_scale, y_scale);
-
-	// set new screen size
-	render_width = scale * SCREEN_WIDTH;
-	render_height = scale * SCREEN_HEIGHT;
-
-	SDL_RenderSetLogicalSize(sdl_renderer, render_width, render_height);
-	*/
 }
 
 void resizeWindow(int width, int height) {
