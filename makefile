@@ -2,7 +2,7 @@ TARGET := nes.exe
 CXX := g++
 CLEAN := del .\obj\*.o .\obj\mappers\*.o .\lib\obj\*.o $(TARGET)
 
-LFLAGS := -std=c++17 -O3 -lmingw32 -lm -mwindows -Wl,-Bdynamic  -lSDL2main -lSDL2 -lSDL2_ttf -Wl,-Bstatic
+LFLAGS := -std=c++17 -O3 -lmingw32 -lm -mwindows -mconsole -Wl,-Bdynamic  -lSDL2main -lSDL2 -lSDL2_ttf -Wl,-Bstatic
 CCFLAGS := -c -std=c++17 -O3 -Wall -Wno-unused-parameter
 INCLUDE := -I./inc -I./inc/mappers -I./lib/inc -I./lib/inc/boost
 

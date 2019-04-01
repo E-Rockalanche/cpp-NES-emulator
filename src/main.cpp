@@ -127,7 +127,8 @@ void quit() { exit(0); }
 
 void toggleFullscreen() {
 	fullscreen = !fullscreen;
-	SDL_SetWindowFullscreen(window, fullscreen);
+	int flags = fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0;
+	SDL_SetWindowFullscreen(window, flags);
 }
 
 void togglePaused() {
@@ -140,7 +141,6 @@ void toggleMute() {
 }
 
 void selectRom() {
-	dout("selectRom()");
 	std::string filename = API::getFilename("Select a ROM", "NES ROM\0*.nes\0Any file\0*.*\0");
 	if ((filename.size() > 0) && loadFile(filename)) {
 		power();
@@ -221,10 +221,6 @@ void resizeRenderArea(bool round_scale = false) {
 	render_area.h = SCREEN_HEIGHT * render_scale;
 	render_area.x = (window_width - render_area.w) / 2;
 	render_area.y = gui_height + (allowed_height - render_area.h) / 2;
-
-	dout("render area: (" << render_area.x << ", " << render_area.y << ", "
-		<< render_area.w << ", " << render_area.h << ")");
-
 }
 
 void resizeWindow(int width, int height) {
@@ -262,9 +258,10 @@ void windowEvent(const SDL_Event& event) {
 }
 
 void mouseMotionEvent(const SDL_Event& event) {
+	active_menu->mouseMotion(event.motion.x, event.motion.y);
+
 	int tv_x = event.motion.x / render_scale;
 	int tv_y = event.motion.y / render_scale;
-
 	zapper.aim(tv_x, tv_y);
 }
 
@@ -362,14 +359,17 @@ int main(int argc, char* argv[]) {
 
 	// build gui bar
 	const SDL_Rect gui_button_rect = { 0, 0, 64, GUI_BAR_HEIGHT };
+	Gui::DropDown file_dropdown = Gui::DropDown(gui_button_rect, "File");
 	Gui::Button load_rom_button = Gui::Button(gui_button_rect, "Load", selectRom);
+	file_dropdown.addElement(load_rom_button);
+
 	Gui::Button fullscreen_button = Gui::Button(gui_button_rect, "Fullscreen", toggleFullscreen);
 	Gui::Button pause_button = Gui::Button(gui_button_rect, "Pause", togglePaused);
 	Gui::Button mute_button = Gui::Button(gui_button_rect, "Mute", toggleMute);
-	top_gui.addElement(&load_rom_button);
-	top_gui.addElement(&fullscreen_button);
-	top_gui.addElement(&pause_button);
-	top_gui.addElement(&mute_button);
+	top_gui.addElement(file_dropdown);
+	top_gui.addElement(fullscreen_button);
+	top_gui.addElement(pause_button);
+	top_gui.addElement(mute_button);
 
 	// run emulator
 	int last_time = SDL_GetTicks();

@@ -26,6 +26,7 @@ namespace Gui {
 		Element(SDL_Rect rect);
 		virtual ~Element();
 		virtual void render();
+		virtual void mouseMotion(int x, int y);
 		virtual void click(int x, int y);
 		virtual void setPosition(int x, int y);
 		virtual void setSize(int width, int height);
@@ -65,9 +66,10 @@ namespace Gui {
 		virtual ~Container();
 		virtual void render();
 		virtual void click(int x, int y);
+		virtual void mouseMotion(int x, int y);
 		virtual void setPosition(int x, int y);
 		virtual void setSize(int width, int height);
-		virtual void addElement(Element* element);
+		virtual void addElement(Element& element);
 		virtual void placeElements(int start = 0);
 
 	protected:
@@ -80,6 +82,29 @@ namespace Gui {
 		virtual ~HBox();
 		virtual void placeElements(int start = 0);
 	protected:
+	};
+
+	class VBox : public Container {
+	public:
+		VBox(SDL_Rect rect);
+		virtual ~VBox();
+		virtual void placeElements(int start = 0);
+	protected:
+	};
+
+	class DropDown : public Container {
+	public:
+		DropDown(SDL_Rect rect, std::string text);
+		virtual ~DropDown();
+		virtual void render();
+		virtual void click(int x, int y);
+		virtual void mouseMotion(int x, int y);
+		virtual void addElement(Element& element);
+
+	protected:
+		bool open;
+		VBox list;
+		TextElement text;
 	};
 };
 

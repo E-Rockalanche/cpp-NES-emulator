@@ -34,6 +34,8 @@ namespace Gui {
 
 	void Element::click(int x, int y) {}
 
+	void Element::mouseMotion(int x, int y) {}
+
 	TextElement::TextElement(SDL_Rect rect, std::string text) : Element(rect) {
 		// create text surface
 		SDL_Surface* text_surf = TTF_RenderText_Blended(font, text.c_str(), TEXT_COLOUR);
@@ -75,7 +77,7 @@ namespace Gui {
 	Button::~Button() {}
 
 	void Button::click(int x, int y) {
-		if (inRect(x, y, rect)) {
+		if (inRect(x, y, rect) && (callback != NULL)) {
 			(*callback)();
 		}
 	}
@@ -92,10 +94,14 @@ namespace Gui {
 	}
 
 	void Container::click(int x, int y) {
-		if (inRect(x, y, rect)) {
-			for(auto element : elements) {
-				element->click(x, y);
-			}
+		for(auto element : elements) {
+			element->click(x, y);
+		}
+	}
+
+	void Container::mouseMotion(int x, int y) {
+		for(auto element : elements) {
+			element->mouseMotion(x, y);
 		}
 	}
 
@@ -109,8 +115,8 @@ namespace Gui {
 		this->placeElements();
 	}
 
-	void Container::addElement(Element* element) {
-		elements.push_back(element);
+	void Container::addElement(Element& element) {
+		elements.push_back(&element);
 		this->placeElements(elements.size()-1);
 	}
 
@@ -129,5 +135,56 @@ namespace Gui {
 				elements[i]->setPosition(prev_rect.x + prev_rect.w, rect.y);
 			}
 		}
+	}
+
+	VBox::VBox(SDL_Rect rect) : Container(rect) {}
+
+	VBox::~VBox() {}
+
+	void VBox::placeElements(int start) {
+		for (int i = start; i < (int)elements.size(); i++) {
+			if (i == 0) {
+				elements[i]->setPosition(rect.x, rect.y);
+			} else {
+				const SDL_Rect& prev_rect = elements[i-1]->rect;
+				elements[i]->setPosition(rect.x, prev_rect.y + prev_rect.h);
+			}
+		}
+	}
+
+	DropDown::DropDown(SDL_Rect rect, std::string text) : Container(rect),
+			list({rect.x, rect.y + rect.h, 0, 0}), text(rect, text) {
+		elements.push_back(&list);
+		open = false;
+	}
+
+	DropDown::~DropDown() {}
+
+	void DropDown::render() {
+		text.render();
+		if (open) {
+			list.render();
+		}
+	}
+
+	void DropDown::click(int x, int y) {
+		if (inRect(x, y, rect)) {
+			open = !open;
+		} else if (open) {
+			list.click(x, y);
+		}
+	}
+
+	void DropDown::mouseMotion(int x, int y) {
+		if (!inRect(x, y, rect) && !inRect(x, y, list.rect)) {
+			open = false;
+		}
+	}
+
+	void DropDown::addElement(Element& element) {
+		int new_width = MAX(list.rect.w, element.rect.w);
+		int new_height = list.rect.h + element.rect.h;
+		list.setSize(new_width, new_height);
+		list.addElement(element);
 	}
 };

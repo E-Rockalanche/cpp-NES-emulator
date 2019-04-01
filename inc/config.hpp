@@ -78,8 +78,6 @@ void saveConfig(const json& config) {
 }
 
 void loadConfig() {
-	dout("load config");
-
 	config = json::parse(DEFAULT_CONFIG);
 
 	std::ifstream fin(CONFIG_FILE);
