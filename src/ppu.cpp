@@ -856,11 +856,11 @@ void renderPixel() {
 void dump() {
 	std::cout << "====== PPU ======\n";
 	std::cout << "         NmHBSInn\n";
-	std::cout << "control: " << toBin(control) << '\n';
+	std::cout << "control: " << toByte(control) << '\n';
 	std::cout << "         bgrSBsbG\n";
-	std::cout << "mask:    " << toBin(control) << '\n';
+	std::cout << "mask:    " << toByte(control) << '\n';
 	std::cout << "         VHO-----\n";
-	std::cout << "status:  " << toBin(control) << "\n\n";
+	std::cout << "status:  " << toByte(control) << "\n\n";
 
 	std::cout << "scanline: " << scanline << '\n';
 	std::cout << "cycle: " << cycle << '\n';

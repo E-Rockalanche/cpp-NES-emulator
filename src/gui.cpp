@@ -121,7 +121,7 @@ namespace Gui {
 	HBox::~HBox() {}
 
 	void HBox::placeElements(int start) {
-		for (int i = start; i < elements.size(); i++) {
+		for (int i = start; i < (int)elements.size(); i++) {
 			if (i == 0) {
 				elements[i]->setPosition(rect.x, rect.y);
 			} else {
