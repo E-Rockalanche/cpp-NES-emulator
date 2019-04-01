@@ -1,77 +1,86 @@
 #ifndef GUI_HPP
 #define GUI_HPP
 
+#include <string>
+#include <vector>
+
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_ttf.h"
-#include <string>
+
 #include "assert.hpp"
 
-namespace Gui {
-	TTF_Font* font;
-	const SDL_Color WHITE = { 255, 255, 255 };
-	const SDL_Color BLACK = { 0, 0, 0 };
+#define GUI_BAR_HEIGHT 16
 
-	void init() {
-		assert(TTF_Init() >= 0, "TTF did not initialize");
-		font = TTF_OpenFont("./fonts/PressStart2P.ttf", 8);
-		assert(font != NULL, "could not open font");
-	}
+namespace Gui {
+	typedef void(*ButtonCallback)(void);
+	typedef void(*RadioCallback)(bool);
+	typedef void(*SliderCallback)(float);
+
+	extern TTF_Font* font;
+	const SDL_Color TEXT_COLOUR = { 0, 0, 0 };
+
+	void init();
 
 	class Element {
 	public:
 		Element(SDL_Rect rect);
 		virtual ~Element();
 		virtual void render();
+		virtual void click(int x, int y);
+		virtual void setPosition(int x, int y);
+		virtual void setSize(int width, int height);
+
+		SDL_Rect rect;
 
 	protected:
-		SDL_Rect rect;
-		SDL_Texture* texture;
 	};
-
-	Element::Element(SDL_Rect rect) : rect(rect), texture(NULL) {}
-
-	Element::~Element(){
-		if (texture) {
-			SDL_DestroyTexture(texture);
-		}
-	}
-
-	void Element::render() {
-		if (texture) {
-			SDL_RenderCopy(sdl_renderer, texture, NULL, &rect);
-		}
-	}
 
 	class TextElement : public Element {
 	public:
 		TextElement(SDL_Rect rect, std::string text);
 		virtual ~TextElement();
 		virtual void render();
+		virtual void setPosition(int x, int y);
+		virtual void setSize(int width, int height);
+		void setTextPlacement();
 
 	protected:
 		SDL_Rect text_rect;
 		SDL_Texture* text_tex;
 	};
 
-	TextElement::TextElement(SDL_Rect rect, std::string text) : Element(rect) {
-		// create text surface
-		SDL_Surface* text_surf = TTF_RenderText_Solid(font, text.c_str(), WHITE);
-		text_tex = SDL_CreateTextureFromSurface(sdl_renderer, text_surf);
-		SDL_FreeSurface(text_surf);
+	class Button : public TextElement {
+	public:
+		Button(SDL_Rect rect, std::string text, ButtonCallback callback);
+		virtual ~Button();
+		virtual void click(int x, int y);
 
-		// calculate text placement
-		TTF_SizeText(font, text.c_str(), &text_rect.w, &text_rect.h);
-		text_rect.x = rect.x + (rect.w - text_rect.w)/2;
-		text_rect.y = rect.y + (rect.h - text_rect.h)/2;
-	}
+	protected:
+		ButtonCallback callback;
+	};
 
-	TextElement::~TextElement() {
-		SDL_DestroyTexture(text_tex);
-	}
+	class Container : public Element {
+	public:
+		Container(SDL_Rect rect);
+		virtual ~Container();
+		virtual void render();
+		virtual void click(int x, int y);
+		virtual void setPosition(int x, int y);
+		virtual void setSize(int width, int height);
+		virtual void addElement(Element* element);
+		virtual void placeElements(int start = 0);
 
-	void TextElement::render() {
-		SDL_RenderCopy(sdl_renderer, text_tex, NULL, &text_rect);
-	}
+	protected:
+		std::vector<Element*> elements;
+	};
+
+	class HBox : public Container {
+	public:
+		HBox(SDL_Rect rect);
+		virtual ~HBox();
+		virtual void placeElements(int start = 0);
+	protected:
+	};
 };
 
 #endif

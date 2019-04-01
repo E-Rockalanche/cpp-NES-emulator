@@ -23,6 +23,11 @@
 
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
+	
+#define inBounds(x, y, left, top, width, height) ((x) >= (left)\
+	&& (y) >= (top)\
+	&& (x) < ((left) + (width))\
+	&& (y) < ((top) + (height)))
 
 typedef unsigned char Byte;
 typedef unsigned short Word;

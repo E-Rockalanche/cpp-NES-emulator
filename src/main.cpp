@@ -18,17 +18,16 @@
 #include "program_end.hpp"
 #include "screen.hpp"
 #include "config.hpp"
+#include "sdl.hpp"
+#include "gui.hpp"
 
 // input
 #include "keyboard.hpp"
 #include "mouse.hpp"
 
-// graphics
-#include "SDL2/SDL.h"
-
-// SDL
-SDL_Window* sdl_window = NULL;
-SDL_Renderer* sdl_renderer = NULL;
+// GUI
+Gui::HBox top_gui({ 0, 0, window_width, GUI_BAR_HEIGHT });
+Gui::Element* active_menu = &top_gui;
 
 // NES
 Joypad joypad[4];
@@ -46,12 +45,6 @@ std::string rom_path = "./";
 std::string screenshot_path = "./";
 
 // window size
-int window_width = SCREEN_WIDTH;
-int window_height = SCREEN_HEIGHT;
-bool fullscreen = false;
-float render_scale = 1;
-int render_width = SCREEN_WIDTH;
-int render_height = SCREEN_HEIGHT;
 
 // frame timing
 const unsigned int TARGET_FPS = 60;
@@ -74,7 +67,7 @@ void quit() { exit(0); }
 
 void toggleFullscreen() {
 	fullscreen = !fullscreen;
-	SDL_SetWindowFullscreen(sdl_window, fullscreen);
+	SDL_SetWindowFullscreen(window, fullscreen);
 }
 
 void togglePaused() {
@@ -117,8 +110,6 @@ void pressHotkey(SDL_Keycode key) {
 #define CONFIG_FILE "nes.cfg"
 Config config;
 void loadConfig() {
-	dout("load config");
-
 	if (!config.load(CONFIG_FILE)) {
 		dout("could not load configuration file");
 	} else dout("setting variables");
@@ -211,33 +202,37 @@ int readAddress() {
 	return std::stoi(raw, NULL, 16);
 }
 
-void resizeRender() {
-	dout("resize render");
+void resizeRenderArea(bool round_scale = false) {
+	SDL_GetWindowSize(window, &window_width, &window_height);
+	top_gui.setSize(window_width, GUI_BAR_HEIGHT);
 
-	SDL_GetWindowSize(sdl_window, &window_width, &window_height);
-	dout("resized to " << window_width << "x" << window_height);
+	// set viewport to fill window
+	SDL_RenderSetViewport(renderer, NULL);
 
-	/*
-	// I don't think I need this part at all
+	int gui_height = fullscreen ? 0 : GUI_BAR_HEIGHT;
 
-	// calculate largest screen scale in current window size
-	float x_scale = (float)window_width / SCREEN_WIDTH;
-	float y_scale = (float)window_height / SCREEN_HEIGHT;
-	float scale = MIN(x_scale, y_scale);
+	int allowed_height = window_height - gui_height;
+	float x_scale = (float)allowed_height / SCREEN_HEIGHT;
+	float y_scale = (float)window_width / SCREEN_WIDTH;
+	render_scale = MIN(x_scale, y_scale);
 
-	// set new screen size
-	render_width = scale * SCREEN_WIDTH;
-	render_height = scale * SCREEN_HEIGHT;
+	if (round_scale) {
+		// round down
+		render_scale = (int)render_scale;
+	}
 
-	SDL_RenderSetLogicalSize(sdl_renderer, render_width, render_height);
-	*/
+	render_area.w = SCREEN_WIDTH * render_scale;
+	render_area.h = SCREEN_HEIGHT * render_scale;
+	render_area.x = (window_width - render_area.w) / 2;
+	render_area.y = gui_height + (allowed_height - render_area.h) / 2;
+
+	dout("render area: (" << render_area.x << ", " << render_area.y << ", "
+		<< render_area.w << ", " << render_area.h << ")");
 }
 
 void resizeWindow(int width, int height) {
-	dout("resize window");
-
-	SDL_SetWindowSize(sdl_window, width, height);
-	resizeRender();
+	SDL_SetWindowSize(window, width + GUI_BAR_HEIGHT, height);
+	resizeRenderArea();
 }
 
 void keyboardEvent(const SDL_Event& event) {
@@ -260,7 +255,7 @@ void windowEvent(const SDL_Event& event) {
 		case SDL_WINDOWEVENT_SIZE_CHANGED:
 		case SDL_WINDOWEVENT_MAXIMIZED:
 		case SDL_WINDOWEVENT_RESTORED:
-			resizeRender();
+			resizeRenderArea();
 			break;
 
 		case SDL_WINDOWEVENT_CLOSE:
@@ -289,6 +284,9 @@ void mouseButtonEvent(const SDL_Event& event) {
 
 	if (event.button.state == SDL_PRESSED) {
 		if (event.button.button == SDL_BUTTON_LEFT) {
+			if (active_menu) {
+				active_menu->click(event.button.x, event.button.y);
+			}
 			zapper.pull();
 		}
 		Mouse::pressButton(mb);
@@ -352,26 +350,25 @@ int main(int argc, char* argv[]) {
 
 	// create window
 	int window_flags = SDL_WINDOW_OPENGL | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
-	sdl_window = SDL_CreateWindow("NES emulator",
+	window = SDL_CreateWindow("NES emulator",
 		SDL_WINDOWPOS_UNDEFINED,
 		SDL_WINDOWPOS_UNDEFINED,
-		window_width, window_height,
+		window_width, window_height + GUI_BAR_HEIGHT,
 		window_flags);
-	assert(sdl_window != NULL, "failed to create screen");
-	SDL_SetWindowResizable(sdl_window, SDL_bool(true));
+	assert(window != NULL, "failed to create screen");
+	SDL_SetWindowResizable(window, SDL_bool(true));
 
 	// create renderer
-	sdl_renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_PRESENTVSYNC);
-	assert(sdl_renderer != NULL, "failed to create renderer");
-	SDL_RenderSetLogicalSize(sdl_renderer, SCREEN_WIDTH, SCREEN_HEIGHT);
-	// resizeRender();
+	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
+	assert(renderer != NULL, "failed to create renderer");
+	resizeRenderArea();
 
 	// create texture
-	SDL_Texture* sdl_texture = SDL_CreateTexture(sdl_renderer,
+	SDL_Texture* nes_texture = SDL_CreateTexture(renderer,
 		(sizeof(Pixel) == 32) ? SDL_PIXELFORMAT_RGBA32 : SDL_PIXELFORMAT_RGB24,
 		SDL_TEXTUREACCESS_STREAMING,
 		SCREEN_WIDTH, SCREEN_HEIGHT);
-	assert(sdl_texture != NULL, "failed to create texture");
+	assert(nes_texture != NULL, "failed to create texture");
 
 	// initialize NES
 	controller_ports[0] = &joypad[0];
@@ -388,8 +385,15 @@ int main(int argc, char* argv[]) {
 		power();
 	}
 
+	const SDL_Rect gui_button_rect = { 0, 0, 64, GUI_BAR_HEIGHT };
 
-	Gui::TextElement te({ 0, 0, 256, 240 }, "Hello, World!");
+	Gui::Button fullscreen_button = Gui::Button(gui_button_rect, "Fullscreen", toggleFullscreen);
+	Gui::Button pause_button = Gui::Button(gui_button_rect, "Pause", togglePaused);
+	Gui::Button mute_button = Gui::Button(gui_button_rect, "Mute", toggleMute);
+
+	top_gui.addElement(&fullscreen_button);
+	top_gui.addElement(&pause_button);
+	top_gui.addElement(&mute_button);
 
 	int last_time = SDL_GetTicks();
 
@@ -406,15 +410,19 @@ int main(int argc, char* argv[]) {
 			total_real_fps += 1000.0/elapsed;
 		}
 
-		SDL_UpdateTexture(sdl_texture, NULL, screen, SCREEN_WIDTH * sizeof (Pixel));
-		SDL_RenderClear(sdl_renderer);
+		// clear the screen
+		SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // black
+		SDL_RenderClear(renderer);
 
-		// render
-		SDL_RenderCopy(sdl_renderer, sdl_texture, NULL, NULL);
-		te.render();
+		// render nes & gui
+		SDL_UpdateTexture(nes_texture, NULL, screen, SCREEN_WIDTH * sizeof (Pixel));
+		SDL_RenderCopy(renderer, nes_texture, NULL, &render_area);
+		if (!fullscreen || paused) {
+			top_gui.render();
+		}
 
 		// preset screen
-		SDL_RenderPresent(sdl_renderer);
+		SDL_RenderPresent(renderer);
 
 		int now = SDL_GetTicks();
 		if (!paused) {

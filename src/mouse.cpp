@@ -52,12 +52,12 @@ void setPos(int x, int y) {
 }
 
 void pressButton(Button button) {
-	assert(buttons[button] == STATE_UP, "button cannot be pressed");
+	// assert(buttons[button] == STATE_UP, "button cannot be pressed");
 	buttons[button] = STATE_PRESSED;
 }
 
 void releaseButton(Button button) {
-	assert(buttons[button] == STATE_HELD, "button cannot be released");
+	// assert(buttons[button] == STATE_HELD, "button cannot be released");
 	buttons[button] = STATE_RELEASED;
 }
 

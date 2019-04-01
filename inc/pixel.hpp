@@ -1,6 +1,7 @@
 #ifndef PIXEL_HPP
 #define PIXEL_HPP
 
+#include "common.hpp"
 #include "assert.hpp"
 
 struct Pixel {
