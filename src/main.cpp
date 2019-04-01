@@ -263,7 +263,7 @@ int main(int argc, char* argv[]) {
 	SDL_SetWindowResizable(sdl_window, SDL_bool(true));
 
 	// create renderer
-	sdl_renderer = SDL_CreateRenderer(sdl_window, -1, 0 /*SDL_RENDERER_PRESENTVSYNC*/);
+	sdl_renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_PRESENTVSYNC);
 	assert(sdl_renderer != NULL, "failed to create renderer");
 	resizeRender();
 
@@ -299,34 +299,15 @@ int main(int argc, char* argv[]) {
 		pollEvents();
 
 		if (!paused) {
-			int frame_start = SDL_GetTicks();
-
 			CPU::runFrame();
 			zapper.update();
 			total_frames++;
-
-			int elapsed = SDL_GetTicks() - frame_start;
-			if (elapsed > TIME_PER_FRAME) {
-				dout("emulator time: " << elapsed << "ms");
-			}
 		}
 
 		SDL_UpdateTexture(sdl_texture, NULL, screen, SCREEN_WIDTH * sizeof (Pixel));
 		SDL_RenderClear(sdl_renderer);
 		SDL_RenderCopy(sdl_renderer, sdl_texture, NULL, NULL);
 		SDL_RenderPresent(sdl_renderer);
-
-		int now = SDL_GetTicks();
-		int elapsed = (now - frame_start);
-		double wait_time = TIME_PER_FRAME - elapsed - lag;
-		if (wait_time >= 0) {
-			lag = 0;
-			SDL_Delay(wait_time);
-		} else {
-			lag = -wait_time;
-			std::cout << "lag: " << lag << '\n';
-		}
-		frame_start = now;
 	}
 
 	return 0;

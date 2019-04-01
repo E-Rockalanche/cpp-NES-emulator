@@ -12,11 +12,12 @@ Blip_Buffer buffer;
 
 const int OUT_SIZE = 4096;
 blip_sample_t outBuf[OUT_SIZE];
-
+const int SAMPLE_RATE = 48000;
+const int CLOCK_RATE = 1789773;
 
 void init() {
-    buffer.sample_rate(96000);
-    buffer.clock_rate(1789773);
+    buffer.sample_rate(SAMPLE_RATE);
+    buffer.clock_rate(CLOCK_RATE);
 
     apu.output(&buffer);
     apu.dmc_reader(CPU::readDMC);
