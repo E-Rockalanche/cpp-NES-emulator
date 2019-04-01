@@ -23,6 +23,7 @@ configurable through config.json
 4. MMC3
 
 ## Credits and Thanks
-* Nesdev (great documentation): https://wiki.nesdev.com/w/index.php/Nesdev
 * Blargg's NES APU library (too scary for me to write): http://blargg.8bitalley.com/libs/audio.html#Nes_Snd_Emu
+* JSON for Modern C++: https://github.com/nlohmann/json 
+* Nesdev (great documentation): https://wiki.nesdev.com/w/index.php/Nesdev
 * LaiNES (helped me when I got stuck): https://github.com/AndreaOrru/LaiNES
