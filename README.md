@@ -1,12 +1,13 @@
 # C++ NES Emulator (name pending)
 
-A catch-up style cycle acurate NES emulator written in c++
+A cycle acurate NES emulator written in c++
 
 ## Controls
+configurable through config.json
 
 ### Port 1
-* A: V
-* B: C
+* A: X
+* B: Z
 * Start: enter
 * Select: spacebar
 * Directional buttons: arrow keys
@@ -22,6 +23,7 @@ A catch-up style cycle acurate NES emulator written in c++
 4. MMC3
 
 ## Credits and Thanks
-* Nesdev (great documentation): https://wiki.nesdev.com/w/index.php/Nesdev
 * Blargg's NES APU library (too scary for me to write): http://blargg.8bitalley.com/libs/audio.html#Nes_Snd_Emu
+* JSON for Modern C++: https://github.com/nlohmann/json 
+* Nesdev (great documentation): https://wiki.nesdev.com/w/index.php/Nesdev
 * LaiNES (helped me when I got stuck): https://github.com/AndreaOrru/LaiNES

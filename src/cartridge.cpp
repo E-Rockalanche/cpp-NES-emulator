@@ -144,8 +144,8 @@ bool Cartridge::saveGame(std::string filename) {
 	}
 
 	ofstream fout(filename, ios::binary);
-	if (!(fout.is_open() && fout.good())) {
-		dout("Could not open " << filename);
+	if (!fout.is_open()) {
+		dout("Could not save to " << filename);
 		return false;
 	}
 
@@ -163,8 +163,8 @@ bool Cartridge::loadSave(std::string filename) {
 	}
 
 	ifstream fin(filename, ios::binary);
-	if (!(fin.is_open() && fin.good())) {
-		dout("Could not open " << filename);
+	if (!fin.is_open()) {
+		dout("Could not load save from " << filename);
 		return false;
 	}
 

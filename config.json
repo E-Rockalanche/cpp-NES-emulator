@@ -41,9 +41,14 @@
             "up": "UP"
         }
     ],
+    "folders": {
+        "rom folder": "./roms/",
+        "save folder": "./",
+        "screenshot folder": "./screenshots/"
+    },
     "general": {
         "fullscreen": false,
         "scale": 2.0,
-        "sprite_flickering": true
+        "sprite flickering": true
     }
 }

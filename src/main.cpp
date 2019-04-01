@@ -1,4 +1,3 @@
-// standard library
 #include <iostream>
 #include <iomanip>
 #include <string>
@@ -6,7 +5,8 @@
 #include <cstdlib>
 #include <fstream>
 
-// nes
+#include "SDL2/SDL.h"
+
 #include "common.hpp"
 #include "main.hpp"
 #include "debugging.hpp"
@@ -16,45 +16,47 @@
 #include "cartridge.hpp"
 #include "joypad.hpp"
 #include "zapper.hpp"
-#include "file_path.hpp"
 #include "program_end.hpp"
 #include "screen.hpp"
+#include "config.hpp"
+#include "gui.hpp"
 #include "keyboard.hpp"
 #include "globals.hpp"
-
-// config
-#include "config.hpp"
-
-// graphics
-#include "SDL2/SDL.h"
-
+#include "api.hpp"
 #include "assert.hpp"
+
+// GUI
+Gui::HBox top_gui({ 0, 0, window_width, GUI_BAR_HEIGHT });
+Gui::Element* active_menu = &top_gui;
+
 // SDL
-SDL_Window* sdl_window = NULL;
-SDL_Renderer* sdl_renderer = NULL;
+SDL_Window* window = NULL;
+SDL_Renderer* renderer = NULL;
 
 // NES
 Joypad joypad[4];
 Zapper zapper;
-bool paused = true;
+bool paused = false;
+bool step_frame = false;
+bool in_menu = false;
 bool muted = false;
 
 const int SCREEN_BPP = 24; // bits per pixel
 Pixel screen[SCREEN_WIDTH * SCREEN_HEIGHT];
 
 // paths
-std::string file_name = "";
-std::string save_path = "./";
-std::string rom_path = "./";
-std::string screenshot_path = "./";
+std::string rom_filename;
+std::string save_filename;
+std::string save_folder;
+std::string rom_folder;
+std::string screenshot_folder;
 
 // window size
-int window_width = SCREEN_WIDTH;
-int window_height = SCREEN_HEIGHT;
-bool fullscreen = false;
-float render_scale = 1;
-int render_width = SCREEN_WIDTH;
-int render_height = SCREEN_HEIGHT;
+int window_width;
+int window_height;
+bool fullscreen;
+float render_scale;
+SDL_Rect render_area = { 0, GUI_BAR_HEIGHT, 256, 240 };
 
 // frame timing
 const unsigned int TARGET_FPS = 60;
@@ -72,48 +74,35 @@ float total_real_fps = 0;
 #define ave_fps (total_fps / total_frames)
 #define ave_real_fps (total_real_fps / total_frames)
 
-// hotkeys
-void quit() { exit(0); }
-
-void toggleFullscreen() {
-	fullscreen = !fullscreen;
-	SDL_SetWindowFullscreen(sdl_window, fullscreen);
-}
-
-void togglePaused() {
-	paused = !paused || (cartridge == NULL);
-}
-
-void toggleMute() {
-	muted = !muted;
-	APU::mute(muted);
-}
-
-typedef void(*Callback)(void);
-struct Hotkey {
-	enum Type {
-		QUIT,
-		FULLSCREEN,
-		PAUSE,
-		MUTE,
-
-		NUM_HOTKEYS
-	};
-	SDL_Keycode key;
-	Callback callback;
-};
-Hotkey hotkeys[Hotkey::NUM_HOTKEYS] = {
-	{ SDLK_ESCAPE, quit },
-	{ SDLK_F11, toggleFullscreen},
-	{ SDLK_p, togglePaused},
-	{ SDLK_m, toggleMute}
-};
-
-void pressHotkey(SDL_Keycode key) {
-	for(int i = 0; i < Hotkey::NUM_HOTKEYS; i++) {
-		if (key == hotkeys[i].key) {
-			(*hotkeys[i].callback)();
+std::string stripFilename(std::string path) {
+	bool found_ext = false;
+	int start = path.size() - 1;
+	int end = path.size();
+	while(start > 0 && path[start-1] != '/' && path[start-1] != '\\') {
+		if (!found_ext && path[start] == '.') {
+			end = start;
+			found_ext = true;
 		}
+		start--;
+	}
+	return std::string(path, start, end - start);
+}
+
+void reset() {
+	if (cartridge != NULL) {
+		clearScreen();
+		CPU::reset();
+		PPU::reset();
+		APU::reset();
+	}
+}
+
+void power() {
+	if (cartridge != NULL) {
+		clearScreen();
+		CPU::power();
+		PPU::power();
+		APU::reset();
 	}
 }
 
@@ -124,9 +113,10 @@ bool loadFile(std::string filename) {
 		dout("could not load " << filename);
 		return false;
 	} else {
+		rom_filename = stripFilename(filename);
+		save_filename = save_folder + rom_filename + ".sav";
 		if (cartridge->hasSRAM()) {
-			file_name = getFilename(filename);
-			cartridge->loadSave(save_path + file_name + ".sav");
+			cartridge->loadSave(save_filename);
 		}
 		return true;
 	}
@@ -140,35 +130,138 @@ bool loadSave(std::string filename) {
 	}
 }
 
-// guaranteed close program callback
 void saveGame() {
-	std::cout << "Goodbye!\n";
-
 	if (cartridge && cartridge->hasSRAM()) {
-		cartridge->saveGame(save_path + file_name + ".sav");
-	}
-}
-ProgramEnd pe(saveGame);
-
-void reset() {
-	if (cartridge != NULL) {
-		CPU::reset();
-		PPU::reset();
-		paused = false;
-	} else {
-		paused = true;
+		cartridge->saveGame(save_filename);
 	}
 }
 
-void power() {
-	if (cartridge != NULL) {
-		CPU::power();
-		PPU::power();
-		paused = false;
-	} else {
-		paused = true;
+// resize window and render area
+void resizeRenderArea(bool round_scale = false) {
+	SDL_GetWindowSize(window, &window_width, &window_height);
+	top_gui.setSize(window_width, GUI_BAR_HEIGHT);
+
+	// set viewport to fill window
+	SDL_RenderSetViewport(renderer, NULL);
+
+	int gui_height = fullscreen ? 0 : GUI_BAR_HEIGHT;
+
+	int allowed_height = window_height - gui_height;
+	float x_scale = (float)allowed_height / SCREEN_HEIGHT;
+	float y_scale = (float)window_width / SCREEN_WIDTH;
+	render_scale = MIN(x_scale, y_scale);
+
+	if (round_scale) {
+		// round down
+		render_scale = (int)render_scale;
+	}
+
+	render_area.w = SCREEN_WIDTH * render_scale;
+	render_area.h = SCREEN_HEIGHT * render_scale;
+	render_area.x = (window_width - render_area.w) / 2;
+	render_area.y = gui_height + (allowed_height - render_area.h) / 2;
+}
+
+void resizeWindow(int width, int height) {
+	SDL_SetWindowSize(window, width, height + GUI_BAR_HEIGHT);
+	resizeRenderArea();
+}
+
+// hotkeys and button callbacks
+void quit() { exit(0); }
+
+void setFullscreen(bool on = true) {
+	fullscreen = on;
+	int flags = fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0;
+	SDL_SetWindowFullscreen(window, flags);
+}
+void toggleFullscreen() {
+	setFullscreen(!fullscreen);
+}
+
+void setResolutionScale(float scale) {
+	resizeWindow(SCREEN_WIDTH * scale, SCREEN_HEIGHT * scale);
+}
+void setResolutionScale1() {
+	setResolutionScale(1);
+}
+void setResolutionScale2() {
+	setResolutionScale(2);
+}
+void setResolutionScale3() {
+	setResolutionScale(3);
+}
+
+void setPaused(bool pause = true) {
+	paused = pause;
+}
+void togglePaused() {
+	setPaused(!paused);
+}
+
+void stepFrame() {
+	step_frame = true;
+}
+
+void setMute(bool mute = true) {
+	muted = mute;
+	APU::mute(muted);
+}
+void toggleMute() {
+	setMute(!muted);
+}
+
+void selectRom() {
+	std::string filename = API::getFilename("Select a ROM", "NES ROM\0*.nes\0Any file\0*.*\0");
+	if ((filename.size() > 0) && loadFile(filename)) {
+		power();
 	}
 }
+
+void closeFile() {
+	saveGame();
+	delete cartridge;
+	cartridge = NULL;
+	rom_filename = "";
+	save_filename = "";
+	clearScreen();
+}
+
+typedef void(*Callback)(void);
+struct Hotkey {
+	enum Type {
+		QUIT,
+		FULLSCREEN,
+		MUTE,
+		PAUSE,
+		STEP_FRAME,
+
+		NUM_HOTKEYS
+	};
+	SDL_Keycode key;
+	Callback callback;
+};
+Hotkey hotkeys[Hotkey::NUM_HOTKEYS] = {
+	{ SDLK_ESCAPE, quit },
+	{ SDLK_F11, toggleFullscreen},
+	{ SDLK_m, toggleMute},
+	{ SDLK_p, togglePaused},
+	{ SDLK_s, stepFrame}
+};
+
+void pressHotkey(SDL_Keycode key) {
+	for(int i = 0; i < Hotkey::NUM_HOTKEYS; i++) {
+		if (key == hotkeys[i].key) {
+			(*hotkeys[i].callback)();
+		}
+	}
+}
+
+// guaranteed close program callback
+ProgramEnd pe([](void){
+	saveGame();
+	std::cout << "Goodbye!\n";
+});
 
 void step() {
 	if (CPU::halted()) {
@@ -182,19 +275,6 @@ int readAddress() {
 	std::string raw;
 	std::cin >> raw;
 	return std::stoi(raw, NULL, 16);
-}
-
-void resizeRender() {
-	dout("resize render");
-	SDL_GetWindowSize(sdl_window, &window_width, &window_height);
-	dout("resized to " << window_width << "x" << window_height);
-}
-
-void resizeWindow(int width, int height) {
-	dout("resize window");
-
-	SDL_SetWindowSize(sdl_window, width, height);
-	resizeRender();
 }
 
 void keyboardEvent(const SDL_Event& event) {
@@ -217,7 +297,7 @@ void windowEvent(const SDL_Event& event) {
 		case SDL_WINDOWEVENT_SIZE_CHANGED:
 		case SDL_WINDOWEVENT_MAXIMIZED:
 		case SDL_WINDOWEVENT_RESTORED:
-			resizeRender();
+			resizeRenderArea();
 			break;
 
 		case SDL_WINDOWEVENT_CLOSE:
@@ -227,17 +307,28 @@ void windowEvent(const SDL_Event& event) {
 }
 
 void mouseMotionEvent(const SDL_Event& event) {
-	int tv_x = event.motion.x / render_scale;
-	int tv_y = event.motion.y / render_scale;
+	active_menu->mouseMotion(event.motion.x, event.motion.y);
 
+	int tv_x = (event.motion.x - render_area.x) / render_scale;
+	int tv_y = (event.motion.y - render_area.y) / render_scale;
 	zapper.aim(tv_x, tv_y);
 }
 
 void mouseButtonEvent(const SDL_Event& event) {
 	if (event.button.state == SDL_PRESSED) {
 		if (event.button.button == SDL_BUTTON_LEFT) {
-			zapper.pull();
+			bool clicked_menu = false;
+			if (active_menu) {
+				clicked_menu = active_menu->click(event.button.x, event.button.y);
+			}
+			if (!clicked_menu) {
+				int gui_height = fullscreen ? 0 : GUI_BAR_HEIGHT;
+				if (event.button.y > gui_height) {
+					zapper.pull();
+				}
+			}
 		}
+	} else if (event.button.state == SDL_RELEASED) {
 	}
 }
 
@@ -278,31 +369,31 @@ int main(int argc, char* argv[]) {
 	srand(time(NULL));
 
 	assert(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) == 0, "failed to initialize SDL");
+	Gui::init();
 
 	loadConfig();
 
 	// create window
 	int window_flags = SDL_WINDOW_OPENGL | (fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
-	sdl_window = SDL_CreateWindow("NES emulator",
+	window = SDL_CreateWindow("NES emulator",
 		SDL_WINDOWPOS_UNDEFINED,
 		SDL_WINDOWPOS_UNDEFINED,
-		window_width, window_height,
+		window_width, window_height + GUI_BAR_HEIGHT,
 		window_flags);
-	assert(sdl_window != NULL, "failed to create screen");
-	SDL_SetWindowResizable(sdl_window, SDL_bool(true));
+	assert(window != NULL, "failed to create screen");
+	SDL_SetWindowResizable(window, SDL_bool(true));
 
 	// create renderer
-	sdl_renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_PRESENTVSYNC);
-	assert(sdl_renderer != NULL, "failed to create renderer");
-	SDL_RenderSetLogicalSize(sdl_renderer, SCREEN_WIDTH, SCREEN_HEIGHT);
-	// resizeRender();
+	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
+	assert(renderer != NULL, "failed to create renderer");
+	resizeRenderArea();
 
 	// create texture
-	SDL_Texture* sdl_texture = SDL_CreateTexture(sdl_renderer,
+	SDL_Texture* nes_texture = SDL_CreateTexture(renderer,
 		(sizeof(Pixel) == 32) ? SDL_PIXELFORMAT_RGBA32 : SDL_PIXELFORMAT_RGB24,
 		SDL_TEXTUREACCESS_STREAMING,
 		SCREEN_WIDTH, SCREEN_HEIGHT);
-	assert(sdl_texture != NULL, "failed to create texture");
+	assert(nes_texture != NULL, "failed to create texture");
 
 	// initialize NES
 	controller_ports[0] = &joypad[0];
@@ -310,34 +401,77 @@ int main(int argc, char* argv[]) {
 	CPU::init();
 	APU::init();
 
+	// load ROM from command line
+	if (argc > 1) {
+		if (loadFile(argv[1])) {
+			power();
+		}
+	}
+
 	// A, B, select, start, up, down, left, right
 	joypad[0].mapButtons((const int[8]){ SDLK_x, SDLK_z, SDLK_RSHIFT, SDLK_RETURN,
 		SDLK_UP, SDLK_DOWN, SDLK_LEFT, SDLK_RIGHT });
 
-	// load ROM from command line
-	if ((argc > 1) && loadFile(argv[1])) {
-		power();
-	}
+	// build gui bar
+	const SDL_Rect gui_button_rect = { 0, 0, 128, GUI_BAR_HEIGHT };
+	Gui::DropDown file_dropdown(gui_button_rect, "File");
+	Gui::DropDown view_dropdown(gui_button_rect, "View");
+	Gui::DropDown options_dropdown(gui_button_rect, "Options");
+	top_gui.addElement(file_dropdown);
+	top_gui.addElement(view_dropdown);
+	top_gui.addElement(options_dropdown);
 
-	int last_time = SDL_GetTicks();
+	Gui::Button load_rom_button(gui_button_rect, "Load", selectRom);
+	Gui::Button close_rom_button(gui_button_rect, "Close", closeFile);
+	file_dropdown.addElement(load_rom_button);
+	file_dropdown.addElement(close_rom_button);
+
+	Gui::RadioButton fullscreen_button(gui_button_rect, "Fullscreen", &fullscreen, setFullscreen);
+	Gui::Button scale1_button(gui_button_rect, "scale: 1", setResolutionScale1);
+	Gui::Button scale2_button(gui_button_rect, "scale: 2", setResolutionScale2);
+	Gui::Button scale3_button(gui_button_rect, "scale: 3", setResolutionScale3);
+	view_dropdown.addElement(fullscreen_button);
+	view_dropdown.addElement(scale1_button);
+	view_dropdown.addElement(scale2_button);
+	view_dropdown.addElement(scale3_button);
+
+	Gui::SubDropDown nes_options(gui_button_rect, "NES >");
+	Gui::RadioButton flicker_button(gui_button_rect, "Sprite Flickering", &PPU::sprite_flickering);
+	nes_options.addElement(flicker_button);
+
+	Gui::RadioButton pause_button(gui_button_rect, "Pause", &paused);
+	Gui::RadioButton mute_button(gui_button_rect, "Mute", &muted);
+	options_dropdown.addElement(pause_button);
+	options_dropdown.addElement(mute_button);
+	options_dropdown.addElement(nes_options);
 
 	// run emulator
+	int last_time = SDL_GetTicks();
 	while(true) {
 		pollEvents();
 
-		if (!paused) {
-
+		if ((!paused || step_frame) && (cartridge != NULL) && !CPU::halted()) {
 			CPU::runFrame();
 			zapper.update();
 			total_frames++;
 			double elapsed = SDL_GetTicks() - last_time;
 			total_real_fps += 1000.0/elapsed;
 		}
+		step_frame = false;
 
-		SDL_UpdateTexture(sdl_texture, NULL, screen, SCREEN_WIDTH * sizeof (Pixel));
-		SDL_RenderClear(sdl_renderer);
-		SDL_RenderCopy(sdl_renderer, sdl_texture, NULL, NULL);
-		SDL_RenderPresent(sdl_renderer);
+		// clear the screen
+		SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // black
+		SDL_RenderClear(renderer);
+
+		// render nes & gui
+		SDL_UpdateTexture(nes_texture, NULL, screen, SCREEN_WIDTH * sizeof (Pixel));
+		SDL_RenderCopy(renderer, nes_texture, NULL, &render_area);
+		if (!fullscreen || paused) {
+			top_gui.render();
+		}
+
+		// preset screen
+		SDL_RenderPresent(renderer);
 
 		int now = SDL_GetTicks();
 		if (!paused) {

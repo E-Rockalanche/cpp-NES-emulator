@@ -3,11 +3,15 @@
 
 #include <fstream>
 #include <iomanip>
-#include "joypad.hpp"
-#include "globals.hpp"
+
 #include "json.hpp"
-#include "assert.hpp"
 using nlohmann::json;
+
+#include "globals.hpp"
+#include "joypad.hpp"
+#include "keyboard.hpp"
+#include "api.hpp"
+#include "assert.hpp"
 
 json config;
 
@@ -18,7 +22,12 @@ const char* DEFAULT_CONFIG = R"(
 		"general": {
 			"fullscreen": false,
 			"scale": 2.0,
-			"sprite_flickering": true
+			"sprite flickering": true
+		},
+		"folders": {
+			"rom folder": "./roms/",
+			"save folder": "./saves/",
+			"screenshot folder": "./screenshots/"
 		},
 		"controls": [
 			{
@@ -69,8 +78,6 @@ void saveConfig(const json& config) {
 }
 
 void loadConfig() {
-	dout("load config");
-
 	config = json::parse(DEFAULT_CONFIG);
 
 	std::ifstream fin(CONFIG_FILE);
@@ -85,13 +92,20 @@ void loadConfig() {
 	}
 
 	try {
-		// general
 		const json& general = config["general"];
-		PPU::sprite_flickering = general["sprite_flickering"].get<bool>();
+		PPU::sprite_flickering = general["sprite flickering"].get<bool>();
 		fullscreen = general["fullscreen"].get<bool>();
 		render_scale = general["scale"].get<float>();
 		window_width = render_scale * SCREEN_WIDTH;
 		window_height = render_scale * SCREEN_HEIGHT;
+
+		const json& folders = config["folders"];
+		rom_folder = folders["rom folder"].get<std::string>();
+		save_folder = folders["save folder"].get<std::string>();
+		screenshot_folder = folders["screenshot folder"].get<std::string>();
+		API::createDirectory(rom_folder);
+		API::createDirectory(save_folder);
+		API::createDirectory(screenshot_folder);
 
 		// joypads
 		for(int j = 0; j < 4; j++) {
@@ -103,9 +117,6 @@ void loadConfig() {
 				joypad[j].mapButton((Joypad::Button)b, keycode);
 			}
 		}
-
-		// hotkeys
-		// TODO
 	} catch( ... ) {
 		dout("A config variable was invalid");
 	}

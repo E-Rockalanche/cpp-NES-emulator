@@ -5,8 +5,10 @@
 *.o
 *.exe
 
-# illegal stuff
+#generated folders
 roms/
+saves/
+screenshots/
 
 # test roms
 tests/
