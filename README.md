@@ -1,12 +1,13 @@
 # C++ NES Emulator (name pending)
 
-A catch-up style cycle acurate NES emulator written in c++
+A cycle acurate NES emulator written in c++
 
 ## Controls
+configurable through config.json
 
 ### Port 1
-* A: V
-* B: C
+* A: X
+* B: Z
 * Start: enter
 * Select: spacebar
 * Directional buttons: arrow keys
