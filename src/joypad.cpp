@@ -44,28 +44,34 @@ void Joypad::reset() {
 	}
 }
 
+void Joypad::setButtonState(Joypad::Button button, bool pressed) {
+	buttons[button] = pressed;
+}
+
 void Joypad::pressButton(Joypad::Button button) {
-	buttons[button] = true;
+	setButtonState(button, true);
 }
 
 void Joypad::releaseButton(Joypad::Button button) {
-	buttons[button] = false;
+	setButtonState(button, false);
 }
 
-void Joypad::pressKey(int key) {
+Joypad::Button Joypad::setKeyState(int key, bool pressed) {
 	for(int n = 0; n < NUM_BUTTONS; n++) {
 		if (keymap[n] == key) {
-			buttons[n] = true;
+			buttons[n] = pressed;
+			return static_cast<Button>(n);
 		}
 	}
+	return NONE;
 }
 
-void Joypad::releaseKey(int key) {
-	for(int n = 0; n < NUM_BUTTONS; n++) {
-		if (keymap[n] == key) {
-			buttons[n] = false;
-		}
-	}
+Joypad::Button Joypad::pressKey(int key) {
+	return setKeyState(key, true);
+}
+
+Joypad::Button Joypad::releaseKey(int key) {
+	return setKeyState(key, false);
 }
 
 void Joypad::mapButtons(const int keys[Joypad::NUM_BUTTONS]) {

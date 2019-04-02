@@ -1,30 +1,35 @@
-#include "movie.hpp"
 #include <fstream>
+#include <iostream>
+#include <vector>
+#include <string>
+#include "movie.hpp"
+#include "assert.hpp"
 
 namespace Movie {
 	struct ButtonPress {
 		int frame;
 		int joypad;
 		Joypad::Button button;
-	}
+		bool pressed;
+	};
 
-	State state;
+	State state = NONE;
 	std::vector<ButtonPress> button_presses;
-	int index;
+	int index = 0;
 
 	bool save(std::string filename) {
-		std::fstream fout(filename.c_st(), ios::binary);
+		std::fstream fout(filename.c_str(), std::ios::binary);
 		if (!fout.is_open()) {
 			dout("cannot save movie");
 			return false;
 		}
 
 		int size = button_presses.size();
-		fout.write(&size, sizeof(size));
+		fout.write((char*)&size, sizeof(size));
 
-		for(int i = 0; i < recording_size; i++) {
+		for(int i = 0; i < size; i++) {
 			ButtonPress press = button_presses[i];
-			fout.write(&press, sizeof(press));
+			fout.write((char*)&press, sizeof(press));
 		}
 
 		fout.close();
@@ -32,7 +37,7 @@ namespace Movie {
 	}
 
 	bool load(std::string filename) {
-		std::fstream fin(filename.c_str(), ios::binary);
+		std::fstream fin(filename.c_str(), std::ios::binary);
 		if (!fin.is_open()) {
 			dout("cannot open movie");
 			return false;
@@ -41,11 +46,11 @@ namespace Movie {
 		button_presses.clear();
 
 		int size;
-		fin.read(&size, sizeof(size));
+		fin.read((char*)&size, sizeof(size));
 
 		for(int i = 0; i < size; i++) {
 			ButtonPress press;
-			fin.rad(&press, sizeof(press));
+			fin.read((char*)&press, sizeof(press));
 			button_presses.push_back(press);
 		}
 
@@ -59,29 +64,45 @@ namespace Movie {
 
 	void startRecording() {
 		assert(state == NONE, "cannot start recording movie");
+		dout("recording movie");
+
 		button_presses.clear();
 		state = RECORDING;
 	}
 
 	void stopRecording() {
 		assert(state == RECORDING, "not recording movie");
+		dout("stopping recording");
+
 		state = NONE;
 	}
+
+	bool isRecording() {
+		return state == RECORDING;
+	}
 	
-	void recordButtonPress(int frame, int joypad, Joypad::Button button) {
+	void recordButtonState(int frame, int joypad, Joypad::Button button, bool pressed) {
 		assert(state == RECORDING, "cannot record button presses while not recording");
-		button_presses.push_back({ frame, port, button });
+		button_presses.push_back({ frame, joypad, button, pressed });
 	}
 
-	void startMovie() {
+	void startPlayback() {
 		assert(state == NONE, "cannot start playing movie");
+		dout("playing movie");
+
 		index = 0;
 		state = PLAYING;
 	}
 
-	void stopMovie() {
+	void stopPlayback() {
 		assert(state == PLAYING, "not playing movie");
+		dout("stopping movie");
+
 		state = NONE;
+	}
+
+	bool isPlaying() {
+		return state == PLAYING;
 	}
 
 	void updateInput(int frame) {
@@ -90,11 +111,16 @@ namespace Movie {
 			if (press.frame < frame) {
 				index++;
 			} else if (press.frame == frame) {
-				joypad[press.joypad].pressButton(press.button);
+				joypad[press.joypad].setButtonState(press.button, press.pressed);
 				index++;
 			} else {
 				break;
 			}
+		}
+		
+		if (index >= (int)button_presses.size()) {
+			// stop playback
+			state = NONE;
 		}
 	}
 }

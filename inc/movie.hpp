@@ -19,11 +19,13 @@ namespace Movie {
 
 	void startRecording();
 	void stopRecording();
-	void recordButtonPress(int frame, int joypad, Joypad::Button button);
+	bool isRecording();
+	void recordButtonState(int frame, int joypad, Joypad::Button button, bool pressed);
 
-	void startMovie();
-	void stopMovie();
+	void startPlayback();
+	void stopPlayback();
+	bool isPlaying();
 	void updateInput(int frame);
-}
+};
 
 #endif

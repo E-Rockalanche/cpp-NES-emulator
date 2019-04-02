@@ -22,10 +22,15 @@ public:
 
 	Joypad();
 	~Joypad() {}
-	void pressKey(int key);
-	void releaseKey(int key);
+	
+	Button setKeyState(int key, bool pressed);
+	Button pressKey(int key);
+	Button releaseKey(int key);
+
+	void setButtonState(Button button, bool pressed);
 	void pressButton(Button button);
 	void releaseButton(Button button);
+
 	Byte read();
 	void write(Byte value);
 	void reset();

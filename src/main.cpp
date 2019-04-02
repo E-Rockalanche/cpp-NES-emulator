@@ -23,6 +23,7 @@
 #include "keyboard.hpp"
 #include "globals.hpp"
 #include "api.hpp"
+#include "movie.hpp"
 #include "assert.hpp"
 
 // GUI
@@ -65,13 +66,21 @@ int last_render_time = 0;
 double last_wait_time = 0;
 
 // frame rate
-int total_frames = 0;
+int frame_number = 0;
 float fps = 0;
 float total_fps = 0;
 float real_fps = 0;
 float total_real_fps = 0;
-#define ave_fps (total_fps / total_frames)
-#define ave_real_fps (total_real_fps / total_frames)
+#define ave_fps (total_fps / frame_number)
+#define ave_real_fps (total_real_fps / frame_number)
+
+void resetFrameNumber() {
+	frame_number = 0;
+	total_fps = 0;
+	total_real_fps = 0;
+	fps = 0;
+	real_fps = 0;
+}
 
 std::string stripFilename(std::string path) {
 	bool found_ext = false;
@@ -93,6 +102,7 @@ void reset() {
 		CPU::reset();
 		PPU::reset();
 		APU::reset();
+		resetFrameNumber();
 	}
 }
 
@@ -102,6 +112,7 @@ void power() {
 		CPU::power();
 		PPU::power();
 		APU::reset();
+		resetFrameNumber();
 	}
 }
 
@@ -226,6 +237,22 @@ void closeFile() {
 	clearScreen();
 }
 
+void toggleRecording() {
+	switch(Movie::getState()) {
+		case Movie::NONE: Movie::startRecording(); break;
+		case Movie::RECORDING: Movie::stopRecording(); break;
+		default: break;
+	}
+}
+
+void togglePlayback() {
+	switch(Movie::getState()) {
+		case Movie::NONE: Movie::startPlayback(); break;
+		case Movie::RECORDING: Movie::stopPlayback(); break;
+		default: break;
+	}
+}
+
 typedef void(*Callback)(void);
 struct Hotkey {
 	enum Type {
@@ -234,6 +261,8 @@ struct Hotkey {
 		MUTE,
 		PAUSE,
 		STEP_FRAME,
+		RECORD,
+		PLAYBACK,
 
 		NUM_HOTKEYS
 	};
@@ -245,7 +274,9 @@ Hotkey hotkeys[Hotkey::NUM_HOTKEYS] = {
 	{ SDLK_F11, toggleFullscreen},
 	{ SDLK_m, toggleMute},
 	{ SDLK_p, togglePaused},
-	{ SDLK_s, stepFrame}
+	{ SDLK_s, stepFrame},
+	{ SDLK_r, toggleRecording},
+	{ SDLK_a, togglePlayback}
 };
 
 void pressHotkey(SDL_Keycode key) {
@@ -278,16 +309,25 @@ int readAddress() {
 
 void keyboardEvent(const SDL_Event& event) {
 	SDL_Keycode key = event.key.keysym.sym;
-	if (event.key.state == SDL_PRESSED) {
+	bool pressed = event.key.state == SDL_PRESSED;
+	if (pressed) {
 		if (key == SDLK_f) {
 			dout("fps: " << ave_fps);
 			dout("real fps: " << ave_real_fps);
 		}
-
 		pressHotkey(key);
-		for(int i = 0; i < 4; i++) joypad[i].pressKey(key);
-	} else {
-		for(int i = 0; i < 4; i++) joypad[i].releaseKey(key);
+	}
+
+	if (!Movie::isPlaying()) {
+		// get joypad input
+		for(int i = 0; i < 4; i++) {
+			Joypad::Button button = joypad[i].setKeyState(key, pressed);
+
+			// record button press
+			if (Movie::isRecording() && (button != Joypad::NONE)) {
+				Movie::recordButtonState(frame_number, i, button, pressed);
+			}
+		}
 	}
 }
 
@@ -450,9 +490,12 @@ int main(int argc, char* argv[]) {
 		pollEvents();
 
 		if ((!paused || step_frame) && (cartridge != NULL) && !CPU::halted()) {
+			if (Movie::isPlaying()) {
+				Movie::updateInput(frame_number);
+			}
 			CPU::runFrame();
 			zapper.update();
-			total_frames++;
+			frame_number++;
 			double elapsed = SDL_GetTicks() - last_time;
 			total_real_fps += 1000.0/elapsed;
 		}

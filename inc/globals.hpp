@@ -43,7 +43,7 @@ extern int last_render_time;
 extern double last_wait_time;
 
 // frame rate
-extern int total_frames;
+extern int frame_number;
 extern float fps;
 extern float total_fps;
 extern float real_fps;
