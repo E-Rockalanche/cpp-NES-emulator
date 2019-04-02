@@ -42,8 +42,9 @@
         }
     ],
     "folders": {
+        "movie folder": "./movies/",
         "rom folder": "./roms/",
-        "save folder": "./",
+        "save folder": "./saves/",
         "screenshot folder": "./screenshots/"
     },
     "general": {

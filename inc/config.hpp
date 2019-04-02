@@ -27,7 +27,8 @@ const char* DEFAULT_CONFIG = R"(
 		"folders": {
 			"rom folder": "./roms/",
 			"save folder": "./saves/",
-			"screenshot folder": "./screenshots/"
+			"screenshot folder": "./screenshots/",
+			"movie folder": "./movies/"
 		},
 		"controls": [
 			{

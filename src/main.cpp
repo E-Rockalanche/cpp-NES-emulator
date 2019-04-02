@@ -4,6 +4,7 @@
 #include <ctime>
 #include <cstdlib>
 #include <fstream>
+#include <sstream>
 
 #include "SDL2/SDL.h"
 
@@ -26,8 +27,10 @@
 #include "movie.hpp"
 #include "assert.hpp"
 
+#define GUI_HEIGHT 24
+
 // GUI
-Gui::HBox top_gui({ 0, 0, window_width, GUI_BAR_HEIGHT });
+Gui::HBox top_gui({ 0, 0, window_width, GUI_HEIGHT });
 Gui::Element* active_menu = &top_gui;
 
 // SDL
@@ -56,7 +59,7 @@ int window_width;
 int window_height;
 bool fullscreen;
 float render_scale;
-SDL_Rect render_area = { 0, GUI_BAR_HEIGHT, 256, 240 };
+SDL_Rect render_area = { 0, GUI_HEIGHT, 256, 240 };
 
 // frame timing
 const unsigned int TARGET_FPS = 60;
@@ -73,6 +76,25 @@ float real_fps = 0;
 float total_real_fps = 0;
 #define ave_fps (total_fps / frame_number)
 #define ave_real_fps (total_real_fps / frame_number)
+
+#define FPS_COUNT 15
+float fps_count[FPS_COUNT];
+std::string fps_text = "fps: 0";
+
+void addFPS(float fps) {
+	for(int i = 0; i < FPS_COUNT-1; i++) {
+		fps_count[i] = fps_count[i+1];
+	}
+	fps_count[FPS_COUNT-1] = fps;
+}
+
+float currentFPS() {
+	float sum = 0;
+	for(int i = 0; i < FPS_COUNT; i++) {
+		sum += fps_count[i];
+	}
+	return sum / FPS_COUNT;
+}
 
 void resetFrameNumber() {
 	frame_number = 0;
@@ -149,12 +171,12 @@ void saveGame() {
 // resize window and render area
 void resizeRenderArea(bool round_scale = false) {
 	SDL_GetWindowSize(window, &window_width, &window_height);
-	top_gui.setSize(window_width, GUI_BAR_HEIGHT);
+	top_gui.setSize(window_width, GUI_HEIGHT);
 
 	// set viewport to fill window
 	SDL_RenderSetViewport(renderer, NULL);
 
-	int gui_height = fullscreen ? 0 : GUI_BAR_HEIGHT;
+	int gui_height = fullscreen ? 0 : GUI_HEIGHT;
 
 	int allowed_height = window_height - gui_height;
 	float x_scale = (float)allowed_height / SCREEN_HEIGHT;
@@ -173,7 +195,7 @@ void resizeRenderArea(bool round_scale = false) {
 }
 
 void resizeWindow(int width, int height) {
-	SDL_SetWindowSize(window, width, height + GUI_BAR_HEIGHT);
+	SDL_SetWindowSize(window, width, height + GUI_HEIGHT);
 	resizeRenderArea();
 }
 
@@ -190,6 +212,7 @@ void toggleFullscreen() {
 }
 
 void setResolutionScale(float scale) {
+	setFullscreen(false);
 	resizeWindow(SCREEN_WIDTH * scale, SCREEN_HEIGHT * scale);
 }
 void setResolutionScale1() {
@@ -361,7 +384,7 @@ void mouseButtonEvent(const SDL_Event& event) {
 				clicked_menu = active_menu->click(event.button.x, event.button.y);
 			}
 			if (!clicked_menu) {
-				int gui_height = fullscreen ? 0 : GUI_BAR_HEIGHT;
+				int gui_height = fullscreen ? 0 : GUI_HEIGHT;
 				if (event.button.y > gui_height) {
 					zapper.pull();
 				}
@@ -417,7 +440,7 @@ int main(int argc, char* argv[]) {
 	window = SDL_CreateWindow("NES emulator",
 		SDL_WINDOWPOS_UNDEFINED,
 		SDL_WINDOWPOS_UNDEFINED,
-		window_width, window_height + GUI_BAR_HEIGHT,
+		window_width, window_height + GUI_HEIGHT,
 		window_flags);
 	assert(window != NULL, "failed to create screen");
 	SDL_SetWindowResizable(window, SDL_bool(true));
@@ -452,19 +475,25 @@ int main(int argc, char* argv[]) {
 		SDLK_UP, SDLK_DOWN, SDLK_LEFT, SDLK_RIGHT });
 
 	// build gui bar
-	const SDL_Rect gui_button_rect = { 0, 0, 128, GUI_BAR_HEIGHT };
+	const SDL_Rect gui_button_rect = { 0, 0, 0, GUI_HEIGHT };
 	Gui::DropDown file_dropdown(gui_button_rect, "File");
 	Gui::DropDown view_dropdown(gui_button_rect, "View");
 	Gui::DropDown options_dropdown(gui_button_rect, "Options");
+	Gui::DropDown machine_dropdown(gui_button_rect, "Machine");
+	Gui::DynamicTextElement fps_display({ 0, 0, 64, GUI_HEIGHT }, &fps_text);
 	top_gui.addElement(file_dropdown);
 	top_gui.addElement(view_dropdown);
 	top_gui.addElement(options_dropdown);
+	top_gui.addElement(machine_dropdown);
+	top_gui.addElement(fps_display);
 
+	// file
 	Gui::Button load_rom_button(gui_button_rect, "Load", selectRom);
 	Gui::Button close_rom_button(gui_button_rect, "Close", closeFile);
 	file_dropdown.addElement(load_rom_button);
 	file_dropdown.addElement(close_rom_button);
 
+	// view
 	Gui::RadioButton fullscreen_button(gui_button_rect, "Fullscreen", &fullscreen, setFullscreen);
 	Gui::Button scale1_button(gui_button_rect, "scale: 1", setResolutionScale1);
 	Gui::Button scale2_button(gui_button_rect, "scale: 2", setResolutionScale2);
@@ -474,15 +503,21 @@ int main(int argc, char* argv[]) {
 	view_dropdown.addElement(scale2_button);
 	view_dropdown.addElement(scale3_button);
 
-	Gui::SubDropDown nes_options(gui_button_rect, "NES >");
+	// machine
+	Gui::Button power_button(gui_button_rect, "Power", &power);
+	Gui::Button reset_button(gui_button_rect, "Reset", &reset);
+	Gui::SubDropDown nes_options(gui_button_rect, "Options >");
 	Gui::RadioButton flicker_button(gui_button_rect, "Sprite Flickering", &PPU::sprite_flickering);
 	nes_options.addElement(flicker_button);
+	machine_dropdown.addElement(power_button);
+	machine_dropdown.addElement(reset_button);
+	machine_dropdown.addElement(nes_options);
+
 
 	Gui::RadioButton pause_button(gui_button_rect, "Pause", &paused);
 	Gui::RadioButton mute_button(gui_button_rect, "Mute", &muted);
 	options_dropdown.addElement(pause_button);
 	options_dropdown.addElement(mute_button);
-	options_dropdown.addElement(nes_options);
 
 	// run emulator
 	int last_time = SDL_GetTicks();
@@ -508,7 +543,7 @@ int main(int argc, char* argv[]) {
 		// render nes & gui
 		SDL_UpdateTexture(nes_texture, NULL, screen, SCREEN_WIDTH * sizeof (Pixel));
 		SDL_RenderCopy(renderer, nes_texture, NULL, &render_area);
-		if (!fullscreen || paused) {
+		if (!fullscreen || paused || (cartridge == NULL)) {
 			top_gui.render();
 		}
 
@@ -518,7 +553,13 @@ int main(int argc, char* argv[]) {
 		int now = SDL_GetTicks();
 		if (!paused) {
 			double elapsed = now - last_time;
-			total_fps += 1000.0/elapsed;
+			double current_fps = 1000.0/elapsed;
+			total_fps += current_fps;
+			addFPS(current_fps);
+
+			std::stringstream stream;
+			stream << std::fixed << std::setprecision(1) << currentFPS();
+			fps_text = "fps: " + stream.str();
 		}
 		last_time = now;
 	}
