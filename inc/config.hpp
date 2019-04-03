@@ -29,7 +29,8 @@ const char* DEFAULT_CONFIG = R"(
 			"save folder": "./saves/",
 			"screenshot folder": "./screenshots/",
 			"movie folder": "./movies/",
-			"save extension": ".sav"
+			"save extension": ".sav",
+			"movie extension": "./nesmov"
 		},
 		"controls": [
 			{
@@ -105,7 +106,9 @@ void loadConfig() {
 		rom_folder = paths["rom folder"].get<std::string>();
 		save_folder = paths["save folder"].get<std::string>();
 		screenshot_folder = paths["screenshot folder"].get<std::string>();
+		movie_folder = paths["movie folder"].get<std::string>();
 		save_ext = paths["save extension"].get<std::string>();
+		movie_ext = paths["movie extension"].get<std::string>();
 		API::createDirectory(rom_folder.string());
 		API::createDirectory(save_folder.string());
 		API::createDirectory(screenshot_folder.string());

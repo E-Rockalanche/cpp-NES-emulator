@@ -9,7 +9,7 @@
 
 namespace API {
 
-std::string getFilename(const char* title, const char* filter) {
+std::string chooseOpenFile(const char* title, const char* filter, const char* directory) {
 	std::string filename = "";
 
 #ifdef _WIN32
@@ -19,14 +19,17 @@ std::string getFilename(const char* title, const char* filter) {
 	OPENFILENAME ofn;
 	ZeroMemory(&ofn, sizeof(ofn));
 
+	const int flags = OFN_EXPLORER | OFN_DONTADDTORECENT
+		| OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+
 	ofn.lStructSize = sizeof(ofn);
 	ofn.hwndOwner = NULL;
 	ofn.lpstrFilter = filter;
 	ofn.lpstrFile = filename_buffer;
 	ofn.nMaxFile = MAX_PATH;
 	ofn.lpstrTitle = title;
-	ofn.Flags = OFN_EXPLORER | OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST
-		| OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+	ofn.lpstrInitialDir = directory;
+	ofn.Flags = flags;
 
 	if (GetOpenFileNameA(&ofn)) {
 		filename = filename_buffer;
@@ -36,9 +39,39 @@ std::string getFilename(const char* title, const char* filter) {
 	return filename;
 }
 
+std::string chooseSaveFile(const char* title, const char* filter, const char* directory) {
+	std::string filename = "";
+
+#ifdef _WIN32
+	char filename_buffer[MAX_PATH];
+	ZeroMemory(filename_buffer, MAX_PATH);
+
+	OPENFILENAME ofn;
+	ZeroMemory(&ofn, sizeof(ofn));
+
+	const int flags = OFN_EXPLORER | OFN_DONTADDTORECENT
+		| OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+
+	ofn.lStructSize = sizeof(ofn);
+	ofn.hwndOwner = NULL;
+	ofn.lpstrFilter = filter;
+	ofn.lpstrFile = filename_buffer;
+	ofn.nMaxFile = MAX_PATH;
+	ofn.lpstrTitle = title;
+	ofn.lpstrInitialDir = directory;
+	ofn.Flags = flags;
+
+	if (GetSaveFileNameA(&ofn)) {
+		filename = filename_buffer;
+	}
+#endif
+
+	return filename;
+}
+
 bool createDirectory(std::string name) {
 	bool ok = false;
-
+	
 #ifdef _WIN32
 	if (CreateDirectory(name.c_str(), NULL)) {
 	    ok = true;

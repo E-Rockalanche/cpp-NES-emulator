@@ -18,7 +18,13 @@ namespace Movie {
 	int index = 0;
 
 	bool save(std::string filename) {
-		std::fstream fout(filename.c_str(), std::ios::binary);
+		if (isRecording()) {
+			stopRecording();
+		}
+
+		dout("savinf movie to " << filename);
+
+		std::ofstream fout(filename.c_str(), std::ios::binary);
 		if (!fout.is_open()) {
 			dout("cannot save movie");
 			return false;
@@ -26,6 +32,8 @@ namespace Movie {
 
 		int size = button_presses.size();
 		fout.write((char*)&size, sizeof(size));
+
+		dout("number is keystrokes: " << size);
 
 		for(int i = 0; i < size; i++) {
 			ButtonPress press = button_presses[i];
@@ -37,7 +45,13 @@ namespace Movie {
 	}
 
 	bool load(std::string filename) {
-		std::fstream fin(filename.c_str(), std::ios::binary);
+		if (state != NONE) {
+			state = NONE;
+		}
+
+		dout("loading movie from " << filename);
+		
+		std::ifstream fin(filename.c_str(), std::ios::binary);
 		if (!fin.is_open()) {
 			dout("cannot open movie");
 			return false;
@@ -47,6 +61,8 @@ namespace Movie {
 
 		int size;
 		fin.read((char*)&size, sizeof(size));
+
+		dout("number is keystrokes: " << size);
 
 		for(int i = 0; i < size; i++) {
 			ButtonPress press;
@@ -121,6 +137,7 @@ namespace Movie {
 		if (index >= (int)button_presses.size()) {
 			// stop playback
 			state = NONE;
+			dout("movie has ended at frame " << frame);
 		}
 	}
 }

@@ -54,7 +54,9 @@ fs::path save_filename;
 fs::path save_folder;
 fs::path rom_folder;
 fs::path screenshot_folder;
+fs::path movie_folder;
 std::string save_ext;
+std::string movie_ext;
 
 // window size
 int window_width;
@@ -235,7 +237,8 @@ void toggleMute() {
 }
 
 void selectRom() {
-	std::string filename = API::getFilename("Select a ROM", "NES ROM\0*.nes\0Any file\0*.*\0");
+	std::string filename = API::chooseOpenFile("Select a ROM",
+		"NES ROM\0*.nes\0Any file\0*.*\0", rom_folder.c_str());
 	if ((filename.size() > 0) && loadFile(filename)) {
 		power();
 	}
@@ -252,17 +255,55 @@ void closeFile() {
 
 void toggleRecording() {
 	switch(Movie::getState()) {
-		case Movie::NONE: Movie::startRecording(); break;
-		case Movie::RECORDING: Movie::stopRecording(); break;
+		case Movie::PLAYING:
+			Movie::stopPlayback();
+			power();
+			Movie::startRecording();
+			break;
+		case Movie::NONE:
+			power();
+			Movie::startRecording();
+			break;
+		case Movie::RECORDING: 
+			Movie::stopRecording();
+			break;
+
 		default: break;
 	}
 }
 
 void togglePlayback() {
 	switch(Movie::getState()) {
-		case Movie::NONE: Movie::startPlayback(); break;
-		case Movie::RECORDING: Movie::stopPlayback(); break;
+		case Movie::RECORDING:
+			Movie::stopRecording();
+			power();
+			Movie::startPlayback();
+			break;
+		case Movie::NONE:
+			power();
+			Movie::startPlayback();
+			break;
+		case Movie::PLAYING:
+			Movie::stopPlayback();
+			break;
+
 		default: break;
+	}
+}
+
+void saveMovie() {
+	std::string filename = API::chooseSaveFile("Save Movie",
+		"NES Movie\0*.nesmov\0", movie_folder.c_str());
+	if (!Movie::save(filename)) {
+		dout("failed to save movie");
+	}
+}
+
+void loadMovie() {
+	std::string filename = API::chooseOpenFile("Load Movie",
+		"NES Movie\0*.nesmov\0", movie_folder.c_str());
+	if (!Movie::load(filename)) {
+		dout("failed to save movie");
 	}
 }
 
@@ -480,8 +521,14 @@ int main(int argc, char* argv[]) {
 	// file
 	Gui::Button load_rom_button(gui_button_rect, "Load", selectRom);
 	Gui::Button close_rom_button(gui_button_rect, "Close", closeFile);
+	Gui::SubDropDown movie_dropdown(gui_button_rect, "Movie >");
+	Gui::Button save_movie_button(gui_button_rect, "Save", saveMovie);
+	Gui::Button load_movie_button(gui_button_rect, "Load", loadMovie);
+	movie_dropdown.addElement(save_movie_button);
+	movie_dropdown.addElement(load_movie_button);
 	file_dropdown.addElement(load_rom_button);
 	file_dropdown.addElement(close_rom_button);
+	file_dropdown.addElement(movie_dropdown);
 
 	// view
 	Gui::RadioButton fullscreen_button(gui_button_rect, "Fullscreen", &fullscreen, setFullscreen);
@@ -496,12 +543,12 @@ int main(int argc, char* argv[]) {
 	// machine
 	Gui::Button power_button(gui_button_rect, "Power", &power);
 	Gui::Button reset_button(gui_button_rect, "Reset", &reset);
-	Gui::SubDropDown nes_options(gui_button_rect, "Options >");
+	Gui::SubDropDown nes_dropdown(gui_button_rect, "Options >");
 	Gui::RadioButton flicker_button(gui_button_rect, "Sprite Flickering", &PPU::sprite_flickering);
-	nes_options.addElement(flicker_button);
+	nes_dropdown.addElement(flicker_button);
 	machine_dropdown.addElement(power_button);
 	machine_dropdown.addElement(reset_button);
-	machine_dropdown.addElement(nes_options);
+	machine_dropdown.addElement(nes_dropdown);
 
 
 	Gui::RadioButton pause_button(gui_button_rect, "Pause", &paused);

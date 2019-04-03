@@ -7,6 +7,10 @@
 
 namespace fs {
 
+bool isslash(value_type c) {
+	return (c == '/' || c == '\\');
+}
+
 path::path() noexcept {}
 
 path::path(const path& other) : pathname(other.pathname) {}
@@ -80,7 +84,7 @@ void path::clear() noexcept {
 
 path& path::make_preferred() {
 	for(auto& c : pathname) {
-		if (c == '/' || c == '\\') {
+		if (isslash(c)) {
 			c = PREFERRED_SEPERATOR;
 		}
 	}
@@ -89,7 +93,7 @@ path& path::make_preferred() {
 
 path& path::remove_filename() {
 	for(auto it = pathname.rbegin(); it != pathname.rend(); it++) {
-		if (*it == '/' || *it == '\\') {
+		if (isslash(*it)) {
 			it--;
 			pathname.erase(it.base(), pathname.end());
 		}
@@ -115,9 +119,9 @@ path& path::replace_extension(const path& replacement = path()) {
 }
 
 void path::swap(path& other) noexcept {
-	string_type temp = pathname;
-	pathname = other.pathname;
-	other.pathname = pathname;
+	string_type temp = std::move(pathname);
+	pathname = std::move(other.pathname);
+	other.pathname = std::move(pathname);
 }
 
 const value_type* path::c_str() const noexcept {
@@ -174,7 +178,7 @@ path path::lexically_normal() const {
 	else {
 		bool last_was_slash = false;
 		for(auto c : pathname) {
-			bool is_slash = c == '/' || c == '\\';
+			bool is_slash = isslash(c);
 			if (is_slash) {
 				if (!last_was_slash) {
 					if (filename != ".") {
@@ -198,12 +202,18 @@ path path::lexically_normal() const {
 }
 
 path path::root_name() const {
-	// TODO
+#ifdef _WIN32
+	if (pathname.size() >= 2 && isalpha(pathname[0]) && isslash(pathname[1])) {
+		return path(string_type(pathname, 0, 2));
+	}
+#endif
 	return path();
 }
 
 path path::root_directory() const {
-	// TODO
+	if (pathname.size() > 0 && isslash(pathname[0])) {
+		return path() += pathname[0];
+	}
 	return path();
 }
 
@@ -211,7 +221,7 @@ path path::parent_path() const {
 	int end;
 	for(end = pathname.size()-1; end >= 0; end--) {
 		char c = pathname[end];
-		if (c == '/' || c == '\\') {
+		if (isslash(c)) {
 			return path(string_type(pathname, 0, FS_MAX(end, 1)));
 		}
 	}
@@ -222,7 +232,7 @@ path path::filename() const {
 	int start;
 	for(start = pathname.size()-1; start >= 0; start--) {
 		char c = pathname[start];
-		if (c == '/' || c == '\\') {
+		if (isslash(c)) {
 			start++;
 			break;
 		}
@@ -239,7 +249,7 @@ path path::stem() const {
 		if (c == '.' && !found_ext) {
 			end = start;
 			found_ext = true;
-		} else if (c == '/' || c == '\\') {
+		} else if (isslash(c)) {
 			start++;
 			break;
 		}
@@ -288,17 +298,17 @@ bool path::has_extension() const {
 }
 
 bool path::is_absolute() const {
-	return !is_relative();
+	return !root_directory().empty();
 }
 
 bool path::is_relative() const {
-	return pathname.empty() || (pathname[0] != '/' && pathname[0] != '\\');
+	return !is_relative();
 }
 
 void swap(path& left, path& right) noexcept {
-	string_type temp = left.pathname;
-	left.pathname = right.pathname;
-	right.pathname = temp;
+	string_type temp = std::move(left.pathname);
+	left.pathname = std::move(right.pathname);
+	right.pathname = std::move(temp);
 }
 
 std::size_t hash_value(const path& p) noexcept {
