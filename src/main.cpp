@@ -237,8 +237,11 @@ void toggleMute() {
 }
 
 void selectRom() {
-	std::string filename = API::chooseOpenFile("Select a ROM",
-		"NES ROM\0*.nes\0Any file\0*.*\0", rom_folder.c_str());
+	API::FileDialog dialog("Select ROM");
+	dialog.setFilter("NES ROM\0*.nes\0Any file\0*.*\0");
+	dialog.setDirectory(rom_folder.c_str());
+	std::string filename = dialog.getOpenFileName();
+
 	if ((filename.size() > 0) && loadFile(filename)) {
 		power();
 	}
@@ -292,17 +295,26 @@ void togglePlayback() {
 }
 
 void saveMovie() {
-	std::string filename = API::chooseSaveFile("Save Movie",
-		"NES Movie\0*.nesmov\0", movie_folder.c_str());
+	API::FileDialog dialog("Save Movie");
+	dialog.setFilter("NES Movie\0*.nesmov\0");
+	dialog.setDirectory(movie_folder.c_str());
+	std::string filename = dialog.getSaveFileName();
+
 	if (!Movie::save(filename)) {
 		dout("failed to save movie");
 	}
 }
 
 void loadMovie() {
-	std::string filename = API::chooseOpenFile("Load Movie",
-		"NES Movie\0*.nesmov\0", movie_folder.c_str());
-	if (!Movie::load(filename)) {
+	API::FileDialog dialog("Open Movie");
+	dialog.setFilter("NES Movie\0*.nesmov\0");
+	dialog.setDirectory(movie_folder.c_str());
+	std::string filename = dialog.getOpenFileName();
+
+	if (Movie::load(filename)) {
+		power();
+		Movie::startPlayback();
+	} else {
 		dout("failed to save movie");
 	}
 }
