@@ -7,8 +7,6 @@
 #include "mapper4.hpp"
 #include "assert.hpp"
 
-using namespace std;
-
 Cartridge* cartridge = NULL;
 
 Cartridge* Cartridge::loadFile(std::string filename) {
@@ -16,14 +14,14 @@ Cartridge* Cartridge::loadFile(std::string filename) {
 	int data_size = 0;
 	Byte* data = NULL;
 
-	ifstream fin(filename, ios::binary);
+	std::ifstream fin(filename, std::ios::binary);
 	if (!fin.is_open() || !fin.good() || fin.eof()) {
 		dout("Could not open " << filename);
 		return NULL;
 	}
 
 	// check file size
-	fin.seekg(0, ios::end);
+	fin.seekg(0, std::ios::end);
 	data_size = fin.tellg();
 	fin.seekg(0);
 
@@ -101,8 +99,6 @@ Cartridge::Format Cartridge::getFormat(Byte* data) {
 }
 
 Cartridge::Cartridge(Byte* data) : data(data) {
-	dout("Cartridge()");
-
 	prg_size = data[PRG_SIZE] * 0x4000;
 	chr_size = data[CHR_SIZE] * 0x2000;
 	ram_size = data[RAM_SIZE] ? (data[RAM_SIZE] * 0x2000) : 0x2000;
@@ -143,7 +139,7 @@ bool Cartridge::saveGame(std::string filename) {
 		return false;
 	}
 
-	ofstream fout(filename, ios::binary);
+	std::ofstream fout(filename, std::ios::binary);
 	if (!fout.is_open()) {
 		dout("Could not save to " << filename);
 		return false;
@@ -152,7 +148,6 @@ bool Cartridge::saveGame(std::string filename) {
 	fout.write((const char*)ram, ram_size);
 	fout.close();
 
-	dout("saved to " << filename);
 	return true;
 }
 
@@ -162,14 +157,14 @@ bool Cartridge::loadSave(std::string filename) {
 		return false;
 	}
 
-	ifstream fin(filename, ios::binary);
+	std::ifstream fin(filename, std::ios::binary);
 	if (!fin.is_open()) {
 		dout("Could not load save from " << filename);
 		return false;
 	}
 
 	// check file size
-	fin.seekg(0, ios::end);
+	fin.seekg(0, std::ios::end);
 	int file_size = fin.tellg();
 	fin.seekg(0);
 
@@ -182,7 +177,6 @@ bool Cartridge::loadSave(std::string filename) {
 	fin.read((char*)ram, ram_size);
 	fin.close();
 
-	dout("loaded " << filename);
 	return true;
 }
 

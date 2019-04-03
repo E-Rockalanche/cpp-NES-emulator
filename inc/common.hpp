@@ -4,6 +4,7 @@
 #include <iostream>
 #include <iomanip>
 #include <bitset>
+#include <string>
 #include "debugging.hpp"
 
 #define GET_MACRO(_1, _2, _3, MACRO_NAME, ...) MACRO_NAME

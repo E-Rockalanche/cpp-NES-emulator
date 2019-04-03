@@ -9,17 +9,16 @@
 
 #include "assert.hpp"
 
-#define GUI_BAR_HEIGHT 16
-
 namespace Gui {
 	typedef void(*Callback)(void);
 	typedef void(*RadioCallback)(bool);
 	typedef void(*SliderCallback)(float);
 
 	extern TTF_Font* font;
-	const SDL_Color TEXT_COLOUR = { 0, 0, 0, 255 };
 
 	void init();
+
+	class Container;
 
 	class Element {
 	public:
@@ -44,8 +43,7 @@ namespace Gui {
 		virtual void setSize(int width, int height);
 
 		SDL_Rect rect;
-
-	protected:
+		Container* container;
 	};
 
 	class TextElement : public Element {
@@ -58,9 +56,20 @@ namespace Gui {
 
 	protected:
 		virtual void setTextPlacement();
-
 		SDL_Rect text_rect;
 		SDL_Texture* text_tex;
+	};
+
+	class DynamicTextElement : public Element {
+	public:
+		DynamicTextElement(SDL_Rect rect, std::string* text = NULL);
+		virtual ~DynamicTextElement();
+		virtual void render();
+		virtual void setPosition(int x, int y);
+
+	protected:
+		SDL_Rect text_rect;
+		std::string* dynamic_text;
 	};
 
 	class Button : public TextElement {
