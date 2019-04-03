@@ -9,7 +9,7 @@
 #endif
 
 namespace API {
-	
+
 	class FileDialog {
 	public:
 		FileDialog();
