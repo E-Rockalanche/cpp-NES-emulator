@@ -4,6 +4,7 @@
 #include <string>
 
 #include "SDL2/SDL.h"
+#include "filesystem.hpp"
 
 #include "pixel.hpp"
 #include "joypad.hpp"
@@ -22,11 +23,14 @@ extern bool in_menu;
 extern bool muted;
 
 // paths
-extern std::string rom_filename;
-extern std::string save_filename;
-extern std::string save_folder;
-extern std::string rom_folder;
-extern std::string screenshot_folder;
+extern fs::path rom_filename;
+extern fs::path save_filename;
+extern fs::path save_folder;
+extern fs::path rom_folder;
+extern fs::path screenshot_folder;
+extern fs::path movie_folder;
+extern std::string save_ext;
+extern std::string movie_ext;
 
 // window size
 extern int window_width;
@@ -43,7 +47,7 @@ extern int last_render_time;
 extern double last_wait_time;
 
 // frame rate
-extern int total_frames;
+extern int frame_number;
 extern float fps;
 extern float total_fps;
 extern float real_fps;

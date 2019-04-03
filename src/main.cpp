@@ -4,8 +4,10 @@
 #include <ctime>
 #include <cstdlib>
 #include <fstream>
+#include <sstream>
 
 #include "SDL2/SDL.h"
+#include "filesystem.hpp"
 
 #include "common.hpp"
 #include "main.hpp"
@@ -23,10 +25,13 @@
 #include "keyboard.hpp"
 #include "globals.hpp"
 #include "api.hpp"
+#include "movie.hpp"
 #include "assert.hpp"
 
+#define GUI_HEIGHT 24
+
 // GUI
-Gui::HBox top_gui({ 0, 0, window_width, GUI_BAR_HEIGHT });
+Gui::HBox top_gui({ 0, 0, window_width, GUI_HEIGHT });
 Gui::Element* active_menu = &top_gui;
 
 // SDL
@@ -34,7 +39,6 @@ SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
 
 // NES
-Joypad joypad[4];
 Zapper zapper;
 bool paused = false;
 bool step_frame = false;
@@ -45,18 +49,21 @@ const int SCREEN_BPP = 24; // bits per pixel
 Pixel screen[SCREEN_WIDTH * SCREEN_HEIGHT];
 
 // paths
-std::string rom_filename;
-std::string save_filename;
-std::string save_folder;
-std::string rom_folder;
-std::string screenshot_folder;
+fs::path rom_filename;
+fs::path save_filename;
+fs::path save_folder;
+fs::path rom_folder;
+fs::path screenshot_folder;
+fs::path movie_folder;
+std::string save_ext;
+std::string movie_ext;
 
 // window size
 int window_width;
 int window_height;
 bool fullscreen;
 float render_scale;
-SDL_Rect render_area = { 0, GUI_BAR_HEIGHT, 256, 240 };
+SDL_Rect render_area = { 0, GUI_HEIGHT, 256, 240 };
 
 // frame timing
 const unsigned int TARGET_FPS = 60;
@@ -66,26 +73,39 @@ int last_render_time = 0;
 double last_wait_time = 0;
 
 // frame rate
-int total_frames = 0;
+int frame_number = 0;
 float fps = 0;
 float total_fps = 0;
 float real_fps = 0;
 float total_real_fps = 0;
-#define ave_fps (total_fps / total_frames)
-#define ave_real_fps (total_real_fps / total_frames)
+#define ave_fps (total_fps / frame_number)
+#define ave_real_fps (total_real_fps / frame_number)
 
-std::string stripFilename(std::string path) {
-	bool found_ext = false;
-	int start = path.size() - 1;
-	int end = path.size();
-	while(start > 0 && path[start-1] != '/' && path[start-1] != '\\') {
-		if (!found_ext && path[start] == '.') {
-			end = start;
-			found_ext = true;
-		}
-		start--;
+#define FPS_COUNT 15
+float fps_count[FPS_COUNT];
+std::string fps_text = "fps: 0";
+
+void addFPS(float fps) {
+	for(int i = 0; i < FPS_COUNT-1; i++) {
+		fps_count[i] = fps_count[i+1];
 	}
-	return std::string(path, start, end - start);
+	fps_count[FPS_COUNT-1] = fps;
+}
+
+float currentFPS() {
+	float sum = 0;
+	for(int i = 0; i < FPS_COUNT; i++) {
+		sum += fps_count[i];
+	}
+	return sum / FPS_COUNT;
+}
+
+void resetFrameNumber() {
+	frame_number = 0;
+	total_fps = 0;
+	total_real_fps = 0;
+	fps = 0;
+	real_fps = 0;
 }
 
 void reset() {
@@ -94,6 +114,7 @@ void reset() {
 		CPU::reset();
 		PPU::reset();
 		APU::reset();
+		resetFrameNumber();
 	}
 }
 
@@ -103,6 +124,7 @@ void power() {
 		CPU::power();
 		PPU::power();
 		APU::reset();
+		resetFrameNumber();
 	}
 }
 
@@ -113,10 +135,10 @@ bool loadFile(std::string filename) {
 		dout("could not load " << filename);
 		return false;
 	} else {
-		rom_filename = stripFilename(filename);
-		save_filename = save_folder + rom_filename + ".sav";
+		rom_filename = filename;
+		save_filename = save_folder / rom_filename.filename().replace_extension(save_ext);
 		if (cartridge->hasSRAM()) {
-			cartridge->loadSave(save_filename);
+			cartridge->loadSave(save_filename.string());
 		}
 		return true;
 	}
@@ -124,27 +146,29 @@ bool loadFile(std::string filename) {
 
 bool loadSave(std::string filename) {
 	if (cartridge && cartridge->hasSRAM()) {
-		return cartridge->loadSave(filename);
-	} else {
-		return false;
+		if (cartridge->loadSave(filename)) {
+			save_filename = filename;
+			return true;
+		}
 	}
+	return false;
 }
 
 void saveGame() {
 	if (cartridge && cartridge->hasSRAM()) {
-		cartridge->saveGame(save_filename);
+		cartridge->saveGame(save_filename.string());
 	}
 }
 
 // resize window and render area
 void resizeRenderArea(bool round_scale = false) {
 	SDL_GetWindowSize(window, &window_width, &window_height);
-	top_gui.setSize(window_width, GUI_BAR_HEIGHT);
+	top_gui.setSize(window_width, GUI_HEIGHT);
 
 	// set viewport to fill window
 	SDL_RenderSetViewport(renderer, NULL);
 
-	int gui_height = fullscreen ? 0 : GUI_BAR_HEIGHT;
+	int gui_height = fullscreen ? 0 : GUI_HEIGHT;
 
 	int allowed_height = window_height - gui_height;
 	float x_scale = (float)allowed_height / SCREEN_HEIGHT;
@@ -163,7 +187,7 @@ void resizeRenderArea(bool round_scale = false) {
 }
 
 void resizeWindow(int width, int height) {
-	SDL_SetWindowSize(window, width, height + GUI_BAR_HEIGHT);
+	SDL_SetWindowSize(window, width, height + GUI_HEIGHT);
 	resizeRenderArea();
 }
 
@@ -180,6 +204,7 @@ void toggleFullscreen() {
 }
 
 void setResolutionScale(float scale) {
+	setFullscreen(false);
 	resizeWindow(SCREEN_WIDTH * scale, SCREEN_HEIGHT * scale);
 }
 void setResolutionScale1() {
@@ -212,7 +237,11 @@ void toggleMute() {
 }
 
 void selectRom() {
-	std::string filename = API::getFilename("Select a ROM", "NES ROM\0*.nes\0Any file\0*.*\0");
+	API::FileDialog dialog("Select ROM");
+	dialog.setFilter("NES ROM\0*.nes\0Any file\0*.*\0");
+	dialog.setDirectory(rom_folder.c_str());
+	std::string filename = dialog.getOpenFileName();
+
 	if ((filename.size() > 0) && loadFile(filename)) {
 		power();
 	}
@@ -227,6 +256,69 @@ void closeFile() {
 	clearScreen();
 }
 
+void toggleRecording() {
+	switch(Movie::getState()) {
+		case Movie::PLAYING:
+			Movie::stopPlayback();
+			power();
+			Movie::startRecording();
+			break;
+		case Movie::NONE:
+			power();
+			Movie::startRecording();
+			break;
+		case Movie::RECORDING: 
+			Movie::stopRecording();
+			break;
+
+		default: break;
+	}
+}
+
+void togglePlayback() {
+	switch(Movie::getState()) {
+		case Movie::RECORDING:
+			Movie::stopRecording();
+			power();
+			Movie::startPlayback();
+			break;
+		case Movie::NONE:
+			power();
+			Movie::startPlayback();
+			break;
+		case Movie::PLAYING:
+			Movie::stopPlayback();
+			break;
+
+		default: break;
+	}
+}
+
+void saveMovie() {
+	API::FileDialog dialog("Save Movie");
+	dialog.setFilter("NES Movie\0*.nesmov\0");
+	dialog.setDirectory(movie_folder.c_str());
+	std::string filename = dialog.getSaveFileName() + movie_ext;
+
+	if (!Movie::save(filename)) {
+		dout("failed to save movie");
+	}
+}
+
+void loadMovie() {
+	API::FileDialog dialog("Open Movie");
+	dialog.setFilter("NES Movie\0*.nesmov\0");
+	dialog.setDirectory(movie_folder.c_str());
+	std::string filename = dialog.getOpenFileName();
+
+	if (Movie::load(filename)) {
+		power();
+		Movie::startPlayback();
+	} else {
+		dout("failed to save movie");
+	}
+}
+
 typedef void(*Callback)(void);
 struct Hotkey {
 	enum Type {
@@ -235,6 +327,8 @@ struct Hotkey {
 		MUTE,
 		PAUSE,
 		STEP_FRAME,
+		RECORD,
+		PLAYBACK,
 
 		NUM_HOTKEYS
 	};
@@ -246,7 +340,9 @@ Hotkey hotkeys[Hotkey::NUM_HOTKEYS] = {
 	{ SDLK_F11, toggleFullscreen},
 	{ SDLK_m, toggleMute},
 	{ SDLK_p, togglePaused},
-	{ SDLK_s, stepFrame}
+	{ SDLK_s, stepFrame},
+	{ SDLK_r, toggleRecording},
+	{ SDLK_a, togglePlayback}
 };
 
 void pressHotkey(SDL_Keycode key) {
@@ -279,16 +375,25 @@ int readAddress() {
 
 void keyboardEvent(const SDL_Event& event) {
 	SDL_Keycode key = event.key.keysym.sym;
-	if (event.key.state == SDL_PRESSED) {
+	bool pressed = event.key.state == SDL_PRESSED;
+	if (pressed) {
 		if (key == SDLK_f) {
 			dout("fps: " << ave_fps);
 			dout("real fps: " << ave_real_fps);
 		}
-
 		pressHotkey(key);
-		for(int i = 0; i < 4; i++) joypad[i].pressKey(key);
-	} else {
-		for(int i = 0; i < 4; i++) joypad[i].releaseKey(key);
+	}
+
+	if (!Movie::isPlaying()) {
+		// get joypad input
+		for(int i = 0; i < 4; i++) {
+			Joypad::Button button = joypad[i].setKeyState(key, pressed);
+
+			// record button press
+			if (Movie::isRecording() && (button != Joypad::NONE)) {
+				Movie::recordButtonState(frame_number, i, button, pressed);
+			}
+		}
 	}
 }
 
@@ -322,7 +427,7 @@ void mouseButtonEvent(const SDL_Event& event) {
 				clicked_menu = active_menu->click(event.button.x, event.button.y);
 			}
 			if (!clicked_menu) {
-				int gui_height = fullscreen ? 0 : GUI_BAR_HEIGHT;
+				int gui_height = fullscreen ? 0 : GUI_HEIGHT;
 				if (event.button.y > gui_height) {
 					zapper.pull();
 				}
@@ -378,7 +483,7 @@ int main(int argc, char* argv[]) {
 	window = SDL_CreateWindow("NES emulator",
 		SDL_WINDOWPOS_UNDEFINED,
 		SDL_WINDOWPOS_UNDEFINED,
-		window_width, window_height + GUI_BAR_HEIGHT,
+		window_width, window_height + GUI_HEIGHT,
 		window_flags);
 	assert(window != NULL, "failed to create screen");
 	SDL_SetWindowResizable(window, SDL_bool(true));
@@ -413,19 +518,31 @@ int main(int argc, char* argv[]) {
 		SDLK_UP, SDLK_DOWN, SDLK_LEFT, SDLK_RIGHT });
 
 	// build gui bar
-	const SDL_Rect gui_button_rect = { 0, 0, 128, GUI_BAR_HEIGHT };
+	const SDL_Rect gui_button_rect = { 0, 0, 0, GUI_HEIGHT };
 	Gui::DropDown file_dropdown(gui_button_rect, "File");
 	Gui::DropDown view_dropdown(gui_button_rect, "View");
 	Gui::DropDown options_dropdown(gui_button_rect, "Options");
+	Gui::DropDown machine_dropdown(gui_button_rect, "Machine");
+	Gui::DynamicTextElement fps_display({ 0, 0, 64, GUI_HEIGHT }, &fps_text);
 	top_gui.addElement(file_dropdown);
 	top_gui.addElement(view_dropdown);
 	top_gui.addElement(options_dropdown);
+	top_gui.addElement(machine_dropdown);
+	top_gui.addElement(fps_display);
 
+	// file
 	Gui::Button load_rom_button(gui_button_rect, "Load", selectRom);
 	Gui::Button close_rom_button(gui_button_rect, "Close", closeFile);
+	Gui::SubDropDown movie_dropdown(gui_button_rect, "Movie >");
+	Gui::Button save_movie_button(gui_button_rect, "Save", saveMovie);
+	Gui::Button load_movie_button(gui_button_rect, "Load", loadMovie);
+	movie_dropdown.addElement(save_movie_button);
+	movie_dropdown.addElement(load_movie_button);
 	file_dropdown.addElement(load_rom_button);
 	file_dropdown.addElement(close_rom_button);
+	file_dropdown.addElement(movie_dropdown);
 
+	// view
 	Gui::RadioButton fullscreen_button(gui_button_rect, "Fullscreen", &fullscreen, setFullscreen);
 	Gui::Button scale1_button(gui_button_rect, "scale: 1", setResolutionScale1);
 	Gui::Button scale2_button(gui_button_rect, "scale: 2", setResolutionScale2);
@@ -435,15 +552,21 @@ int main(int argc, char* argv[]) {
 	view_dropdown.addElement(scale2_button);
 	view_dropdown.addElement(scale3_button);
 
-	Gui::SubDropDown nes_options(gui_button_rect, "NES >");
+	// machine
+	Gui::Button power_button(gui_button_rect, "Power", &power);
+	Gui::Button reset_button(gui_button_rect, "Reset", &reset);
+	Gui::SubDropDown nes_dropdown(gui_button_rect, "Options >");
 	Gui::RadioButton flicker_button(gui_button_rect, "Sprite Flickering", &PPU::sprite_flickering);
-	nes_options.addElement(flicker_button);
+	nes_dropdown.addElement(flicker_button);
+	machine_dropdown.addElement(power_button);
+	machine_dropdown.addElement(reset_button);
+	machine_dropdown.addElement(nes_dropdown);
+
 
 	Gui::RadioButton pause_button(gui_button_rect, "Pause", &paused);
 	Gui::RadioButton mute_button(gui_button_rect, "Mute", &muted);
 	options_dropdown.addElement(pause_button);
 	options_dropdown.addElement(mute_button);
-	options_dropdown.addElement(nes_options);
 
 	// run emulator
 	int last_time = SDL_GetTicks();
@@ -451,9 +574,12 @@ int main(int argc, char* argv[]) {
 		pollEvents();
 
 		if ((!paused || step_frame) && (cartridge != NULL) && !CPU::halted()) {
+			if (Movie::isPlaying()) {
+				Movie::updateInput(frame_number);
+			}
 			CPU::runFrame();
 			zapper.update();
-			total_frames++;
+			frame_number++;
 			double elapsed = SDL_GetTicks() - last_time;
 			total_real_fps += 1000.0/elapsed;
 		}
@@ -466,7 +592,7 @@ int main(int argc, char* argv[]) {
 		// render nes & gui
 		SDL_UpdateTexture(nes_texture, NULL, screen, SCREEN_WIDTH * sizeof (Pixel));
 		SDL_RenderCopy(renderer, nes_texture, NULL, &render_area);
-		if (!fullscreen || paused) {
+		if (!fullscreen || paused || (cartridge == NULL)) {
 			top_gui.render();
 		}
 
@@ -476,7 +602,13 @@ int main(int argc, char* argv[]) {
 		int now = SDL_GetTicks();
 		if (!paused) {
 			double elapsed = now - last_time;
-			total_fps += 1000.0/elapsed;
+			double current_fps = 1000.0/elapsed;
+			total_fps += current_fps;
+			addFPS(current_fps);
+
+			std::stringstream stream;
+			stream << std::fixed << std::setprecision(1) << currentFPS();
+			fps_text = "fps: " + stream.str();
 		}
 		last_time = now;
 	}
