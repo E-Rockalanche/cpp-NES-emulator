@@ -99,8 +99,6 @@ Cartridge::Format Cartridge::getFormat(Byte* data) {
 }
 
 Cartridge::Cartridge(Byte* data) : data(data) {
-	dout("Cartridge()");
-
 	prg_size = data[PRG_SIZE] * 0x4000;
 	chr_size = data[CHR_SIZE] * 0x2000;
 	ram_size = data[RAM_SIZE] ? (data[RAM_SIZE] * 0x2000) : 0x2000;
@@ -150,7 +148,6 @@ bool Cartridge::saveGame(std::string filename) {
 	fout.write((const char*)ram, ram_size);
 	fout.close();
 
-	dout("saved to " << filename);
 	return true;
 }
 
@@ -180,7 +177,6 @@ bool Cartridge::loadSave(std::string filename) {
 	fin.read((char*)ram, ram_size);
 	fin.close();
 
-	dout("loaded " << filename);
 	return true;
 }
 

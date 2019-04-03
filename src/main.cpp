@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "SDL2/SDL.h"
+#include "filesystem.hpp"
 
 #include "common.hpp"
 #include "main.hpp"
@@ -48,11 +49,12 @@ const int SCREEN_BPP = 24; // bits per pixel
 Pixel screen[SCREEN_WIDTH * SCREEN_HEIGHT];
 
 // paths
-std::string rom_filename;
-std::string save_filename;
-std::string save_folder;
-std::string rom_folder;
-std::string screenshot_folder;
+fs::path rom_filename;
+fs::path save_filename;
+fs::path save_folder;
+fs::path rom_folder;
+fs::path screenshot_folder;
+std::string save_ext;
 
 // window size
 int window_width;
@@ -104,20 +106,6 @@ void resetFrameNumber() {
 	real_fps = 0;
 }
 
-std::string stripFilename(std::string path) {
-	bool found_ext = false;
-	int start = path.size() - 1;
-	int end = path.size();
-	while(start > 0 && path[start-1] != '/' && path[start-1] != '\\') {
-		if (!found_ext && path[start] == '.') {
-			end = start;
-			found_ext = true;
-		}
-		start--;
-	}
-	return std::string(path, start, end - start);
-}
-
 void reset() {
 	if (cartridge != NULL) {
 		clearScreen();
@@ -145,10 +133,10 @@ bool loadFile(std::string filename) {
 		dout("could not load " << filename);
 		return false;
 	} else {
-		rom_filename = stripFilename(filename);
-		save_filename = save_folder + rom_filename + ".sav";
+		rom_filename = filename;
+		save_filename = save_folder / rom_filename.filename().replace_extension(save_ext);
 		if (cartridge->hasSRAM()) {
-			cartridge->loadSave(save_filename);
+			cartridge->loadSave(save_filename.string());
 		}
 		return true;
 	}
@@ -156,15 +144,17 @@ bool loadFile(std::string filename) {
 
 bool loadSave(std::string filename) {
 	if (cartridge && cartridge->hasSRAM()) {
-		return cartridge->loadSave(filename);
-	} else {
-		return false;
+		if (cartridge->loadSave(filename)) {
+			save_filename = filename;
+			return true;
+		}
 	}
+	return false;
 }
 
 void saveGame() {
 	if (cartridge && cartridge->hasSRAM()) {
-		cartridge->saveGame(save_filename);
+		cartridge->saveGame(save_filename.string());
 	}
 }
 

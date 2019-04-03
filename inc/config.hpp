@@ -24,11 +24,12 @@ const char* DEFAULT_CONFIG = R"(
 			"scale": 2.0,
 			"sprite flickering": true
 		},
-		"folders": {
+		"paths": {
 			"rom folder": "./roms/",
 			"save folder": "./saves/",
 			"screenshot folder": "./screenshots/",
-			"movie folder": "./movies/"
+			"movie folder": "./movies/",
+			"save extension": ".sav"
 		},
 		"controls": [
 			{
@@ -100,13 +101,14 @@ void loadConfig() {
 		window_width = render_scale * SCREEN_WIDTH;
 		window_height = render_scale * SCREEN_HEIGHT;
 
-		const json& folders = config["folders"];
-		rom_folder = folders["rom folder"].get<std::string>();
-		save_folder = folders["save folder"].get<std::string>();
-		screenshot_folder = folders["screenshot folder"].get<std::string>();
-		API::createDirectory(rom_folder);
-		API::createDirectory(save_folder);
-		API::createDirectory(screenshot_folder);
+		const json& paths = config["paths"];
+		rom_folder = paths["rom folder"].get<std::string>();
+		save_folder = paths["save folder"].get<std::string>();
+		screenshot_folder = paths["screenshot folder"].get<std::string>();
+		save_ext = paths["save extension"].get<std::string>();
+		API::createDirectory(rom_folder.string());
+		API::createDirectory(save_folder.string());
+		API::createDirectory(screenshot_folder.string());
 
 		// joypads
 		for(int j = 0; j < 4; j++) {

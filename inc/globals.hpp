@@ -4,6 +4,7 @@
 #include <string>
 
 #include "SDL2/SDL.h"
+#include "filesystem.hpp"
 
 #include "pixel.hpp"
 #include "joypad.hpp"
@@ -22,11 +23,12 @@ extern bool in_menu;
 extern bool muted;
 
 // paths
-extern std::string rom_filename;
-extern std::string save_filename;
-extern std::string save_folder;
-extern std::string rom_folder;
-extern std::string screenshot_folder;
+extern fs::path rom_filename;
+extern fs::path save_filename;
+extern fs::path save_folder;
+extern fs::path rom_folder;
+extern fs::path screenshot_folder;
+extern std::string save_ext;
 
 // window size
 extern int window_width;
