@@ -7,6 +7,9 @@
 #include "screen.hpp"
 
 namespace PPU {
+	typedef Byte (*NametableReader)(Word); // address
+	typedef void (*NametableWriter)(Word, Byte); // address, value
+
 	Byte readByte(Word address);
 	void writeByte(Word address, Byte value);
 	void clockTick();
@@ -20,7 +23,7 @@ namespace PPU {
 	Byte getMask();
 	int getScanline();
 
-	void mapNametable(int page, Byte* location);
+	void mapNametable(int page, NametableReader read_func, NametableWriter write_func);
 	void mapNametable(int from_page, int to_page);
 	void mapNametable(Cartridge::NameTableMirroring nt_mirroring);
 

@@ -1,0 +1,55 @@
+{
+    "controls": [
+        {
+            "A": "X",
+            "B": "Z",
+            "down": "DOWN",
+            "left": "LEFT",
+            "right": "RIGHT",
+            "select": "RIGHTSHIFT",
+            "start": "RETURN",
+            "up": "UP"
+        },
+        {
+            "A": "X",
+            "B": "Z",
+            "down": "DOWN",
+            "left": "LEFT",
+            "right": "RIGHT",
+            "select": "RIGHTSHIFT",
+            "start": "RETURN",
+            "up": "UP"
+        },
+        {
+            "A": "X",
+            "B": "Z",
+            "down": "DOWN",
+            "left": "LEFT",
+            "right": "RIGHT",
+            "select": "RIGHTSHIFT",
+            "start": "RETURN",
+            "up": "UP"
+        },
+        {
+            "A": "X",
+            "B": "Z",
+            "down": "DOWN",
+            "left": "LEFT",
+            "right": "RIGHT",
+            "select": "RIGHTSHIFT",
+            "start": "RETURN",
+            "up": "UP"
+        }
+    ],
+    "folders": {
+        "movie folder": "./movies/",
+        "rom folder": "./roms/",
+        "save folder": "./saves/",
+        "screenshot folder": "./screenshots/"
+    },
+    "general": {
+        "fullscreen": false,
+        "scale": 2.0,
+        "sprite flickering": true
+    }
+}

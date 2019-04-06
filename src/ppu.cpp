@@ -117,11 +117,11 @@ Byte primary_oam[PRIMARY_OAM_SIZE * OBJECT_SIZE];
 Byte secondary_oam[PRIMARY_OAM_SIZE * OBJECT_SIZE]; // uses secondary size if sprite flickering is on
 
 // name table mapping set by cartridge
-/*
+
 NametableReader nt_read_map[4];
 NametableWriter nt_write_map[4];
-*/
-Byte* nt_map[4];
+
+// Byte* nt_map[4];
 
 // lets main know when the screen can be drawn
 bool can_draw;
@@ -217,9 +217,7 @@ void power() {
 	sprite_zero_next_scanline = false;
 	sprite_zero_this_scanline = false;
 
-	for(int i = 0; i < 4; i++) {
-		nt_map[i] = nametable + ((i % 2) * KB); // vertical mirroring
-	}
+	mapNametable(Cartridge::VERTICAL);
 
 	for(int n = 0; n < PRIMARY_OAM_SIZE * OBJECT_SIZE; n++) {
 		primary_oam[n] = 0xff;
@@ -351,25 +349,36 @@ Byte getControl() { return control; }
 Byte getMask() { return mask; }
 int getScanline() { return scanline; }
 
+template<int PAGE>
+Byte readNametable(Word address) {
+	return (nametable + (PAGE * KB))[address];
+}
+
+template <int PAGE>
+void writeNametable(Word address, Byte value) {
+	(nametable + (PAGE * KB))[address] = value;
+}
+
 void mapNametable(int from_page, int to_page) {
 	assert(from_page < 4, "invalid from_page");
 	assert(to_page < 2, "invalid to_page");
-	nt_map[from_page] = nametable + (to_page * KB);
-	/*
-	nt_read_map[from_page] = (to_page) ? readNametable1 : readNametable0;
-	nt_write_map[from_page] = (to_page) ? writeNametable1 : writeNametable0;
-	*/
+	// nt_map[from_page] = nametable + (to_page * KB);
+	
+	nt_read_map[from_page] = (to_page) ? readNametable<1> : readNametable<0>;
+	nt_write_map[from_page] = (to_page) ? writeNametable<1> : writeNametable<0>;
+	
 }
 
-void mapNametable(int page, Byte* location) {
+void mapNametable(int page, NametableReader read_func, NametableWriter write_func) {
 	assert(page < 4, "Invalid nametable page index");
-	assert(location != NULL, "nametable data location is null");
-	nt_map[page] = location;
-	/*
-	assert(accessor != NULL, "nametable accessor is NULL");
-	nt_read_map[page] = reader;
-	nt_write_map[page] = writer;
-	*/
+	// assert(location != NULL, "nametable data location is null");
+	// nt_map[page] = location;
+	
+	assert(read_func != NULL, "nametable read_func is NULL");
+	assert(write_func != NULL, "nametable write_func is NULL");
+	nt_read_map[page] = read_func;
+	nt_write_map[page] = write_func;
+	
 }
 
 void mapNametable(Cartridge::NameTableMirroring nt_mirroring) {
@@ -508,6 +517,7 @@ void clockTick() {
 	}
 }
 
+// <Scanline> 24.34% of runtime according to gprof
 template <Scanline s>
 void scanlineCycle() {
 	static Word address = 0;
@@ -708,12 +718,14 @@ Byte read(Word address) {
 
 		case NAMETABLE_START ... NAMETABLE_END: {
 			int nt_index = (address - NAMETABLE_START) % NAMETABLE_MIRROR_SIZE;
+			/*
 			Byte* nt_data = nt_map[nt_index / KB];
 			value = nt_data[nt_index % KB];
-			/*
-			NametableReader reader = nt_read_map[nt_index / KB];
-			value = (*reader)(nt_index % KB);
 			*/
+			
+			NametableReader read_func = nt_read_map[nt_index / KB];
+			value = (*read_func)(nt_index % KB);
+			
 			break;
 		}
 
@@ -739,12 +751,14 @@ void write(Word address, Byte value) {
 
 		case NAMETABLE_START ... NAMETABLE_END: {
 			int nt_index = (address - NAMETABLE_START) % NAMETABLE_MIRROR_SIZE;
+			/*
 			Byte* nt_data = nt_map[nt_index / KB];
 			nt_data[nt_index % KB] = value;
-			/*
-			NametableWriter writer = nt_write_map[nt_index / KB];
-			(*writer)(nt_index % KB, value);
 			*/
+			
+			NametableWriter write_func = nt_write_map[nt_index / KB];
+			(*write_func)(nt_index % KB, value);
+			
 			break;
 		}
 
@@ -835,6 +849,7 @@ void loadSpriteRegisters() {
 
 #define bit(value, n) (((value) >> (n)) & 1)
 
+// 31.85% of runtime according to gprof
 void renderPixel() {
 	if (renderingEnabled()) {
 		Byte palette = 0;
@@ -892,8 +907,8 @@ void renderPixel() {
 			}
 
 			int palette_index = read(PALETTE_START + (renderingEnabled() ? palette : 0));
-			int y = (SCREEN_HEIGHT - 1 - scanline);
-			screen[y * SCREEN_WIDTH + x] = Pixel(nes_palette[palette_index]);
+			
+			screen[scanline * SCREEN_WIDTH + x] = Pixel(nes_palette[palette_index]);
 		}
 	}
 
@@ -909,7 +924,6 @@ void renderPixel() {
 void dump() {
 	print("===== PPU =====");
 	print("rendering enabled: " << renderingEnabled());
-	print("nt_map: [" << (void*)nt_map[0] << ", " << (void*)nt_map[1] << ", " << (void*)nt_map[2] << ", " << (void*)nt_map[3] << "]");
 
 	print("\nCONTROL: " << toHex(control));
 	int base_nt_addr = 0x2000 + (control & 0x03) * 0x0400;

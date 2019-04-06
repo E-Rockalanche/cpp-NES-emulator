@@ -80,7 +80,17 @@ void MMC5::writePRG(Word address, Byte value) {
 					switch(mode) {
 						case NT_VRAM_0: PPU::mapNametable(i, 0); break;
 						case NT_VRAM_1: PPU::mapNametable(i, 1); break;
-						case NT_EXT_RAM: PPU::mapNametable(i, ext_ram); break;
+						case NT_EXT_RAM: {
+							auto read_func = [] (Word index) -> Byte {
+								MMC5* mmc5 = static_cast<MMC5*>(cartridge);
+								return mmc5->ext_ram[index];
+							};
+							auto write_func = [] (Word index, Byte value) -> void {
+								MMC5* mmc5 = static_cast<MMC5*>(cartridge);
+								mmc5->ext_ram[index] = value;
+							};
+							PPU::mapNametable(i, read_func, write_func);
+						} break;
 						case NT_FILL_MODE: break; // TODO
 					}
 				}

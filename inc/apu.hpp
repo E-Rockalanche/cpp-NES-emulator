@@ -11,6 +11,7 @@ namespace APU {
 	void runFrame(int elapsed_cycles);
 	void reset();
 	void init();
+	void mute(bool muted);
 }
 
 #endif

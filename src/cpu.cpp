@@ -1562,8 +1562,6 @@ void debugInterrupt(BreakpointCondition condition) {
 	operations[(address)] = { (instruction), (mode), (cycles) };
 #define setInstructionFunction(instruction, function) instruction_functions[(instruction)] = (function);
 void init() {
-	dout("CPU()");
-
 	for(unsigned int i = 0; i < 256; i++) {
 		setOperation(i, ILL, IMPLIED, 0);
 	}
