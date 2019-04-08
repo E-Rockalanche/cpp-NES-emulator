@@ -79,7 +79,9 @@ void MMC5::writePRG(Word address, Byte value) {
 					int mode = (registers.nt_mapping >> i*2) & 0x03;
 					switch(mode) {
 						case NT_VRAM_0: PPU::mapNametable(i, 0); break;
+
 						case NT_VRAM_1: PPU::mapNametable(i, 1); break;
+
 						case NT_EXT_RAM: {
 							auto read_func = [] (Word index) -> Byte {
 								MMC5* mmc5 = static_cast<MMC5*>(cartridge);
@@ -91,15 +93,28 @@ void MMC5::writePRG(Word address, Byte value) {
 							};
 							PPU::mapNametable(i, read_func, write_func);
 						} break;
-						case NT_FILL_MODE: break; // TODO
+
+						case NT_FILL_MODE: {
+							auto read_func = [] (Word address) -> Byte {
+								MMC5* mmc5 = static_cast<MMC5*>(cartridge);
+								return ((address & 0x03ff) < 0x03c0)
+									? mmc5->registers.fill_tile
+									: mmc5->registers.fill_colour;
+							};
+							auto write_func = [] (Word index, Byte value) -> void {};
+							PPU::mapNametable(i, read_func, write_func);
+						} break;
 					}
 				}
 			}
 			break;
 
-		case FILL_TILE ... FILL_COLOUR:
-			registers.r[address - PRG_MODE] = value;
-			break;
+		case FILL_TILE: registers.fill_tile = value; break;
+
+		case FILL_COLOUR: {
+			static const int fill_colour_values[4] = { 0x00, 0x55, 0xaa, 0xff };
+			registers.fill_colour = fill_colour_values[value & 0x03];
+		} break;
 
 		case PRG_BANKSWITCH_START ... PRG_BANKSWITCH_END:
 			if (prg_registers[address - PRG_BANKSWITCH_START] != value) {
