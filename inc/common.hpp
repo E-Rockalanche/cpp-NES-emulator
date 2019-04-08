@@ -28,6 +28,7 @@
 	&& (x) < ((left) + (width))\
 	&& (y) < ((top) + (height)))
 
+typedef unsigned int uint;
 typedef unsigned char Byte;
 typedef unsigned short Word;
 typedef void(*Callback)(void);

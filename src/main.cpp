@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "SDL2/SDL.h"
+#include "SDL2/SDL_image.h"
 #include "filesystem.hpp"
 
 #include "common.hpp"
@@ -37,6 +38,7 @@ Gui::Element* active_menu = &top_gui;
 // SDL
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
+SDL_Texture* nes_texture = NULL;
 
 // NES
 Zapper zapper;
@@ -319,10 +321,20 @@ void loadMovie() {
 	}
 }
 
+void takeScreenshot() {
+	SDL_Surface* surface = SDL_CreateRGBSurface(0, SCREEN_WIDTH, SCREEN_HEIGHT, 24, Pixel::r_mask, Pixel::g_mask, Pixel::b_mask, Pixel::a_mask);
+	surface->pixels = screen;
+
+	fs::path filename = screenshot_folder / ("screenshot_" + std::to_string(std::time(NULL)) + ".png");
+
+    IMG_SavePNG(surface, filename.c_str());
+}
+
 typedef void(*Callback)(void);
 struct Hotkey {
 	enum Type {
 		QUIT,
+		SCREENSHOT,
 		FULLSCREEN,
 		MUTE,
 		PAUSE,
@@ -337,12 +349,13 @@ struct Hotkey {
 };
 Hotkey hotkeys[Hotkey::NUM_HOTKEYS] = {
 	{ SDLK_ESCAPE, quit },
+	{ SDLK_F9, takeScreenshot},
 	{ SDLK_F11, toggleFullscreen},
 	{ SDLK_m, toggleMute},
 	{ SDLK_p, togglePaused},
 	{ SDLK_s, stepFrame},
 	{ SDLK_r, toggleRecording},
-	{ SDLK_a, togglePlayback}
+	{ SDLK_a, togglePlayback},
 };
 
 void pressHotkey(SDL_Keycode key) {
@@ -494,7 +507,7 @@ int main(int argc, char* argv[]) {
 	resizeRenderArea();
 
 	// create texture
-	SDL_Texture* nes_texture = SDL_CreateTexture(renderer,
+	nes_texture = SDL_CreateTexture(renderer,
 		(sizeof(Pixel) == 32) ? SDL_PIXELFORMAT_RGBA32 : SDL_PIXELFORMAT_RGB24,
 		SDL_TEXTUREACCESS_STREAMING,
 		SCREEN_WIDTH, SCREEN_HEIGHT);

@@ -15,6 +15,16 @@ only configurable through config.json for now
 ### Port 2
 * Zapper trigger: left mouse button
 
+## Hotkeys
+* Quit: escape
+* Screenshot: F9
+* Toggle fullscreen: F11
+* Toggle mute: M
+* Toggle paused: P
+* Next frame: S
+* Start/stop recording button input: R
+* Start/stop button playback: A
+
 ## Mappers working
 0. NROM
 1. MMC1
