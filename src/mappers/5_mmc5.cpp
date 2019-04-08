@@ -1,6 +1,8 @@
 #include "5_mmc5.hpp"
 #include "ppu.hpp"
 
+// TODO: vertical split mode
+
 MMC5::MMC5(Byte* data) : Cartridge(data) {
 	registers.prg_mode = PRG_MODE_8K;
 	registers.chr_mode = CHR_MODE_8K;
@@ -67,8 +69,6 @@ void MMC5::writePRG(Word address, Byte value) {
 			break;
 
 		case RAM_PROTECT_1 ... EXT_RAM_MODE:
-			if (address == EXT_RAM_MODE) dout("EXT RAM mode: " << (int)(value & 0x03));
-
 			registers.r[address - PRG_MODE] = value & 0x03;
 			break;
 
@@ -82,17 +82,25 @@ void MMC5::writePRG(Word address, Byte value) {
 
 						case NT_VRAM_1: PPU::mapNametable(i, 1); break;
 
-						case NT_EXT_RAM: {
-							auto read_func = [] (Word index) -> Byte {
-								MMC5* mmc5 = static_cast<MMC5*>(cartridge);
-								return mmc5->ext_ram[index];
-							};
-							auto write_func = [] (Word index, Byte value) -> void {
-								MMC5* mmc5 = static_cast<MMC5*>(cartridge);
-								mmc5->ext_ram[index] = value;
-							};
-							PPU::mapNametable(i, read_func, write_func);
-						} break;
+						case NT_EXT_RAM:
+							if (registers.ext_ram_mode < 0x02) {
+								auto read_func = [] (Word index) -> Byte {
+									MMC5* mmc5 = static_cast<MMC5*>(cartridge);
+									return mmc5->ext_ram[index];
+								};
+								auto write_func = [] (Word index, Byte value) -> void {
+									MMC5* mmc5 = static_cast<MMC5*>(cartridge);
+									mmc5->ext_ram[index] = value;
+								};
+								PPU::mapNametable(i, read_func, write_func);
+							} else {
+								auto read_func = [] (Word index) -> Byte {
+									return 0;
+								};
+								auto write_func = [] (Word index, Byte value) -> void {};
+								PPU::mapNametable(i, read_func, write_func);
+							}
+							break;
 
 						case NT_FILL_MODE: {
 							auto read_func = [] (Word address) -> Byte {
