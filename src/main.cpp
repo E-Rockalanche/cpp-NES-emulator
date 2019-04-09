@@ -322,12 +322,14 @@ void loadMovie() {
 }
 
 void takeScreenshot() {
-	SDL_Surface* surface = SDL_CreateRGBSurface(0, SCREEN_WIDTH, SCREEN_HEIGHT, 24, Pixel::r_mask, Pixel::g_mask, Pixel::b_mask, Pixel::a_mask);
+	SDL_Surface* surface = SDL_CreateRGBSurface(0, SCREEN_WIDTH, SCREEN_HEIGHT,
+		24, Pixel::r_mask, Pixel::g_mask, Pixel::b_mask, Pixel::a_mask);
 	surface->pixels = screen;
 
-	fs::path filename = screenshot_folder / ("screenshot_" + std::to_string(std::time(NULL)) + ".png");
-
-    IMG_SavePNG(surface, filename.c_str());
+	int timestamp = std::time(NULL);
+	std::string name = "screenshot_" + std::to_string(timestamp) + ".png";
+	fs::path filename = screenshot_folder / name;
+    IMG_SavePNG(surface, filename);
 }
 
 typedef void(*Callback)(void);

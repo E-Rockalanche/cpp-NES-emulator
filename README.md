@@ -6,6 +6,8 @@ A cycle acurate NES emulator written in c++
 ![Legend of Zelda](https://i.imgur.com/81l9FRR.png)
 ![Final Fantasy](https://i.imgur.com/D40ymWX.png)
 ![Kirby's Adventure](https://i.imgur.com/SwNf1VF.png)
+![Duck Hunt](https://i.imgur.com/nuQ9tGI.png)
+![Castlevania](https://i.imgur.com/xjy94Mc.png)
 
 ## Controls
 only configurable through config.json for now
