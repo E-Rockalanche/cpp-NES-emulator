@@ -2,6 +2,11 @@
 
 A cycle acurate NES emulator written in c++
 
+![Super Mario Bros.](https://i.imgur.com/gA96Uwy.png)
+![Legend of Zelda](https://i.imgur.com/81l9FRR.png)
+![Final Fantasy](https://i.imgur.com/D40ymWX.png)
+![Kirby's Adventure](https://i.imgur.com/SwNf1VF.png)
+
 ## Controls
 only configurable through config.json for now
 
