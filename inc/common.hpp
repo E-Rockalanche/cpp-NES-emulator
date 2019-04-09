@@ -22,6 +22,7 @@
 
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
+#define CLAMP(value, low, high) MAX(low, MIN(high, value))
 	
 #define inBounds(x, y, left, top, width, height) ((x) >= (left)\
 	&& (y) >= (top)\

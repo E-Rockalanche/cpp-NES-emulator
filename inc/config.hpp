@@ -99,8 +99,8 @@ void loadConfig() {
 		PPU::sprite_flickering = general["sprite flickering"].get<bool>();
 		fullscreen = general["fullscreen"].get<bool>();
 		render_scale = general["scale"].get<float>();
-		window_width = render_scale * SCREEN_WIDTH;
-		window_height = render_scale * SCREEN_HEIGHT;
+		window_width = render_scale * crop_area.w;
+		window_height = render_scale * crop_area.h + GUI_HEIGHT;
 
 		const json& paths = config["paths"];
 		rom_folder = paths["rom folder"].get<std::string>();
