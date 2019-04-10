@@ -1,3 +1,5 @@
+#include <fstream>
+
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_image.h"
 
@@ -146,6 +148,42 @@ void takeScreenshot() {
     IMG_SavePNG(surface, filename.c_str());
 }
 
+void saveState() {
+	dout("saveState()");
+
+	fs::path filename = savestate_folder
+		/ rom_filename.filename().replace_extension(savestate_ext);
+
+	std::ofstream fout(filename.c_str(), std::ios::binary);
+	if (fout.is_open()) {
+		CPU::saveState(fout);
+		PPU::saveState(fout);
+		APU::saveState(fout);
+		cartridge->saveState(fout);
+		fout.close();
+	}
+
+	dout("finished");
+}
+
+void loadState() {
+	dout("loadState()");
+
+	fs::path filename = savestate_folder
+		/ rom_filename.filename().replace_extension(savestate_ext);
+	
+	std::ifstream fin(filename.c_str(), std::ios::binary);
+	if (fin.is_open()) {
+		CPU::loadState(fin);
+		PPU::loadState(fin);
+		APU::loadState(fin);
+		cartridge->loadState(fin);
+		fin.close();
+	}
+
+	dout("finished");
+}
+
 std::vector<Hotkey> hotkeys = {
 	{ SDLK_ESCAPE, quit },
 	{ SDLK_F9, takeScreenshot},
@@ -154,7 +192,9 @@ std::vector<Hotkey> hotkeys = {
 	{ SDLK_p, togglePaused},
 	{ SDLK_s, stepFrame},
 	{ SDLK_r, toggleRecording},
-	{ SDLK_a, togglePlayback}
+	{ SDLK_a, togglePlayback},
+	{ SDLK_F5, saveState},
+	{ SDLK_F6, loadState}
 };
 
 void pressHotkey(SDL_Keycode key) {

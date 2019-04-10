@@ -48,14 +48,15 @@ void selectRom();
 void closeFile();
 
 void toggleRecording();
-
 void togglePlayback();
 
 void saveMovie();
-
 void loadMovie();
 
 void takeScreenshot();
+
+void saveState();
+void loadState();
 
 void pressHotkey(SDL_Keycode key);
 

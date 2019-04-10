@@ -31,8 +31,11 @@ const char* DEFAULT_CONFIG = R"(
 			"save folder": "saves",
 			"screenshot folder": "screenshots",
 			"movie folder": "movies",
+			"savestate folder": "savestates",
+
 			"save extension": ".sav",
-			"movie extension": ".nesmov"
+			"movie extension": ".nesmov",
+			"savestate extension": ".state"
 		},
 		"controls": [
 			{
@@ -116,11 +119,17 @@ void loadConfig() {
 		save_folder = paths["save folder"].get<std::string>();
 		screenshot_folder = paths["screenshot folder"].get<std::string>();
 		movie_folder = paths["movie folder"].get<std::string>();
+		savestate_folder = paths["savestate folder"].get<std::string>();
+
 		save_ext = paths["save extension"].get<std::string>();
 		movie_ext = paths["movie extension"].get<std::string>();
-		API::createDirectory(rom_folder.string());
-		API::createDirectory(save_folder.string());
-		API::createDirectory(screenshot_folder.string());
+		savestate_ext = paths["savestate extension"].get<std::string>();
+
+		API::createDirectory(rom_folder);
+		API::createDirectory(save_folder);
+		API::createDirectory(screenshot_folder);
+		API::createDirectory(movie_folder);
+		API::createDirectory(savestate_folder);
 
 		// joypads
 		for(int j = 0; j < 4; j++) {

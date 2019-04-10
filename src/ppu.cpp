@@ -111,8 +111,9 @@ bool can_draw;
 // remove sprite flickering when there are more than 8 on a scanline
 bool sprite_flickering = true;
 
-Byte open_bus;
-int open_bus_decay_timer;
+Byte open_bus = 0;
+Byte read_buffer = 0;
+Word render_address = 0;
 
 bool write_toggle; // used to set x_scroll/y_scroll and vram_address
 Byte control;
@@ -154,6 +155,132 @@ bool sprite_zero_hit;
 int cycle;
 int scanline;
 bool odd_frame;
+
+struct SaveState {
+	bool can_draw;
+	bool sprite_flickering;
+	Byte open_bus;
+	Byte read_buffer;
+	Word render_address;
+	bool write_toggle;
+	Byte control;
+	Byte mask;
+	Byte status;
+	Byte oam_address;
+	Word vram_address;
+	Word temp_vram_address;
+	Byte fine_x_scroll;
+	bool suppress_vblank;
+	Byte bg_latch_low;
+	Byte bg_latch_high;
+	Word bg_shift_low;
+	Word bg_shift_high;
+	Byte attribute_latch;
+	bool attribute_latch_low;
+	bool attribute_latch_high;
+	Byte attribute_shift_low;
+	Byte attribute_shift_high;
+	Byte nametable_latch;
+	bool sprite_zero_next_scanline;
+	bool sprite_zero_this_scanline;
+	bool sprite_zero_hit;
+	int cycle;
+	int scanline;
+	bool odd_frame;
+};
+
+void saveState(std::ostream& out) {
+	SaveState ss;
+	ss.can_draw = can_draw;
+	ss.sprite_flickering = sprite_flickering;
+	ss.open_bus = open_bus;
+	ss.read_buffer = read_buffer;
+	ss.render_address = render_address;
+	ss.write_toggle = write_toggle;
+	ss.control = control;
+	ss.mask = mask;
+	ss.status = status;
+	ss.oam_address = oam_address;
+	ss.vram_address = vram_address;
+	ss.temp_vram_address = temp_vram_address;
+	ss.fine_x_scroll = fine_x_scroll;
+	ss.suppress_vblank = suppress_vblank;
+	ss.bg_latch_low = bg_latch_low;
+	ss.bg_latch_high = bg_latch_high;
+	ss.bg_shift_low = bg_shift_low;
+	ss.bg_shift_high = bg_shift_high;
+	ss.attribute_latch = attribute_latch;
+	ss.attribute_latch_low = attribute_latch_low;
+	ss.attribute_latch_high = attribute_latch_high;
+	ss.attribute_shift_low = attribute_shift_low;
+	ss.attribute_shift_high = attribute_shift_high;
+	ss.nametable_latch = nametable_latch;
+	ss.sprite_zero_next_scanline = sprite_zero_next_scanline;
+	ss.sprite_zero_this_scanline = sprite_zero_this_scanline;
+	ss.sprite_zero_hit = sprite_zero_hit;
+	ss.cycle = cycle;
+	ss.scanline = scanline;
+	ss.odd_frame = odd_frame;
+
+	out.write((const char*)nametable, NAMETABLE_SIZE);
+	out.write((const char*)palette, PALETTE_SIZE);
+	out.write((const char*)primary_oam, PRIMARY_OAM_SIZE * OBJECT_SIZE);
+	out.write((const char*)secondary_oam, PRIMARY_OAM_SIZE * OBJECT_SIZE);
+
+	out.write((const char*)sprite_shift_low, PRIMARY_OAM_SIZE);
+	out.write((const char*)sprite_shift_high, PRIMARY_OAM_SIZE);
+	out.write((const char*)sprite_x_counter, PRIMARY_OAM_SIZE);
+	out.write((const char*)sprite_attribute_latch, PRIMARY_OAM_SIZE);
+
+	out.write((const char*)&ss, sizeof(SaveState));
+}
+
+void loadState(std::istream& in) {
+	SaveState ss;
+
+	in.read((char*)nametable, NAMETABLE_SIZE);
+	in.read((char*)palette, PALETTE_SIZE);
+	in.read((char*)primary_oam, PRIMARY_OAM_SIZE * OBJECT_SIZE);
+	in.read((char*)secondary_oam, PRIMARY_OAM_SIZE * OBJECT_SIZE);
+
+	in.read((char*)sprite_shift_low, PRIMARY_OAM_SIZE);
+	in.read((char*)sprite_shift_high, PRIMARY_OAM_SIZE);
+	in.read((char*)sprite_x_counter, PRIMARY_OAM_SIZE);
+	in.read((char*)sprite_attribute_latch, PRIMARY_OAM_SIZE);
+
+	in.read((char*)&ss, sizeof(SaveState));
+
+	can_draw = ss.can_draw;
+	sprite_flickering = ss.sprite_flickering;
+	open_bus = ss.open_bus;
+	read_buffer = ss.read_buffer;
+	render_address = ss.render_address;
+	write_toggle = ss.write_toggle;
+	control = ss.control;
+	mask = ss.mask;
+	status = ss.status;
+	oam_address = ss.oam_address;
+	vram_address = ss.vram_address;
+	temp_vram_address = ss.temp_vram_address;
+	fine_x_scroll = ss.fine_x_scroll;
+	suppress_vblank = ss.suppress_vblank;
+	bg_latch_low = ss.bg_latch_low;
+	bg_latch_high = ss.bg_latch_high;
+	bg_shift_low = ss.bg_shift_low;
+	bg_shift_high = ss.bg_shift_high;
+	attribute_latch = ss.attribute_latch;
+	attribute_latch_low = ss.attribute_latch_low;
+	attribute_latch_high = ss.attribute_latch_high;
+	attribute_shift_low = ss.attribute_shift_low;
+	attribute_shift_high = ss.attribute_shift_high;
+	nametable_latch = ss.nametable_latch;
+	sprite_zero_next_scanline = ss.sprite_zero_next_scanline;
+	sprite_zero_this_scanline = ss.sprite_zero_this_scanline;
+	sprite_zero_hit = ss.sprite_zero_hit;
+	cycle = ss.cycle;
+	scanline = ss.scanline;
+	odd_frame = ss.odd_frame;
+}
 
 const int nes_palette[] = {
 	0x7C7C7C, 0x0000FC, 0x0000BC, 0x4428BC, 0x940084, 0xA80020, 0xA81000, 0x881400,
@@ -286,8 +413,6 @@ void writeByte(Word address, Byte value) {
 }
 
 Byte readByte(Word address) {
-	static Byte buffer;
-
 	switch(address) {
 		case PPU_STATUS:
 			open_bus = (open_bus & 0x1f) | status;
@@ -310,11 +435,11 @@ Byte readByte(Word address) {
 		case PPU_DATA:
 			if (vram_address >= PALETTE_START) {
 				// no buffering for palette ram
-				buffer = read(vram_address);
-				open_bus = buffer;
+				read_buffer = read(vram_address);
+				open_bus = read_buffer;
 			} else {
-				open_bus = buffer;
-				buffer = read(vram_address);
+				open_bus = read_buffer;
+				read_buffer = read(vram_address);
 			}
 			incrementVRAMAddress();
 			break;
@@ -446,8 +571,6 @@ void clockTick() {
 // <Scanline> 24.34% of runtime according to gprof
 template <Scanline s>
 void scanlineCycle() {
-	static Word address = 0;
-
 	if (s == VBLANK_LINE && cycle == 1) {
 		setVBlank();
 	} else if (s == POSTRENDER && cycle == 0) {
@@ -481,15 +604,15 @@ void scanlineCycle() {
 				switch (cycle % 8) {
 					// nametable:
 					case 1:
-						address = nametableAddress();
+						render_address = nametableAddress();
 						loadShiftRegisters();
 						break;
-					case 2: nametable_latch = read(address); break;
+					case 2: nametable_latch = read(render_address); break;
 
 					// attribute:
-					case 3: address = attributeAddress(); break;
+					case 3: render_address = attributeAddress(); break;
 					case 4:
-						attribute_latch = read(address);
+						attribute_latch = read(render_address);
 						if (testFlag(vram_address, 0x40))
 							attribute_latch >>= 4;
 						if (testFlag(vram_address, 0x02))
@@ -497,11 +620,11 @@ void scanlineCycle() {
 						break;
 
 					// background
-					case 5: address = backgroundAddress(); break;
-					case 6: bg_latch_low = read(address); break;
-					case 7: address += 8; break;
+					case 5: render_address = backgroundAddress(); break;
+					case 6: bg_latch_low = read(render_address); break;
+					case 7: render_address += 8; break;
 					case 0:
-						bg_latch_high = read(address);
+						bg_latch_high = read(render_address);
 						incrementXComponent();
 						break;
 				}
@@ -509,7 +632,7 @@ void scanlineCycle() {
 
 			case 256:
 				renderPixel();
-				bg_latch_high = read(address);
+				bg_latch_high = read(render_address);
 				incrementYComponent();
 				break;
 
@@ -527,18 +650,18 @@ void scanlineCycle() {
 
 			// no shift loading
 			case 1:
-				address = nametableAddress();
+				render_address = nametableAddress();
 				if (s == PRERENDER) {
 					clearVBlank();
 				}
 				break;
 			case 321:
-			case 339: address = nametableAddress(); break;
+			case 339: render_address = nametableAddress(); break;
 
 			// nametable fetch instead of attribute
-			case 338: nametable_latch = read(address); break;
+			case 338: nametable_latch = read(render_address); break;
 			case 340:
-				nametable_latch = read(address);
+				nametable_latch = read(render_address);
 		}
 
 		// signal scanline to MMC3

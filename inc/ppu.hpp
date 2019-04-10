@@ -1,6 +1,8 @@
 #ifndef PPU_HPP
 #define PPU_HPP
 
+#include <iostream>
+
 #include "cpu.hpp"
 #include "common.hpp"
 #include "cartridge.hpp"
@@ -15,6 +17,9 @@ namespace PPU {
 	bool readyToDraw();
 	void writeToOAM(Byte value);
 	bool renderingEnabled();
+
+	void saveState(std::ostream& out);
+	void loadState(std::istream& in);
 
 	void dump();
 	bool nmiEnabled();
