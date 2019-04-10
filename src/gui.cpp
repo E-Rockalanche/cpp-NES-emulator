@@ -429,6 +429,8 @@ namespace Gui {
 			active = true;
 			input_string = display_string;
 			return true;
+		} else {
+			setData();
 		}
 		return false;
 	}
@@ -442,14 +444,9 @@ namespace Gui {
 	bool Field<T>::keyInput(SDL_Keycode key) {
 		if (active) {
 			switch(key) {
-				case SDLK_RETURN: {
-					std::stringstream ss(input_string);
-					ss >> (*data);
-					active = false;
-					if (input_callback != NULL) {
-						(*input_callback)();
-					}
-				} break;
+				case SDLK_RETURN:
+					setData();
+					break;
 
 				case SDLK_BACKSPACE:
 					if (input_string.size() > 0) {
@@ -466,5 +463,15 @@ namespace Gui {
 			return true;
 		}
 		return false;
+	}
+
+	template<typename T>
+	void Field<T>::setData() {
+		std::stringstream ss(input_string);
+		ss >> (*data);
+		active = false;
+		if (input_callback != NULL) {
+			(*input_callback)();
+		}
 	}
 };

@@ -198,6 +198,8 @@ namespace Gui {
 		Callback input_callback;
 		int flash_counter;
 		int flash_period;
+
+		void setData();
 	};
 
 	template class Field<int>;
