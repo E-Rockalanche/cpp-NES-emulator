@@ -57,16 +57,22 @@ std::string save_ext = ".sav";
 std::string movie_ext = ".nesmov";
 
 // window size
-const int DEFAULT_CROP = 8;
-const int MAX_CROP = 8;
 bool fullscreen = false;
-float render_scale = 2;
-SDL_Rect render_area = { 0, GUI_HEIGHT,
-	256 - DEFAULT_CROP*2, 240 - DEFAULT_CROP*2 };
-SDL_Rect crop_area = { DEFAULT_CROP, DEFAULT_CROP,
-	256 - DEFAULT_CROP*2, 240 - DEFAULT_CROP*2 };
-int window_width = 2 * SCREEN_WIDTH - DEFAULT_CROP * 2;
-int window_height = 2 * SCREEN_HEIGHT - DEFAULT_CROP * 2 - GUI_HEIGHT;
+float render_scale = 1;
+SDL_Rect render_area = {
+	0,
+	GUI_HEIGHT,
+	SCREEN_WIDTH - DEFAULT_CROP,
+	SCREEN_HEIGHT - DEFAULT_CROP
+};
+SDL_Rect crop_area = {
+	DEFAULT_CROP,
+	DEFAULT_CROP,
+	SCREEN_WIDTH - DEFAULT_CROP,
+	SCREEN_HEIGHT - DEFAULT_CROP
+};
+int window_width = SCREEN_WIDTH - DEFAULT_CROP;
+int window_height = SCREEN_HEIGHT - DEFAULT_CROP - GUI_HEIGHT;
 
 // frame timing
 const unsigned int TARGET_FPS = 60;
@@ -226,7 +232,10 @@ void keyboardEvent(const SDL_Event& event) {
 			case SDLK_KP_8: cropScreen(0, -1); break;
 			case SDLK_KP_2: cropScreen(0, +1); break;
 		}
+
 		pressHotkey(key);
+
+		if (active_menu->keyInput(key)) return;
 	}
 
 	if (!Movie::isPlaying()) {
@@ -389,13 +398,27 @@ int main(int argc, char* argv[]) {
 
 	// view
 	Gui::RadioButton fullscreen_button(gui_button_rect, "Fullscreen", &fullscreen, setFullscreen);
-	Gui::Button scale1_button(gui_button_rect, "scale: 1", setResolutionScale1);
-	Gui::Button scale2_button(gui_button_rect, "scale: 2", setResolutionScale2);
-	Gui::Button scale3_button(gui_button_rect, "scale: 3", setResolutionScale3);
+	Gui::Button scale1_button(gui_button_rect, "Scale: 1", setResolutionScale1);
+	Gui::Button scale2_button(gui_button_rect, "Scale: 2", setResolutionScale2);
+	Gui::Button scale3_button(gui_button_rect, "Scale: 3", setResolutionScale3);
 	view_dropdown.addElement(fullscreen_button);
 	view_dropdown.addElement(scale1_button);
 	view_dropdown.addElement(scale2_button);
 	view_dropdown.addElement(scale3_button);
+
+	auto finalizeCrop = []{
+		cropScreen(0, 0);
+	};
+
+	Gui::SubDropDown crop_menu(gui_button_rect, "Crop Screen >");
+	Gui::Field<int> crop_x_input({ 0, 0, 64, GUI_HEIGHT }, &crop_area.x, finalizeCrop);
+	Gui::Field<int> crop_y_input({ 0, 0, 64, GUI_HEIGHT }, &crop_area.y, finalizeCrop);
+	Gui::Label crop_x_label(gui_button_rect, "Left/right: ", crop_x_input);
+	Gui::Label crop_y_label(gui_button_rect, "Top/bottom: ", crop_y_input);
+	crop_menu.addElement(crop_x_label);
+	crop_menu.addElement(crop_y_label);
+
+	view_dropdown.addElement(crop_menu);
 
 	// machine
 	Gui::Button power_button(gui_button_rect, "Power", &power);

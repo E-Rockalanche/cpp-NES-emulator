@@ -22,15 +22,17 @@ const char* DEFAULT_CONFIG = R"(
 		"general": {
 			"fullscreen": false,
 			"scale": 2.0,
-			"sprite flickering": true
+			"sprite flickering": true,
+			"crop x": 8,
+			"crop y": 8
 		},
 		"paths": {
-			"rom folder": "./roms/",
-			"save folder": "./saves/",
-			"screenshot folder": "./screenshots/",
-			"movie folder": "./movies/",
+			"rom folder": "roms",
+			"save folder": "saves",
+			"screenshot folder": "screenshots",
+			"movie folder": "movies",
 			"save extension": ".sav",
-			"movie extension": "./nesmov"
+			"movie extension": ".nesmov"
 		},
 		"controls": [
 			{
@@ -99,6 +101,13 @@ void loadConfig() {
 		PPU::sprite_flickering = general["sprite flickering"].get<bool>();
 		fullscreen = general["fullscreen"].get<bool>();
 		render_scale = general["scale"].get<float>();
+		crop_area.x = general["crop x"].get<int>();
+		crop_area.y = general["crop y"].get<int>();
+
+		crop_area.x = CLAMP(crop_area.x, 0, MAX_CROP);
+		crop_area.y = CLAMP(crop_area.y, 0, MAX_CROP);
+		crop_area.w = SCREEN_WIDTH - 2 * crop_area.x;
+		crop_area.h = SCREEN_HEIGHT - 2 * crop_area.y;
 		window_width = render_scale * crop_area.w;
 		window_height = render_scale * crop_area.h + GUI_HEIGHT;
 

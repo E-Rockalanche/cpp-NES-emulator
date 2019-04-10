@@ -1,9 +1,16 @@
+#include <string>
+
+#include "SDL2/SDL.h"
+
 #include "gui.hpp"
 #include "common.hpp"
 #include "globals.hpp"
-// #include "SDL_FontCache.h"
 
 #define inRect(x, y, rect) inBounds(x, y, rect.x, rect.y, rect.w, rect.h)
+
+namespace std {
+	const string& to_string(const string& str) { return str; }
+}
 
 namespace Gui {
 	TTF_Font* ttf_font = NULL;
@@ -41,6 +48,10 @@ namespace Gui {
 		rect.y = y;
 	}
 
+	void Element::move(int dx, int dy) {
+		setPosition(rect.x + dx, rect.y + dy);
+	}
+
 	void Element::setSize(int width, int height) {
 		rect.w = width;
 		rect.h = height;
@@ -54,6 +65,8 @@ namespace Gui {
 	bool Element::mouseMotion(int x, int y) {
 		return inRect(x, y, rect);
 	}
+
+	bool Element::keyInput(SDL_Keycode key) { return false; }
 
 	TextElement::TextElement(SDL_Rect rect, std::string text) : Element(rect) {
 		// create text surface
@@ -90,6 +103,42 @@ namespace Gui {
 	void TextElement::setTextPlacement() {
 		text_rect.x = rect.x + (rect.w - text_rect.w)/2;
 		text_rect.y = rect.y + (rect.h - text_rect.h)/2;
+	}
+
+	Label::Label(SDL_Rect rect, std::string text, Element& element) : TextElement(rect, text) {
+		this->element = &element;
+		element.setPosition(this->rect.x + this->rect.w, this->rect.y);
+	}
+
+	Label::~Label() {}
+
+	void Label::render() {
+		TextElement::render();
+		element->render();
+	}
+
+	void Label::setPosition(int x, int y) {
+		int dx = x - rect.x;
+		int dy = y - rect.y;
+		TextElement::setPosition(x, y);
+		element->move(dx, dy);
+	}
+
+	void Label::setSize(int width, int height) {
+		TextElement::setSize(width, height);
+		element->setPosition(rect.x + rect.w, rect.y);
+	}
+
+	bool Label::click(int x, int y) {
+		return element->click(x, y);
+	}
+
+	bool Label::mouseMotion(int x, int y) {
+		return inRect(x, y, rect) || element->mouseMotion(x, y);
+	}
+
+	bool Label::keyInput(SDL_Keycode key) {
+		return element->keyInput(key);
 	}
 
 	DynamicTextElement::DynamicTextElement(SDL_Rect rect, std::string* text)
@@ -188,10 +237,21 @@ namespace Gui {
 		this->placeElements();
 	}
 
+	bool Container::keyInput(SDL_Keycode key) {
+		bool did_input = false;
+		for(Element* element : elements) {
+			if (element->keyInput(key)) {
+				did_input = true;
+				break;
+			}
+		}
+		return did_input;
+	}
+
 	void Container::addElement(Element& element) {
 		elements.push_back(&element);
 		element.container = this;
-		this->placeElements(elements.size()-1);
+		placeElements(elements.size()-1);
 	}
 
 	void Container::placeElements(int start) {}
@@ -273,7 +333,7 @@ namespace Gui {
 		int dy = y - rect.y;
 		Container::setPosition(x, y);
 		text.setPosition(x, y);
-		list.setPosition(list.rect.x + dx, list.rect.y + dy);
+		list.move(dx, dy);
 	}
 
 	void DropDown::setSize(int width, int height) {
@@ -333,6 +393,75 @@ namespace Gui {
 			*boolean = !*boolean;
 			if (callback != NULL) {
 				(*callback)(*boolean);
+			}
+			return true;
+		}
+		return false;
+	}
+
+	template<typename T>
+	Field<T>::Field(SDL_Rect rect, T* data, Callback input_callback)
+			: DynamicTextElement(rect, &display_string), data(data),
+			input_callback(input_callback), flash_counter(0),
+			flash_period(60) {
+		active = false;
+		display_string = std::to_string(*data);
+	}
+
+	template<typename T>
+	Field<T>::~Field() {}
+
+	template<typename T>
+	void Field<T>::render() {
+		flash_counter = (flash_counter + 1) % flash_period;
+		if (active) {
+			bool display_cursor = flash_counter < (flash_period / 2);
+			display_string = input_string + (display_cursor ? "|" : "");
+		} else {
+			display_string = std::to_string(*data);
+		}
+		DynamicTextElement::render();
+	}
+
+	template<typename T>
+	bool Field<T>::click(int x, int y) {
+		if (inRect(x, y, rect)) {
+			active = true;
+			input_string = display_string;
+			return true;
+		}
+		return false;
+	}
+
+	template<typename T>
+	bool Field<T>::mouseMotion(int x, int y) {
+		return active || inRect(x, y, rect);
+	}
+
+	template<typename T>
+	bool Field<T>::keyInput(SDL_Keycode key) {
+		if (active) {
+			switch(key) {
+				case SDLK_RETURN: {
+					std::stringstream ss(input_string);
+					ss >> (*data);
+					active = false;
+					if (input_callback != NULL) {
+						(*input_callback)();
+					}
+				} break;
+
+				case SDLK_BACKSPACE:
+					if (input_string.size() > 0) {
+						input_string.pop_back();
+					}
+					break;
+
+				default:
+					if (std::isprint(key)) {
+						input_string += key;
+					}
+					break;
 			}
 			return true;
 		}

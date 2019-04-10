@@ -12,6 +12,8 @@
 #include "screen.hpp"
 
 #define GUI_HEIGHT 24
+#define DEFAULT_CROP 8
+#define MAX_CROP 8
 
 // SDL
 extern SDL_Window* window;

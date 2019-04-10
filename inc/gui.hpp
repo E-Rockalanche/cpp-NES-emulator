@@ -39,8 +39,15 @@ namespace Gui {
 		// sets x/y position of element
 		virtual void setPosition(int x, int y);
 
+		// calls setPosition to move by dx and dy
+		virtual void move(int dx, int dy);
+
 		// sets width/height of element
 		virtual void setSize(int width, int height);
+
+		// tells element what key was pressed
+		// returns true is element processed input
+		virtual bool keyInput(SDL_Keycode key);
 
 		SDL_Rect rect;
 		Container* container;
@@ -58,6 +65,21 @@ namespace Gui {
 		virtual void setTextPlacement();
 		SDL_Rect text_rect;
 		SDL_Texture* text_tex;
+	};
+
+	class Label : public TextElement {
+	public:
+		Label(SDL_Rect rect, std::string text, Element& element);
+		virtual ~Label();
+		virtual void render();
+		virtual void setPosition(int x, int y);
+		virtual void setSize(int width, int height);
+		virtual bool click(int x, int y);
+		virtual bool mouseMotion(int x, int y);
+		virtual bool keyInput(SDL_Keycode key);
+
+	protected:
+		Element* element;
 	};
 
 	class DynamicTextElement : public Element {
@@ -91,6 +113,7 @@ namespace Gui {
 		virtual bool mouseMotion(int x, int y);
 		virtual void setPosition(int x, int y);
 		virtual void setSize(int width, int height);
+		virtual bool keyInput(SDL_Keycode key);
 
 		// adds element to container
 		virtual void addElement(Element& element);
@@ -156,6 +179,30 @@ namespace Gui {
 		bool* boolean;
 		RadioCallback callback;
 	};
+
+	template<typename T>
+	class Field : public DynamicTextElement {
+	public:
+		Field(SDL_Rect rect, T* data = NULL, Callback input_callback = NULL);
+		virtual ~Field();
+		virtual void render();
+		virtual bool click(int x, int y);
+		virtual bool mouseMotion(int x, int y);
+		virtual bool keyInput(SDL_Keycode key);
+
+	protected:
+		T* data;
+		bool active;
+		std::string display_string;
+		std::string input_string;
+		Callback input_callback;
+		int flash_counter;
+		int flash_period;
+	};
+
+	template class Field<int>;
+	template class Field<float>;
+	template class Field<std::string>;
 };
 
 #endif
