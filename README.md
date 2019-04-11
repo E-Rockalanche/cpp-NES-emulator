@@ -31,6 +31,8 @@ only configurable through config.json for now
 * Next frame: S
 * Start/stop recording button input: R
 * Start/stop button playback: A
+* Save state: F5
+* Load state: F6
 
 ## Mappers working
 0. NROM
