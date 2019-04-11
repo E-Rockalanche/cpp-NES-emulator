@@ -6,9 +6,11 @@
 *.exe
 
 #generated folders
+movies/
 roms/
 saves/
 screenshots/
+savestates/
 
 # test roms
 tests/
