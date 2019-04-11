@@ -391,6 +391,7 @@ struct Registers {
 	bool _halt;
 	int _nmi;
 	int _irq;
+	int wait_cycles;
 };
 
 void saveState(std::ostream& out) {
@@ -405,6 +406,7 @@ void saveState(std::ostream& out) {
 	ss._halt = _halt;
 	ss._nmi = _nmi;
 	ss._irq = _irq;
+	ss.wait_cycles = wait_cycles;
 
 	out.write((const char*)ram, RAM_SIZE);
 	out.write((const char*)&ss, sizeof(Registers));
@@ -426,6 +428,7 @@ void loadState(std::istream& in) {
 	_halt = ss._halt;
 	_nmi = ss._nmi;
 	_irq = ss._irq;
+	wait_cycles = ss.wait_cycles;
 }
 
 const int NMI_VECTOR = 0xfffa;

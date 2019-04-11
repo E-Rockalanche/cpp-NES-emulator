@@ -235,13 +235,23 @@ void Cartridge::saveState(std::ostream& out) {
 	std::memcpy(ss.prg_map, prg_map, sizeof(prg_map));
 	std::memcpy(ss.chr_map, chr_map, sizeof(chr_map));
 
-	out.write((const char*)&ss, sizeof(SaveState));
+	out.write((char*)&ss, sizeof(SaveState));
+	out.write((char*)ram, ram_size);
+
+	if(has_chr_ram) {
+		out.write((char*)chr, chr_size);
+	}
 }
 
 void Cartridge::loadState(std::istream& in) {
 	SaveState ss;
 
 	in.read((char*)&ss, sizeof(SaveState));
+	in.read((char*)ram, ram_size);
+
+	if(has_chr_ram) {
+		in.read((char*)chr, chr_size);
+	}
 
 	nt_mirroring = ss.nt_mirroring;
 	std::memcpy(prg_map, ss.prg_map, sizeof(prg_map));

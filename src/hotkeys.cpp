@@ -149,8 +149,6 @@ void takeScreenshot() {
 }
 
 void saveState() {
-	dout("saveState()");
-
 	fs::path filename = savestate_folder
 		/ rom_filename.filename().replace_extension(savestate_ext);
 
@@ -162,13 +160,9 @@ void saveState() {
 		cartridge->saveState(fout);
 		fout.close();
 	}
-
-	dout("finished");
 }
 
 void loadState() {
-	dout("loadState()");
-
 	fs::path filename = savestate_folder
 		/ rom_filename.filename().replace_extension(savestate_ext);
 	
@@ -180,8 +174,6 @@ void loadState() {
 		cartridge->loadState(fin);
 		fin.close();
 	}
-
-	dout("finished");
 }
 
 std::vector<Hotkey> hotkeys = {
