@@ -1,42 +1,62 @@
 #ifndef HOTKEYS_HPP
 #define HOTKEYS_HPP
 
-#include "globals.hpp"
+#include <vector>
+#include "SDL2/SDL.h"
+#include "common.hpp"
 
-void quit() { exit(0); }
-
-void toggleFullscreen() {
-	fullscreen = !fullscreen;
-	SDL_SetWindowFullscreen(sdl_window, fullscreen);
-}
-
-void togglePaused() {
-	paused = !paused || (cartridge == NULL);
-}
-
+typedef void(*Callback)(void);
 struct Hotkey {
 	enum Type {
 		QUIT,
+		SCREENSHOT,
 		FULLSCREEN,
+		MUTE,
 		PAUSE,
+		STEP_FRAME,
+		RECORD,
+		PLAYBACK,
 
 		NUM_HOTKEYS
 	};
 	SDL_Keycode key;
 	Callback callback;
 };
-Hotkey hotkeys[Hotkey::NUM_HOTKEYS] = {
-	{ SDLK_ESCAPE, quit },
-	{ SDLK_F11, toggleFullscreen},
-	{ SDLK_p, togglePaused}
-};
 
-void pressHotkey(SDL_Keycode key) {
-	for(int i = 0; i < Hotkey::NUM_HOTKEYS; i++) {
-		if (key == hotkeys[i].key) {
-			(*hotkeys[i].callback)();
-		}
-	}
-}
+extern std::vector<Hotkey> hotkeys;
+
+void quit();
+
+void setFullscreen(bool on = true);
+void toggleFullscreen();
+
+void setResolutionScale(float scale);
+void setResolutionScale1();
+void setResolutionScale2();
+void setResolutionScale3();
+
+void setPaused(bool pause = true);
+void togglePaused();
+
+void stepFrame();
+
+void setMute(bool mute = true);
+void toggleMute();
+
+void selectRom();
+
+void closeFile();
+
+void toggleRecording();
+
+void togglePlayback();
+
+void saveMovie();
+
+void loadMovie();
+
+void takeScreenshot();
+
+void pressHotkey(SDL_Keycode key);
 
 #endif
