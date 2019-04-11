@@ -15,7 +15,7 @@ namespace CPU {
 	bool debug = false;
 
 #define debugOperation(pc, opcode) if (debug) std::cout \
-	<< std::string(subroutine_depth, ' ') << "[" << toHex(pc, 2) \
+	<< "[" << toHex(pc, 2) \
 	<< "] op: " << toHex(opcode, 1) << ", " \
 	<< instruction_names[operations[opcode].instruction] << ' ' \
 	<< ((operations[opcode].address_mode != IMPLIED) \
@@ -24,10 +24,10 @@ namespace CPU {
 	<< '\n'
 
 #define debugSpecific(message) if (debug) std::cout \
-	<< std::string(subroutine_depth, ' ') << message << '\n'
+	<< message << '\n'
 
 #define debugStatus(flag) if (debug) std::cout \
-	<< std::string(subroutine_depth, ' ') << #flag << ": " \
+	<< #flag << ": " \
 	<< getStatusFlag(flag) << '\n'
 
 int test_ticks;
@@ -380,6 +380,57 @@ bool _halt;
 int _nmi; // time since nmi was set
 int _irq; // time since irq was set
 
+struct Registers {
+	Byte accumulator;
+	Byte x_register;
+	Byte y_register;
+	Word program_counter;
+	Byte stack_pointer;
+	Byte status;
+	bool odd_cycle;
+	bool _halt;
+	int _nmi;
+	int _irq;
+	int wait_cycles;
+};
+
+void saveState(std::ostream& out) {
+	Registers ss;
+	ss.accumulator = accumulator;
+	ss.x_register = x_register;
+	ss.y_register = y_register;
+	ss.program_counter = program_counter;
+	ss.stack_pointer = stack_pointer;
+	ss.status = status;
+	ss.odd_cycle = odd_cycle;
+	ss._halt = _halt;
+	ss._nmi = _nmi;
+	ss._irq = _irq;
+	ss.wait_cycles = wait_cycles;
+
+	out.write((const char*)ram, RAM_SIZE);
+	out.write((const char*)&ss, sizeof(Registers));
+}
+
+void loadState(std::istream& in) {
+	Registers ss;
+
+	in.read((char*)ram, RAM_SIZE);
+	in.read((char*)&ss, sizeof(Registers));
+
+	accumulator = ss.accumulator;
+	x_register = ss.x_register;
+	y_register = ss.y_register;
+	program_counter = ss.program_counter;
+	stack_pointer = ss.stack_pointer;
+	status = ss.status;
+	odd_cycle = ss.odd_cycle;
+	_halt = ss._halt;
+	_nmi = ss._nmi;
+	_irq = ss._irq;
+	wait_cycles = ss.wait_cycles;
+}
+
 const int NMI_VECTOR = 0xfffa;
 const int RESET_VECTOR = 0xfffc;
 const int IRQ_VECTOR = 0xfffe;
@@ -400,7 +451,6 @@ InstructionFunction instruction_functions[NUM_INSTRUCTIONS];
 
 
 
-int subroutine_depth = 0;
 
 struct Breakpoint {
 	BreakpointCondition condition;
@@ -1113,7 +1163,6 @@ void jumpToSubroutine(AddressMode address_mode) {
 	program_counter = readWord(program_counter);
 
 	debugSpecific("pc = " << toHex(program_counter));
-	subroutine_depth++;
 }
 
 void loadAcc(AddressMode address_mode) {
@@ -1300,7 +1349,6 @@ void returnFromSubroutine(AddressMode address_mode) {
 	clockTick();
 
 	debugSpecific("pc = " << toHex(program_counter));
-	subroutine_depth--;
 }
 
 void subtractFromAcc(AddressMode address_mode) {

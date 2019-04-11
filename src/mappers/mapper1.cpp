@@ -88,3 +88,17 @@ void Mapper1::applyBankSwitch() {
 		case 3: nt_mirroring = HORIZONTAL; break;
 	}
 }
+
+void Mapper1::saveState(std::ostream& out) {
+	Cartridge::saveState(out);
+	
+	out.write((char*)&shift_register, sizeof(shift_register));
+	out.write((char*)registers, sizeof(registers));
+}
+
+void Mapper1::loadState(std::istream& in) {
+	Cartridge::loadState(in);
+
+	in.read((char*)&shift_register, sizeof(shift_register));
+	in.read((char*)registers, sizeof(registers));
+}

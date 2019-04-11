@@ -1,4 +1,6 @@
 #include <fstream>
+#include <iostream>
+#include <cstring>
 
 #include "cartridge.hpp"
 #include "mapper1.hpp"
@@ -145,7 +147,7 @@ bool Cartridge::saveGame(std::string filename) {
 		return false;
 	}
 
-	fout.write((const char*)ram, ram_size);
+	fout.write((const char*)(const char*)ram, ram_size);
 	fout.close();
 
 	return true;
@@ -219,4 +221,39 @@ void Cartridge::setCHRBank(int slot, int bank, int bank_size) {
 	for(int i = 0; i < map_size; i++) {
 		chr_map[(slot * map_size) + i] = ((bank * bank_size) + (i * MIN_CHR_BANK_SIZE)) % chr_size;
 	}
+}
+
+struct SaveState {
+	Cartridge::NameTableMirroring nt_mirroring;
+	int prg_map[4];
+	int chr_map[8];
+};
+
+void Cartridge::saveState(std::ostream& out) {
+	SaveState ss;
+	ss.nt_mirroring = nt_mirroring;
+	std::memcpy(ss.prg_map, prg_map, sizeof(prg_map));
+	std::memcpy(ss.chr_map, chr_map, sizeof(chr_map));
+
+	out.write((char*)&ss, sizeof(SaveState));
+	out.write((char*)ram, ram_size);
+
+	if(has_chr_ram) {
+		out.write((char*)chr, chr_size);
+	}
+}
+
+void Cartridge::loadState(std::istream& in) {
+	SaveState ss;
+
+	in.read((char*)&ss, sizeof(SaveState));
+	in.read((char*)ram, ram_size);
+
+	if(has_chr_ram) {
+		in.read((char*)chr, chr_size);
+	}
+
+	nt_mirroring = ss.nt_mirroring;
+	std::memcpy(prg_map, ss.prg_map, sizeof(prg_map));
+	std::memcpy(chr_map, ss.chr_map, sizeof(chr_map));
 }

@@ -1,3 +1,5 @@
+#include <cstring>
+
 #include "mapper4.hpp"
 
 Mapper4::Mapper4(Byte* data) : Cartridge(data) {
@@ -82,4 +84,41 @@ void Mapper4::signalScanline() {
 	if (irq_enabled && (irq_counter == 0)) {
 		CPU::setIRQ();
 	}
+}
+
+struct SaveState {
+	Byte bank_select;
+	bool protectRAM;
+	bool enableRAM;
+	Byte irq_latch;
+	Byte irq_counter;
+	bool irq_enabled;
+	Byte bank_registers[8];
+};
+
+void Mapper4::saveState(std::ostream& out) {
+	SaveState ss;
+	ss.bank_select = bank_select;
+	ss.protectRAM = protectRAM;
+	ss.enableRAM = enableRAM;
+	ss.irq_latch = irq_latch;
+	ss.irq_counter = irq_counter;
+	memcpy(ss.bank_registers, bank_registers, sizeof(bank_registers));
+
+	Cartridge::saveState(out);
+	out.write((char*)&ss, sizeof(SaveState));
+}
+
+void Mapper4::loadState(std::istream& in) {
+	SaveState ss;
+
+	Cartridge::loadState(in);
+	in.read((char*)&ss, sizeof(SaveState));
+
+	bank_select = ss.bank_select;
+	protectRAM = ss.protectRAM;
+	enableRAM = ss.enableRAM;
+	irq_latch = ss.irq_latch;
+	irq_counter = ss.irq_counter;
+	memcpy(bank_registers, ss.bank_registers, sizeof(bank_registers));
 }
