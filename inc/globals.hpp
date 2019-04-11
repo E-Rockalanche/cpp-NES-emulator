@@ -11,6 +11,10 @@
 #include "zapper.hpp"
 #include "screen.hpp"
 
+#define GUI_HEIGHT 24
+#define DEFAULT_CROP 8
+#define MAX_CROP 8
+
 // SDL
 extern SDL_Window* window;
 extern SDL_Renderer* renderer;
@@ -19,6 +23,7 @@ extern SDL_Renderer* renderer;
 extern Joypad joypad[4];
 extern Zapper zapper;
 extern bool paused;
+extern bool step_frame;
 extern bool in_menu;
 extern bool muted;
 
@@ -29,7 +34,10 @@ extern fs::path save_folder;
 extern fs::path rom_folder;
 extern fs::path screenshot_folder;
 extern fs::path movie_folder;
+extern fs::path savestate_folder;
+
 extern std::string save_ext;
+extern std::string savestate_ext;
 extern std::string movie_ext;
 
 // window size
@@ -38,6 +46,7 @@ extern int window_height;
 extern bool fullscreen;
 extern float render_scale;
 extern SDL_Rect render_area;
+extern SDL_Rect crop_area;
 
 // frame timing
 extern const unsigned int TARGET_FPS;
@@ -52,5 +61,15 @@ extern float fps;
 extern float total_fps;
 extern float real_fps;
 extern float total_real_fps;
+
+void resetFrameNumber();
+void reset();
+void power();
+bool loadFile(std::string filename);
+bool loadSave(std::string filename);
+void saveGame();
+void resizeRenderArea(bool round_scale = false);
+void resizeWindow(int width, int height);
+void cropScreen(int dx, int dy);
 
 #endif

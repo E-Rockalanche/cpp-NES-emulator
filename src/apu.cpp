@@ -1,4 +1,5 @@
 #include "Nes_Apu.h"
+#include "apu_snapshot.h"
 
 #include "apu.hpp"
 #include "common.hpp"
@@ -16,6 +17,26 @@ const int OUT_SIZE = 4096;
 blip_sample_t outBuf[OUT_SIZE];
 
 Sound_Queue* sound_queue = NULL;
+
+
+void saveState(std::ostream& out) {
+    apu_snapshot_t ss;
+    apu.save_snapshot(&ss);
+
+    out.write((const char*)&outBuf, sizeof(outBuf));
+    out.write((const char*)&ss, sizeof(apu_snapshot_t));
+    out.write((const char*)&muted, 1);
+}
+
+void loadState(std::istream& in) {
+    apu_snapshot_t ss;
+
+    in.read((char*)&outBuf, sizeof(outBuf));
+    in.read((char*)&ss, sizeof(apu_snapshot_t));
+    in.read((char*)&muted, 1);
+
+    apu.load_snapshot(ss);
+}
 
 void mute(bool m) {
     muted = m;

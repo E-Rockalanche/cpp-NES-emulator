@@ -22,12 +22,14 @@
 
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
+#define CLAMP(value, low, high) MAX(low, MIN(high, value))
 	
 #define inBounds(x, y, left, top, width, height) ((x) >= (left)\
 	&& (y) >= (top)\
 	&& (x) < ((left) + (width))\
 	&& (y) < ((top) + (height)))
 
+typedef unsigned int uint;
 typedef unsigned char Byte;
 typedef unsigned short Word;
 typedef void(*Callback)(void);
