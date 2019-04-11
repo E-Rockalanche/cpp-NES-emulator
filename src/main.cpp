@@ -53,8 +53,11 @@ fs::path rom_folder = std::string("roms");
 fs::path save_folder = std::string("saves");
 fs::path screenshot_folder = std::string("screenshots");
 fs::path movie_folder = std::string("movies");
+fs::path savestate_folder = std::string("savestates");
+
 std::string save_ext = ".sav";
 std::string movie_ext = ".nesmov";
+std::string savestate_ext = ".state";
 
 // window size
 bool fullscreen = false;

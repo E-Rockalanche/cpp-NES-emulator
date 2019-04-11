@@ -34,7 +34,10 @@ extern fs::path save_folder;
 extern fs::path rom_folder;
 extern fs::path screenshot_folder;
 extern fs::path movie_folder;
+extern fs::path savestate_folder;
+
 extern std::string save_ext;
+extern std::string savestate_ext;
 extern std::string movie_ext;
 
 // window size

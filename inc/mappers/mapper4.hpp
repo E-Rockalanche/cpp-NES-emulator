@@ -13,6 +13,9 @@ public:
 	void writeCHR(Word address, Byte value);
 	void signalScanline();
 
+	void saveState(std::ostream& out);
+	void loadState(std::istream& in);
+
 protected:
 	Byte bank_select;
 	Byte bank_registers[8];

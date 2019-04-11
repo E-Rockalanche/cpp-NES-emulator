@@ -44,6 +44,9 @@ public:
 
 	virtual void signalScanline() {}
 
+	virtual void saveState(std::ostream& out);
+	virtual void loadState(std::istream& in);
+
 protected:
 	enum Header {
 		NES,
