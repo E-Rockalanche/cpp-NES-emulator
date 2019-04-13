@@ -5,8 +5,10 @@
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
+#include <windows.h>
 
 #include "SDL2/SDL.h"
+
 #include "filesystem.hpp"
 
 #include "common.hpp"
@@ -28,10 +30,6 @@
 #include "movie.hpp"
 #include "hotkeys.hpp"
 #include "assert.hpp"
-
-// GUI
-Gui::HBox top_gui({ 0, 0, window_width, GUI_HEIGHT });
-Gui::Element* active_menu = &top_gui;
 
 // SDL
 SDL_Window* window = NULL;
@@ -64,7 +62,7 @@ bool fullscreen = false;
 float render_scale = 1;
 SDL_Rect render_area = {
 	0,
-	GUI_HEIGHT,
+	0,
 	SCREEN_WIDTH - DEFAULT_CROP,
 	SCREEN_HEIGHT - DEFAULT_CROP
 };
@@ -75,7 +73,7 @@ SDL_Rect crop_area = {
 	SCREEN_HEIGHT - DEFAULT_CROP
 };
 int window_width = SCREEN_WIDTH - DEFAULT_CROP;
-int window_height = SCREEN_HEIGHT - DEFAULT_CROP - GUI_HEIGHT;
+int window_height = SCREEN_HEIGHT - DEFAULT_CROP;
 
 // frame timing
 const unsigned int TARGET_FPS = 60;
@@ -178,16 +176,12 @@ void saveGame() {
 // resize window and render area
 void resizeRenderArea(bool round_scale) {
 	SDL_GetWindowSize(window, &window_width, &window_height);
-	top_gui.setSize(window_width, GUI_HEIGHT);
 
 	// set viewport to fill window
 	SDL_RenderSetViewport(renderer, NULL);
 
-	int gui_height = fullscreen ? 0 : GUI_HEIGHT;
-
-	int allowed_height = window_height - gui_height;
 	float x_scale = (float)window_width / crop_area.w;
-	float y_scale = (float)allowed_height / crop_area.h;
+	float y_scale = (float)window_height / crop_area.h;
 	render_scale = MIN(x_scale, y_scale);
 
 	if (round_scale) {
@@ -198,11 +192,11 @@ void resizeRenderArea(bool round_scale) {
 	render_area.w = crop_area.w * render_scale;
 	render_area.h = crop_area.h * render_scale;
 	render_area.x = (window_width - render_area.w) / 2;
-	render_area.y = gui_height + (allowed_height - render_area.h) / 2;
+	render_area.y = (window_height - render_area.h) / 2;
 }
 
 void resizeWindow(int width, int height) {
-	SDL_SetWindowSize(window, width, height + GUI_HEIGHT);
+	SDL_SetWindowSize(window, width, height);
 	resizeRenderArea();
 }
 
@@ -237,8 +231,6 @@ void keyboardEvent(const SDL_Event& event) {
 		}
 
 		pressHotkey(key);
-
-		if (active_menu->keyInput(key)) return;
 	}
 
 	if (!Movie::isPlaying()) {
@@ -269,30 +261,23 @@ void windowEvent(const SDL_Event& event) {
 }
 
 void mouseMotionEvent(const SDL_Event& event) {
-	active_menu->mouseMotion(event.motion.x, event.motion.y);
-
 	int tv_x = (event.motion.x - render_area.x) / render_scale;
 	int tv_y = (event.motion.y - render_area.y) / render_scale;
 	zapper.aim(tv_x, tv_y);
 }
 
 void mouseButtonEvent(const SDL_Event& event) {
-	if (event.button.state == SDL_PRESSED) {
-		if (event.button.button == SDL_BUTTON_LEFT) {
-			bool clicked_menu = false;
-			if (active_menu) {
-				clicked_menu = active_menu->click(event.button.x, event.button.y);
-			}
-			if (!clicked_menu) {
-				int gui_height = fullscreen ? 0 : GUI_HEIGHT;
-				if (event.button.y > gui_height) {
-					zapper.pull();
-				}
-			}
-		}
-	} else if (event.button.state == SDL_RELEASED) {
+	if ((event.button.state == SDL_PRESSED)
+	&& (event.button.button == SDL_BUTTON_LEFT)) {
+		zapper.pull();
 	}
 }
+
+#ifdef _WIN32
+	#define GUI_EVENT SDL_SYSWMEVENT
+#else
+	#define GUI_EVENT -1
+#endif
 
 void pollEvents() {
 	SDL_Event event;
@@ -322,16 +307,19 @@ void pollEvents() {
 				windowEvent(event);
 				break;
 
+		    case GUI_EVENT:
+		    	GUI::handleMenuEvent(event);
+		        break;
+
 			default: break;
 		}
 	}
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char** argv) {
 	srand(time(NULL));
 
 	assert(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) == 0, "failed to initialize SDL");
-	Gui::init();
 
 	loadConfig();
 
@@ -348,7 +336,6 @@ int main(int argc, char* argv[]) {
 	// create renderer
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
 	assert(renderer != NULL, "failed to create renderer");
-	resizeRenderArea();
 
 	// create texture
 	nes_texture = SDL_CreateTexture(renderer,
@@ -374,6 +361,31 @@ int main(int argc, char* argv[]) {
 	joypad[0].mapButtons((const int[8]){ SDLK_x, SDLK_z, SDLK_RSHIFT, SDLK_RETURN,
 		SDLK_UP, SDLK_DOWN, SDLK_LEFT, SDLK_RIGHT });
 
+	// construct menu bar
+	GUI::Menu file_menu("File");
+	GUI::Button load_rom_button("Load ROM", selectRom);
+	GUI::Button close_rom_button("Close ROM", closeFile);
+	file_menu.append(load_rom_button);
+	file_menu.append(close_rom_button);
+
+	GUI::Menu view_menu("View");
+	GUI::Button scale1_button("Scale: 1", setResolutionScale1);
+	GUI::Button scale2_button("Scale: 2", setResolutionScale2);
+	GUI::Button scale3_button("Scale: 3", setResolutionScale3);
+	view_menu.append(scale1_button);
+	view_menu.append(scale2_button);
+	view_menu.append(scale3_button);
+
+	GUI::Menu menu_bar("Menu bar");
+	menu_bar.append(file_menu);
+	menu_bar.append(view_menu);
+
+	menu_bar.setMenuBar(window);
+
+	resizeWindow(window_width, window_height);
+
+
+	/*
 	// build gui bar
 	const SDL_Rect gui_button_rect = { 0, 0, 0, GUI_HEIGHT };
 	Gui::DropDown file_dropdown(gui_button_rect, "File");
@@ -438,6 +450,7 @@ int main(int argc, char* argv[]) {
 	Gui::RadioButton mute_button(gui_button_rect, "Mute", &muted);
 	options_dropdown.addElement(pause_button);
 	options_dropdown.addElement(mute_button);
+	*/
 
 	// run emulator
 	int last_time = SDL_GetTicks();
@@ -463,9 +476,6 @@ int main(int argc, char* argv[]) {
 		// render nes & gui
 		SDL_UpdateTexture(nes_texture, NULL, screen, SCREEN_WIDTH * sizeof (Pixel));
 		SDL_RenderCopy(renderer, nes_texture, &crop_area, &render_area);
-		if (!fullscreen || paused || (cartridge == NULL)) {
-			top_gui.render();
-		}
 
 		// preset screen
 		SDL_RenderPresent(renderer);

@@ -112,7 +112,7 @@ void loadConfig() {
 		crop_area.w = SCREEN_WIDTH - 2 * crop_area.x;
 		crop_area.h = SCREEN_HEIGHT - 2 * crop_area.y;
 		window_width = render_scale * crop_area.w;
-		window_height = render_scale * crop_area.h + GUI_HEIGHT;
+		window_height = render_scale * crop_area.h;
 
 		const json& paths = config["paths"];
 		rom_folder = paths["rom folder"].get<std::string>();

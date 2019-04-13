@@ -9,6 +9,11 @@
 #endif
 
 namespace API {
+	typedef void(*VoidCallback)(void);
+
+	bool createDirectory(std::string name);
+	bool directoryExists(std::string name);
+	bool fileExists(std::string filename);
 
 	class FileDialog {
 	public:
@@ -26,13 +31,11 @@ namespace API {
 		FileDialog& clear();
 
 	private:
+#ifdef _WIN32
 		OPENFILENAME ofn;
 		char filename_buffer[MAX_PATH];
+#endif
 	};
-
-	bool createDirectory(std::string name);
-	bool directoryExists(std::string name);
-	bool fileExists(std::string filename);
 }
 
 #endif
