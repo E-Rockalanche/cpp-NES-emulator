@@ -10,9 +10,12 @@
 #include "joypad.hpp"
 #include "zapper.hpp"
 #include "screen.hpp"
+#include "gui.hpp"
 
 #define DEFAULT_CROP 8
 #define MAX_CROP 8
+
+extern GUI::Menu* menu_bar_ptr;
 
 // SDL
 extern SDL_Window* window;

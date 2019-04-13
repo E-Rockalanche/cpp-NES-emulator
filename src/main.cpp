@@ -5,7 +5,6 @@
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
-#include <windows.h>
 
 #include "SDL2/SDL.h"
 
@@ -30,6 +29,8 @@
 #include "movie.hpp"
 #include "hotkeys.hpp"
 #include "assert.hpp"
+
+GUI::Menu* menu_bar_ptr = NULL;
 
 // SDL
 SDL_Window* window = NULL;
@@ -177,6 +178,8 @@ void saveGame() {
 void resizeRenderArea(bool round_scale) {
 	SDL_GetWindowSize(window, &window_width, &window_height);
 
+	// dout("window size: " << window_width << ", " << window_height);
+
 	// set viewport to fill window
 	SDL_RenderSetViewport(renderer, NULL);
 
@@ -273,12 +276,6 @@ void mouseButtonEvent(const SDL_Event& event) {
 	}
 }
 
-#ifdef _WIN32
-	#define GUI_EVENT SDL_SYSWMEVENT
-#else
-	#define GUI_EVENT -1
-#endif
-
 void pollEvents() {
 	SDL_Event event;
 	while(SDL_PollEvent(&event)) {
@@ -307,7 +304,7 @@ void pollEvents() {
 				windowEvent(event);
 				break;
 
-		    case GUI_EVENT:
+		    case SDL_GUI_EVENT:
 		    	GUI::handleMenuEvent(event);
 		        break;
 
@@ -369,18 +366,36 @@ int main(int argc, char** argv) {
 	file_menu.append(close_rom_button);
 
 	GUI::Menu view_menu("View");
+	GUI::Button fullscreen_button("Fullscreen", toggleFullscreen);
 	GUI::Button scale1_button("Scale: 1", setResolutionScale1);
 	GUI::Button scale2_button("Scale: 2", setResolutionScale2);
 	GUI::Button scale3_button("Scale: 3", setResolutionScale3);
+	view_menu.append(fullscreen_button);
 	view_menu.append(scale1_button);
 	view_menu.append(scale2_button);
 	view_menu.append(scale3_button);
 
+	GUI::Menu machine_menu("Machine");
+	GUI::Button power_button("Power", power);
+	GUI::Button reset_button("Reset", reset);
+	machine_menu.append(power_button);
+	machine_menu.append(reset_button);
+
+	GUI::Menu options_menu("Options");
+	GUI::Button pause_button("Pause", togglePaused);
+	GUI::Button mute_button("Mute", toggleMute);
+	options_menu.append(pause_button);
+	options_menu.append(mute_button);
+
 	GUI::Menu menu_bar("Menu bar");
 	menu_bar.append(file_menu);
 	menu_bar.append(view_menu);
+	menu_bar.append(machine_menu);
+	menu_bar.append(options_menu);
 
 	menu_bar.setMenuBar(window);
+
+	menu_bar_ptr = &menu_bar;
 
 	resizeWindow(window_width, window_height);
 

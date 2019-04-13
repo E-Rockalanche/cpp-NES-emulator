@@ -12,10 +12,20 @@
 
 void quit() { exit(0); }
 
+// hiding menu before and show after fullscreen toggle prevents window size changes on Windows
 void setFullscreen(bool on) {
 	fullscreen = on;
 	int flags = fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0;
+
+	if (fullscreen) {
+		menu_bar_ptr->hide();
+	}
+
 	SDL_SetWindowFullscreen(window, flags);
+
+	if (!fullscreen) {
+		menu_bar_ptr->show();
+	}
 }
 void toggleFullscreen() {
 	setFullscreen(!fullscreen);

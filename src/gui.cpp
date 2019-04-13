@@ -34,20 +34,25 @@ namespace GUI {
 		flags = 0;
 		id = 0;
 		menu_handle = CreateMenu();
+		display_ptr = 0;
 	#endif
 	}
 
-	TextElement::TextElement(std::string name) : Element(), name(name) {
+	TextElement::TextElement(const std::string& name) : Element() {
+		setName(name);
 	#ifdef _WIN32
 		flags = MF_STRING;
 	#endif
 	}
 
-	void TextElement::setName(std::string name) {
+	void TextElement::setName(const std::string& name) {
 		this->name = name;
+	#ifdef _WIN32
+		display_ptr = this->name.c_str();
+	#endif
 	}
 
-	Button::Button(std::string name, VoidCallback callback)
+	Button::Button(const std::string& name, VoidCallback callback)
 		: TextElement(name), callback(callback) {
 	#ifdef _WIN32
 		flags = MF_STRING;
@@ -63,34 +68,60 @@ namespace GUI {
 	#endif
 	}
 
-	Menu::Menu(std::string name) : TextElement(name) {
+	MenuSeperator::MenuSeperator() {
+	#ifdef _WIN32
+		flags = MF_SEPARATOR;
+	#endif
+	}
+
+	MenuBreak::MenuBreak() {
+	#ifdef _WIN32
+		flags = MF_MENUBARBREAK;
+	#endif
+	}
+
+	Menu::Menu(const std::string& name) : TextElement(name) {
 	#ifdef _WIN32
 		flags = MF_POPUP;
 		id = (UINT_PTR)menu_handle;
 	#endif
 	}
 
-	void Menu::append(TextElement& element) {
+	void Menu::append(Element& element) {
 	#ifdef _WIN32
 		AppendMenu(menu_handle,
 			element.getFlags(),
 			element.getId(),
-			element.getName().c_str());
+			element.getDisplay());
 	#endif
 	}
 
 	void Menu::setMenuBar(SDL_Window* window) {
 		assert(window != NULL, "Menu::setMenuBar() SDL window is NULL");
 
+	#ifdef _WIN32
 		SDL_SysWMinfo infoWindow;
 		SDL_VERSION(&infoWindow.version);
 		bool ok = SDL_GetWindowWMInfo(window, &infoWindow);
 		assert(ok, "Could not get window info");
 
-		HWND window_handler = (infoWindow.info.win.window);
+		window_handler = (infoWindow.info.win.window);
 		SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
 
 		SetMenu(window_handler, menu_handle);
+	#endif
+	}
+
+	void Menu::hide() {
+	#ifdef _WIN32
+		SetMenu(window_handler, 0);
+	#endif
+	}
+
+	void Menu::show() {
+	#ifdef _WIN32
+		SetMenu(window_handler, menu_handle);
+	#endif
 	}
 
 } // end namespace GUI
