@@ -15,7 +15,11 @@
 #define DEFAULT_CROP 8
 #define MAX_CROP 8
 
-extern GUI::Menu* menu_bar_ptr;
+// modifiable gui elements
+extern GUI::Menu menu_bar;
+extern GUI::Checkbox fullscreen_button;
+extern GUI::Checkbox pause_button;
+extern GUI::Checkbox mute_button;
 
 // SDL
 extern SDL_Window* window;

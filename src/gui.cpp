@@ -14,6 +14,7 @@
 
 #ifdef _WIN32
 	std::vector<GUI::VoidCallback> void_callbacks;
+	HMENU menu_bar_handle;
 #endif
 
 namespace GUI {
@@ -68,6 +69,20 @@ namespace GUI {
 	#endif
 	}
 
+	Checkbox::Checkbox(const std::string& name, VoidCallback callback, bool checked)
+	: Button(name, callback) {
+		checked ? check() : uncheck();
+	}
+
+	void Checkbox::check(bool check) {
+		int flags = check ? MF_CHECKED : MF_UNCHECKED;
+		CheckMenuItem(menu_bar_handle, id, flags);
+	}
+
+	void Checkbox::uncheck() {
+		check(false);
+	}
+
 	MenuSeperator::MenuSeperator() {
 	#ifdef _WIN32
 		flags = MF_SEPARATOR;
@@ -109,6 +124,8 @@ namespace GUI {
 		SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
 
 		SetMenu(window_handler, menu_handle);
+
+		menu_bar_handle = menu_handle;
 	#endif
 	}
 

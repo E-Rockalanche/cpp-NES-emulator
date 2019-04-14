@@ -18,13 +18,15 @@ void setFullscreen(bool on) {
 	int flags = fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0;
 
 	if (fullscreen) {
-		menu_bar_ptr->hide();
+		menu_bar.hide();
+		fullscreen_button.check();
 	}
 
 	SDL_SetWindowFullscreen(window, flags);
 
 	if (!fullscreen) {
-		menu_bar_ptr->show();
+		menu_bar.show();
+		fullscreen_button.uncheck();
 	}
 }
 void toggleFullscreen() {
@@ -47,6 +49,7 @@ void setResolutionScale3() {
 
 void setPaused(bool pause) {
 	paused = pause;
+	pause_button.check(paused);
 }
 void togglePaused() {
 	setPaused(!paused);
@@ -59,6 +62,7 @@ void stepFrame() {
 void setMute(bool mute) {
 	muted = mute;
 	APU::mute(muted);
+	mute_button.check(muted);
 }
 void toggleMute() {
 	setMute(!muted);

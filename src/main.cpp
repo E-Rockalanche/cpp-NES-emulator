@@ -30,7 +30,10 @@
 #include "hotkeys.hpp"
 #include "assert.hpp"
 
-GUI::Menu* menu_bar_ptr = NULL;
+GUI::Menu menu_bar("Menu bar");
+GUI::Checkbox fullscreen_button("Fullscreen", toggleFullscreen);
+GUI::Checkbox pause_button("Pause", togglePaused);
+GUI::Checkbox mute_button("Mute", toggleMute);
 
 // SDL
 SDL_Window* window = NULL;
@@ -359,6 +362,8 @@ int main(int argc, char** argv) {
 		SDLK_UP, SDLK_DOWN, SDLK_LEFT, SDLK_RIGHT });
 
 	// construct menu bar
+	menu_bar.setMenuBar(window);
+
 	GUI::Menu file_menu("File");
 	GUI::Button load_rom_button("Load ROM", selectRom);
 	GUI::Button close_rom_button("Close ROM", closeFile);
@@ -366,7 +371,7 @@ int main(int argc, char** argv) {
 	file_menu.append(close_rom_button);
 
 	GUI::Menu view_menu("View");
-	GUI::Button fullscreen_button("Fullscreen", toggleFullscreen);
+	// GUI::Button fullscreen_button("Fullscreen", toggleFullscreen);
 	GUI::Button scale1_button("Scale: 1", setResolutionScale1);
 	GUI::Button scale2_button("Scale: 2", setResolutionScale2);
 	GUI::Button scale3_button("Scale: 3", setResolutionScale3);
@@ -382,20 +387,16 @@ int main(int argc, char** argv) {
 	machine_menu.append(reset_button);
 
 	GUI::Menu options_menu("Options");
-	GUI::Button pause_button("Pause", togglePaused);
-	GUI::Button mute_button("Mute", toggleMute);
+	// GUI::Button pause_button("Pause", togglePaused);
+	// GUI::Button mute_button("Mute", toggleMute);
 	options_menu.append(pause_button);
 	options_menu.append(mute_button);
 
-	GUI::Menu menu_bar("Menu bar");
+	// GUI::Menu menu_bar("Menu bar");
 	menu_bar.append(file_menu);
 	menu_bar.append(view_menu);
 	menu_bar.append(machine_menu);
 	menu_bar.append(options_menu);
-
-	menu_bar.setMenuBar(window);
-
-	menu_bar_ptr = &menu_bar;
 
 	resizeWindow(window_width, window_height);
 

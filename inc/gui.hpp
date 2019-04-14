@@ -60,6 +60,13 @@ namespace GUI {
 		VoidCallback callback;
 	};
 
+	class Checkbox : public Button {
+	public:
+		Checkbox(const std::string& name, VoidCallback callback = NULL, bool checked = false);
+		void check(bool check = true);
+		void uncheck();
+	};
+
 	class MenuSeperator : public Element {
 		MenuSeperator();
 	};
