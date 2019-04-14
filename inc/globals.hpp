@@ -20,6 +20,7 @@ extern GUI::Menu menu_bar;
 extern GUI::Checkbox fullscreen_button;
 extern GUI::Checkbox pause_button;
 extern GUI::Checkbox mute_button;
+extern GUI::Checkbox sprite_flicker_button;
 
 // SDL
 extern SDL_Window* window;

@@ -71,12 +71,12 @@ namespace GUI {
 
 	Checkbox::Checkbox(const std::string& name, VoidCallback callback, bool checked)
 	: Button(name, callback) {
-		checked ? check() : uncheck();
+		flags |= checked ? MF_CHECKED : MF_UNCHECKED;
 	}
 
 	void Checkbox::check(bool check) {
-		int flags = check ? MF_CHECKED : MF_UNCHECKED;
-		CheckMenuItem(menu_bar_handle, id, flags);
+		int check_flag = check ? MF_CHECKED : MF_UNCHECKED;
+		CheckMenuItem(menu_bar_handle, id, check_flag);
 	}
 
 	void Checkbox::uncheck() {

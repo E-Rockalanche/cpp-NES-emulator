@@ -27,6 +27,8 @@ extern std::vector<Hotkey> hotkeys;
 
 void quit();
 
+void toggleSpriteFlickering();
+
 void setFullscreen(bool on = true);
 void toggleFullscreen();
 

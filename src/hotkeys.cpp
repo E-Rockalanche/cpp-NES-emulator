@@ -12,6 +12,11 @@
 
 void quit() { exit(0); }
 
+void toggleSpriteFlickering() {
+	PPU::sprite_flickering = !PPU::sprite_flickering;
+	sprite_flicker_button.check(PPU::sprite_flickering);
+}
+
 // hiding menu before and show after fullscreen toggle prevents window size changes on Windows
 void setFullscreen(bool on) {
 	fullscreen = on;

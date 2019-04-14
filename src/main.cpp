@@ -30,10 +30,12 @@
 #include "hotkeys.hpp"
 #include "assert.hpp"
 
+// modifiable menu items
 GUI::Menu menu_bar("Menu bar");
 GUI::Checkbox fullscreen_button("Fullscreen", toggleFullscreen);
 GUI::Checkbox pause_button("Pause", togglePaused);
 GUI::Checkbox mute_button("Mute", toggleMute);
+GUI::Checkbox sprite_flicker_button("Sprite Flickering", toggleSpriteFlickering, true);
 
 // SDL
 SDL_Window* window = NULL;
@@ -365,13 +367,17 @@ int main(int argc, char** argv) {
 	menu_bar.setMenuBar(window);
 
 	GUI::Menu file_menu("File");
-	GUI::Button load_rom_button("Load ROM", selectRom);
-	GUI::Button close_rom_button("Close ROM", closeFile);
+	GUI::Button load_rom_button("Open", selectRom);
+	GUI::Button close_rom_button("Close", closeFile);
 	file_menu.append(load_rom_button);
 	file_menu.append(close_rom_button);
 
+	GUI::Menu movie_submenu("Movie");
+	GUI::Button save_movie_button("Save", saveMovie);
+	GUI::Button load_movie_button("Load", loadMovie);
+	file_menu.append(movie_submenu);
+
 	GUI::Menu view_menu("View");
-	// GUI::Button fullscreen_button("Fullscreen", toggleFullscreen);
 	GUI::Button scale1_button("Scale: 1", setResolutionScale1);
 	GUI::Button scale2_button("Scale: 2", setResolutionScale2);
 	GUI::Button scale3_button("Scale: 3", setResolutionScale3);
@@ -386,13 +392,14 @@ int main(int argc, char** argv) {
 	machine_menu.append(power_button);
 	machine_menu.append(reset_button);
 
+	GUI::Menu machine_options_submenu("Options");
+	machine_options_submenu.append(sprite_flicker_button);
+	machine_menu.append(machine_options_submenu);
+
 	GUI::Menu options_menu("Options");
-	// GUI::Button pause_button("Pause", togglePaused);
-	// GUI::Button mute_button("Mute", toggleMute);
 	options_menu.append(pause_button);
 	options_menu.append(mute_button);
 
-	// GUI::Menu menu_bar("Menu bar");
 	menu_bar.append(file_menu);
 	menu_bar.append(view_menu);
 	menu_bar.append(machine_menu);
@@ -402,45 +409,6 @@ int main(int argc, char** argv) {
 
 
 	/*
-	// build gui bar
-	const SDL_Rect gui_button_rect = { 0, 0, 0, GUI_HEIGHT };
-	Gui::DropDown file_dropdown(gui_button_rect, "File");
-	Gui::DropDown view_dropdown(gui_button_rect, "View");
-	Gui::DropDown options_dropdown(gui_button_rect, "Options");
-	Gui::DropDown machine_dropdown(gui_button_rect, "Machine");
-	Gui::DynamicTextElement fps_display({ 0, 0, 64, GUI_HEIGHT }, &fps_text);
-	top_gui.addElement(file_dropdown);
-	top_gui.addElement(view_dropdown);
-	top_gui.addElement(options_dropdown);
-	top_gui.addElement(machine_dropdown);
-	top_gui.addElement(fps_display);
-
-	// file
-	Gui::Button load_rom_button(gui_button_rect, "Load", selectRom);
-	Gui::Button close_rom_button(gui_button_rect, "Close", closeFile);
-	Gui::SubDropDown movie_dropdown(gui_button_rect, "Movie >");
-	Gui::Button save_movie_button(gui_button_rect, "Save", saveMovie);
-	Gui::Button load_movie_button(gui_button_rect, "Load", loadMovie);
-	movie_dropdown.addElement(save_movie_button);
-	movie_dropdown.addElement(load_movie_button);
-	file_dropdown.addElement(load_rom_button);
-	file_dropdown.addElement(close_rom_button);
-	file_dropdown.addElement(movie_dropdown);
-
-	// view
-	Gui::RadioButton fullscreen_button(gui_button_rect, "Fullscreen", &fullscreen, setFullscreen);
-	Gui::Button scale1_button(gui_button_rect, "Scale: 1", setResolutionScale1);
-	Gui::Button scale2_button(gui_button_rect, "Scale: 2", setResolutionScale2);
-	Gui::Button scale3_button(gui_button_rect, "Scale: 3", setResolutionScale3);
-	view_dropdown.addElement(fullscreen_button);
-	view_dropdown.addElement(scale1_button);
-	view_dropdown.addElement(scale2_button);
-	view_dropdown.addElement(scale3_button);
-
-	auto finalizeCrop = []{
-		cropScreen(0, 0);
-	};
-
 	Gui::SubDropDown crop_menu(gui_button_rect, "Crop Screen >");
 	Gui::Field<int> crop_x_input({ 0, 0, 64, GUI_HEIGHT }, &crop_area.x, finalizeCrop);
 	Gui::Field<int> crop_y_input({ 0, 0, 64, GUI_HEIGHT }, &crop_area.y, finalizeCrop);
@@ -450,22 +418,6 @@ int main(int argc, char** argv) {
 	crop_menu.addElement(crop_y_label);
 
 	view_dropdown.addElement(crop_menu);
-
-	// machine
-	Gui::Button power_button(gui_button_rect, "Power", &power);
-	Gui::Button reset_button(gui_button_rect, "Reset", &reset);
-	Gui::SubDropDown nes_dropdown(gui_button_rect, "Options >");
-	Gui::RadioButton flicker_button(gui_button_rect, "Sprite Flickering", &PPU::sprite_flickering);
-	nes_dropdown.addElement(flicker_button);
-	machine_dropdown.addElement(power_button);
-	machine_dropdown.addElement(reset_button);
-	machine_dropdown.addElement(nes_dropdown);
-
-
-	Gui::RadioButton pause_button(gui_button_rect, "Pause", &paused);
-	Gui::RadioButton mute_button(gui_button_rect, "Mute", &muted);
-	options_dropdown.addElement(pause_button);
-	options_dropdown.addElement(mute_button);
 	*/
 
 	// run emulator
