@@ -51,9 +51,8 @@ namespace Movie {
 	}
 
 	bool load(std::string filename) {
-		if (state != NONE) {
-			state = NONE;
-		}
+		stopRecording();
+		stopPlayback();
 		
 		std::ifstream fin(filename.c_str(), std::ios::binary);
 		if (!fin.is_open()) {
