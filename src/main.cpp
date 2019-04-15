@@ -143,6 +143,7 @@ void power() {
 		PPU::power();
 		APU::reset();
 		resetFrameNumber();
+		
 	}
 }
 
@@ -178,7 +179,7 @@ bool loadSave(std::string filename) {
 
 void saveGame() {
 	if (cartridge && cartridge->hasSRAM()) {
-		cartridge->saveGame(save_filename.string());
+		cartridge->saveGame(save_filename);
 	}
 }
 
@@ -188,7 +189,7 @@ void resizeRenderArea(bool round_scale) {
 
 	// dout("window size: " << window_width << ", " << window_height);
 
-	// set viewport to fill window
+	// set viewport to entire window
 	SDL_RenderSetViewport(renderer, NULL);
 
 	float x_scale = (float)window_width / crop_area.w;
@@ -289,7 +290,7 @@ void dropEvent(const SDL_Event& event) {
 		fs::path filename = std::string(event.drop.file);
 		fs::path extension = filename.extension();
 		if (extension == rom_ext) {
-			loadFile(filename.string());
+			loadFile(filename);
 		} else if (extension == save_ext) {
 			cartridge->loadSave(filename);
 		} else if (extension == movie_ext) {
@@ -297,7 +298,7 @@ void dropEvent(const SDL_Event& event) {
 		} else if (extension == savestate_ext) {
 			loadState(filename);
 		} else {
-			dout("cannot open " << filename.string());
+			dout("cannot open " << filename.native());
 		}
 		SDL_free(event.drop.file);
 	}

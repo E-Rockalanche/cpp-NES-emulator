@@ -1,7 +1,6 @@
 #include <string>
 #include <utility>
 #include "filesystem.hpp"
-#include "debugging.hpp"
 
 #define FS_MAX(a, b) (((a) > (b)) ? (a) : (b))
 
