@@ -140,6 +140,11 @@ void saveMovie() {
 	API::FileDialog dialog("Save Movie");
 	dialog.setFilter("NES Movie\0*.nesmov\0");
 	dialog.setDirectory(movie_folder.c_str());
+
+	fs::path default_name = movie_folder
+		/ fs::path(rom_filename).filename().replace_extension(movie_ext);
+	dialog.setFilename(default_name.c_str());
+	
 	std::string filename = dialog.getSaveFileName() + movie_ext;
 
 	if (!Movie::save(filename)) {

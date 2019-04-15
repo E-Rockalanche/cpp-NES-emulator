@@ -22,6 +22,7 @@ namespace Movie {
 	void clear() {
 		button_presses.clear();
 		save_movie_button.disable();
+		play_movie_button.disable();
 		state = NONE;
 		index = 0;
 	}
@@ -81,22 +82,28 @@ namespace Movie {
 	}
 
 	void startRecording() {
-		assert(state == NONE, "cannot start recording movie");
-		dout("recording movie");
+		if (state == NONE) {
+			dout("recording movie");
 
-		button_presses.clear();
-		state = RECORDING;
+			button_presses.clear();
+			state = RECORDING;
 
-		save_movie_button.disable();
+			save_movie_button.disable();
+			play_movie_button.disable();
+			record_movie_button.check();
+		}
 	}
 
 	void stopRecording() {
-		assert(state == RECORDING, "not recording movie");
-		dout("stopping recording");
+		if (isRecording()) {
+			dout("stopping recording");
 
-		state = NONE;
+			state = NONE;
 
-		save_movie_button.enable();
+			save_movie_button.enable();
+			play_movie_button.enable();
+			record_movie_button.uncheck();
+		}
 	}
 
 	bool isRecording() {
@@ -109,22 +116,26 @@ namespace Movie {
 	}
 
 	void startPlayback() {
-		assert(state == NONE, "cannot start playing movie");
-		if (!empty()) {
+		if (state == NONE && !empty()) {
 			dout("playing movie");
 
 			index = 0;
 			state = PLAYING;
-		} else {
-			dout("movie is empty");
+
+			play_movie_button.check();
+			record_movie_button.disable();
 		}
 	}
 
 	void stopPlayback() {
-		assert(state == PLAYING, "not playing movie");
-		dout("stopping movie");
+		if (isPlaying()) {
+			dout("stopping movie");
 
-		state = NONE;
+			state = NONE;
+
+			play_movie_button.uncheck();
+			record_movie_button.enable();
+		}
 	}
 
 	bool isPlaying() {

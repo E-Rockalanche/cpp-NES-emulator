@@ -32,11 +32,13 @@
 
 // modifiable menu items
 GUI::Menu menu_bar("Menu bar");
-GUI::Checkbox fullscreen_button("Fullscreen", toggleFullscreen);
-GUI::Checkbox pause_button("Pause", togglePaused);
-GUI::Checkbox mute_button("Mute", toggleMute);
+GUI::Checkbox fullscreen_button("Fullscreen (F11)", toggleFullscreen);
+GUI::Checkbox pause_button("Pause (P)", togglePaused);
+GUI::Checkbox mute_button("Mute (M)", toggleMute);
 GUI::Checkbox sprite_flicker_button("Sprite Flickering", toggleSpriteFlickering, true);
 GUI::Button save_movie_button("Save", saveMovie);
+GUI::Checkbox record_movie_button("Record", toggleRecording);
+GUI::Checkbox play_movie_button("Play", togglePlayback);
 
 // SDL
 SDL_Window* window = NULL;
@@ -388,6 +390,8 @@ int main(int argc, char** argv) {
 	joypad[0].mapButtons((const int[8]){ SDLK_x, SDLK_z, SDLK_RSHIFT, SDLK_RETURN,
 		SDLK_UP, SDLK_DOWN, SDLK_LEFT, SDLK_RIGHT });
 
+	Movie::clear();
+
 	// construct menu bar
 	menu_bar.setMenuBar(window);
 
@@ -402,16 +406,20 @@ int main(int argc, char** argv) {
 	GUI::Button load_movie_button("Load", loadMovie);
 	movie_submenu.append(save_movie_button);
 	movie_submenu.append(load_movie_button);
+	movie_submenu.append(record_movie_button);
+	movie_submenu.append(play_movie_button);
 	file_menu.append(movie_submenu);
 
 	GUI::Menu view_menu("View");
-	GUI::Button scale1_button("Scale: 1", setResolutionScale1);
-	GUI::Button scale2_button("Scale: 2", setResolutionScale2);
-	GUI::Button scale3_button("Scale: 3", setResolutionScale3);
+	GUI::Menu scale_menu("Scale");
+	GUI::Button scale1_button("x1", setResolutionScale1);
+	GUI::Button scale2_button("x2", setResolutionScale2);
+	GUI::Button scale3_button("x3", setResolutionScale3);
+	scale_menu.append(scale1_button);
+	scale_menu.append(scale2_button);
+	scale_menu.append(scale3_button);
 	view_menu.append(fullscreen_button);
-	view_menu.append(scale1_button);
-	view_menu.append(scale2_button);
-	view_menu.append(scale3_button);
+	view_menu.append(scale_menu);
 
 	GUI::Menu machine_menu("Machine");
 	GUI::Button power_button("Power", power);

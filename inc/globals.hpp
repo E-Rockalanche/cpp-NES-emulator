@@ -22,6 +22,8 @@ extern GUI::Checkbox pause_button;
 extern GUI::Checkbox mute_button;
 extern GUI::Checkbox sprite_flicker_button;
 extern GUI::Button save_movie_button;
+extern GUI::Checkbox record_movie_button;
+extern GUI::Checkbox play_movie_button;
 
 // SDL
 extern SDL_Window* window;

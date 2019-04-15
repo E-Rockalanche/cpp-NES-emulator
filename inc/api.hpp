@@ -22,6 +22,7 @@ namespace API {
 		~FileDialog();
 
 		FileDialog& setTitle(const char* title);
+		FileDialog& setFilename(const char* title);
 		FileDialog& setFilter(const char* title);
 		FileDialog& setDirectory(const char* title);
 
