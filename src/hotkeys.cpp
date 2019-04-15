@@ -79,8 +79,8 @@ void selectRom() {
 	dialog.setDirectory(rom_folder.c_str());
 	std::string filename = dialog.getOpenFileName();
 
-	if ((filename.size() > 0) && loadFile(filename)) {
-		power();
+	if (filename.size() > 0) {
+		loadFile(filename);
 	}
 }
 
@@ -100,10 +100,12 @@ void toggleRecording() {
 			power();
 			Movie::startRecording();
 			break;
+
 		case Movie::NONE:
 			power();
 			Movie::startRecording();
 			break;
+
 		case Movie::RECORDING: 
 			Movie::stopRecording();
 			break;
@@ -119,10 +121,12 @@ void togglePlayback() {
 			power();
 			Movie::startPlayback();
 			break;
+
 		case Movie::NONE:
 			power();
 			Movie::startPlayback();
 			break;
+			
 		case Movie::PLAYING:
 			Movie::stopPlayback();
 			break;
@@ -167,10 +171,7 @@ void takeScreenshot() {
     IMG_SavePNG(surface, filename.c_str());
 }
 
-void saveState() {
-	fs::path filename = savestate_folder
-		/ rom_filename.filename().replace_extension(savestate_ext);
-
+void saveState(const std::string& filename) {
 	std::ofstream fout(filename.c_str(), std::ios::binary);
 	if (fout.is_open()) {
 		CPU::saveState(fout);
@@ -181,10 +182,13 @@ void saveState() {
 	}
 }
 
-void loadState() {
+void saveState() {
 	fs::path filename = savestate_folder
 		/ rom_filename.filename().replace_extension(savestate_ext);
-	
+	saveState(filename);
+}
+
+void loadState(const std::string& filename) {
 	std::ifstream fin(filename.c_str(), std::ios::binary);
 	if (fin.is_open()) {
 		CPU::loadState(fin);
@@ -193,6 +197,12 @@ void loadState() {
 		cartridge->loadState(fin);
 		fin.close();
 	}
+}
+
+void loadState() {
+	fs::path filename = savestate_folder
+		/ rom_filename.filename().replace_extension(savestate_ext);
+	loadState(filename);
 }
 
 std::vector<Hotkey> hotkeys = {

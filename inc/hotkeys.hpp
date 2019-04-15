@@ -58,7 +58,9 @@ void loadMovie();
 void takeScreenshot();
 
 void saveState();
+void saveState(const std::string& filename);
 void loadState();
+void loadState(const std::string& filename);
 
 void pressHotkey(SDL_Keycode key);
 

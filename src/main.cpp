@@ -59,6 +59,7 @@ fs::path screenshot_folder = std::string("screenshots");
 fs::path movie_folder = std::string("movies");
 fs::path savestate_folder = std::string("savestates");
 
+std::string rom_ext = ".nes";
 std::string save_ext = ".sav";
 std::string movie_ext = ".nesmov";
 std::string savestate_ext = ".state";
@@ -159,6 +160,7 @@ bool loadFile(std::string filename) {
 		} else {
 			save_filename = "";
 		}
+		power();
 		return true;
 	}
 }
@@ -281,6 +283,35 @@ void mouseButtonEvent(const SDL_Event& event) {
 	}
 }
 
+void dropEvent(const SDL_Event& event) {
+	dout("drop event");
+
+	switch(event.type) {
+		case SDL_DROPFILE: {
+			dout("drop file");
+
+			fs::path filename = std::string(event.drop.file);
+			dout("dropped file: " << filename.string());
+
+			fs::path extension = filename.extension();
+			dout("ext: " << extension.string());
+
+			if (extension == rom_ext) {
+				loadFile(filename.string());
+			} else if (extension == save_ext) {
+				cartridge->loadSave(filename);
+			} else if (extension == movie_ext) {
+				Movie::load(filename);
+			} else if (extension == savestate_ext) {
+				loadState(filename);
+			}
+			SDL_free(event.drop.file);
+		} break;
+
+		default: break;
+	}
+}
+
 void pollEvents() {
 	SDL_Event event;
 	while(SDL_PollEvent(&event)) {
@@ -308,6 +339,10 @@ void pollEvents() {
 			case SDL_WINDOWEVENT:
 				windowEvent(event);
 				break;
+
+		    case SDL_DROPFILE:
+		    	dropEvent(event);
+		    	break;
 
 		    case SDL_GUI_EVENT:
 		    	GUI::handleMenuEvent(event);
@@ -354,9 +389,7 @@ int main(int argc, char** argv) {
 
 	// load ROM from command line
 	if (argc > 1) {
-		if (loadFile(argv[1])) {
-			power();
-		}
+		loadFile(argv[1]);
 	}
 
 	// A, B, select, start, up, down, left, right
@@ -375,6 +408,8 @@ int main(int argc, char** argv) {
 	GUI::Menu movie_submenu("Movie");
 	GUI::Button save_movie_button("Save", saveMovie);
 	GUI::Button load_movie_button("Load", loadMovie);
+	movie_submenu.append(save_movie_button);
+	movie_submenu.append(load_movie_button);
 	file_menu.append(movie_submenu);
 
 	GUI::Menu view_menu("View");
