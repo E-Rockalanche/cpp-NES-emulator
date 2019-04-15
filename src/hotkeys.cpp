@@ -167,10 +167,13 @@ void saveMovie() {
 		/ fs::path(rom_filename).filename().replace_extension(movie_ext);
 	dialog.setFilename(default_name.c_str());
 	
-	std::string filename = dialog.getSaveFileName() + movie_ext;
+	std::string filename = dialog.getSaveFileName();
 
-	if (!Movie::save(filename)) {
-		dout("failed to save movie");
+	if (!filename.empty()) {
+		filename += movie_ext;
+		if (!Movie::save(filename)) {
+			dout("failed to save movie");
+		}
 	}
 }
 
@@ -184,7 +187,7 @@ void loadMovie() {
 		power();
 		Movie::startPlayback();
 	} else {
-		dout("failed to save movie");
+		dout("failed to load movie");
 	}
 }
 
