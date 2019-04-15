@@ -9,13 +9,52 @@
 #include "api.hpp"
 #include "apu.hpp"
 #include "cartridge.hpp"
+#include "menu.hpp"
 
 void quit() { exit(0); }
 
+void reset() {
+	if (cartridge != NULL) {
+		clearScreen();
+		CPU::reset();
+		PPU::reset();
+		APU::reset();
+		resetFrameNumber();
+	}
+}
+
+void power() {
+	if (cartridge != NULL) {
+		clearScreen();
+		CPU::power();
+		PPU::power();
+		APU::reset();
+		resetFrameNumber();
+		
+	}
+}
+
+void toggleSpriteFlickering() {
+	PPU::sprite_flickering = !PPU::sprite_flickering;
+	sprite_flicker_button.check(PPU::sprite_flickering);
+}
+
+// hiding menu before and show after fullscreen toggle prevents window size changes on Windows
 void setFullscreen(bool on) {
 	fullscreen = on;
 	int flags = fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0;
+
+	if (fullscreen) {
+		menu_bar.hide();
+		fullscreen_button.check();
+	}
+
 	SDL_SetWindowFullscreen(window, flags);
+
+	if (!fullscreen) {
+		menu_bar.show();
+		fullscreen_button.uncheck();
+	}
 }
 void toggleFullscreen() {
 	setFullscreen(!fullscreen);
@@ -37,6 +76,7 @@ void setResolutionScale3() {
 
 void setPaused(bool pause) {
 	paused = pause;
+	pause_button.check(paused);
 }
 void togglePaused() {
 	setPaused(!paused);
@@ -49,6 +89,7 @@ void stepFrame() {
 void setMute(bool mute) {
 	muted = mute;
 	APU::mute(muted);
+	mute_button.check(muted);
 }
 void toggleMute() {
 	setMute(!muted);
@@ -60,8 +101,8 @@ void selectRom() {
 	dialog.setDirectory(rom_folder.c_str());
 	std::string filename = dialog.getOpenFileName();
 
-	if ((filename.size() > 0) && loadFile(filename)) {
-		power();
+	if (filename.size() > 0) {
+		loadFile(filename);
 	}
 }
 
@@ -72,6 +113,7 @@ void closeFile() {
 	rom_filename = "";
 	save_filename = "";
 	clearScreen();
+	Movie::clear();
 }
 
 void toggleRecording() {
@@ -81,10 +123,12 @@ void toggleRecording() {
 			power();
 			Movie::startRecording();
 			break;
+
 		case Movie::NONE:
 			power();
 			Movie::startRecording();
 			break;
+
 		case Movie::RECORDING: 
 			Movie::stopRecording();
 			break;
@@ -100,10 +144,12 @@ void togglePlayback() {
 			power();
 			Movie::startPlayback();
 			break;
+
 		case Movie::NONE:
 			power();
 			Movie::startPlayback();
 			break;
+			
 		case Movie::PLAYING:
 			Movie::stopPlayback();
 			break;
@@ -116,10 +162,18 @@ void saveMovie() {
 	API::FileDialog dialog("Save Movie");
 	dialog.setFilter("NES Movie\0*.nesmov\0");
 	dialog.setDirectory(movie_folder.c_str());
-	std::string filename = dialog.getSaveFileName() + movie_ext;
 
-	if (!Movie::save(filename)) {
-		dout("failed to save movie");
+	fs::path default_name = movie_folder
+		/ fs::path(rom_filename).filename().replace_extension(movie_ext);
+	dialog.setFilename(default_name.c_str());
+	
+	std::string filename = dialog.getSaveFileName();
+
+	if (!filename.empty()) {
+		filename += movie_ext;
+		if (!Movie::save(filename)) {
+			dout("failed to save movie");
+		}
 	}
 }
 
@@ -133,7 +187,7 @@ void loadMovie() {
 		power();
 		Movie::startPlayback();
 	} else {
-		dout("failed to save movie");
+		dout("failed to load movie");
 	}
 }
 
@@ -148,10 +202,7 @@ void takeScreenshot() {
     IMG_SavePNG(surface, filename.c_str());
 }
 
-void saveState() {
-	fs::path filename = savestate_folder
-		/ rom_filename.filename().replace_extension(savestate_ext);
-
+void saveState(const std::string& filename) {
 	std::ofstream fout(filename.c_str(), std::ios::binary);
 	if (fout.is_open()) {
 		CPU::saveState(fout);
@@ -162,10 +213,13 @@ void saveState() {
 	}
 }
 
-void loadState() {
+void saveState() {
 	fs::path filename = savestate_folder
 		/ rom_filename.filename().replace_extension(savestate_ext);
-	
+	saveState(filename);
+}
+
+void loadState(const std::string& filename) {
 	std::ifstream fin(filename.c_str(), std::ios::binary);
 	if (fin.is_open()) {
 		CPU::loadState(fin);
@@ -174,6 +228,12 @@ void loadState() {
 		cartridge->loadState(fin);
 		fin.close();
 	}
+}
+
+void loadState() {
+	fs::path filename = savestate_folder
+		/ rom_filename.filename().replace_extension(savestate_ext);
+	loadState(filename);
 }
 
 std::vector<Hotkey> hotkeys = {

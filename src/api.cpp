@@ -1,11 +1,14 @@
 #include <string>
-#include "api.hpp"
-#include "common.hpp"
+#include <cstring>
 
 #ifdef _WIN32
 	#include <windows.h>
 	#include <commdlg.h>
 #endif
+
+#include "api.hpp"
+#include "common.hpp"
+#include "debugging.hpp"
 
 namespace API {
 
@@ -22,6 +25,13 @@ namespace API {
 
 	FileDialog& FileDialog::setTitle(const char* title) {
 		ofn.lpstrTitle = title;
+		return *this;
+	}
+
+	FileDialog& FileDialog::setFilename(const char* filename) {
+		dout("set filename: " << filename);
+		std::strcpy(ofn.lpstrFile, filename);
+		dout("lpstrFile: " << ofn.lpstrFile);
 		return *this;
 	}
 
