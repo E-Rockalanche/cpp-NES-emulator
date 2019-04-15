@@ -59,12 +59,7 @@ namespace GUI {
 		enable(false);
 	}
 
-	TextElement::TextElement() : Element() {
-		setName("");
-	#ifdef _WIN32
-		flags = MF_STRING;
-	#endif
-	}
+	TextElement::TextElement() : TextElement("") {}
 
 	TextElement::TextElement(const std::string& name) : Element() {
 		setName(name);
@@ -85,13 +80,7 @@ namespace GUI {
 		setName(other.name);
 	}
 
-	Button::Button() : TextElement(""), callback(NULL) {
-	#ifdef _WIN32
-		flags = MF_STRING;
-		id = void_callbacks.size();
-		void_callbacks.push_back(callback);
-	#endif
-	}
+	Button::Button() : Button("", NULL) {}
 
 	Button::Button(const std::string& name, VoidCallback callback)
 		: TextElement(name), callback(callback) {
@@ -149,12 +138,7 @@ namespace GUI {
 	#endif
 	}
 
-	Menu::Menu() : TextElement("") {
-	#ifdef _WIN32
-		flags = MF_POPUP;
-		id = (UINT_PTR)menu_handle;
-	#endif
-	}
+	Menu::Menu() : Menu("") {}
 
 	Menu::Menu(const std::string& name) : TextElement(name) {
 	#ifdef _WIN32
