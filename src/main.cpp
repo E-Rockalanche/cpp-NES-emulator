@@ -28,17 +28,8 @@
 #include "api.hpp"
 #include "movie.hpp"
 #include "hotkeys.hpp"
+#include "menu.hpp"
 #include "assert.hpp"
-
-// modifiable menu items
-GUI::Menu menu_bar("Menu bar");
-GUI::Checkbox fullscreen_button("Fullscreen (F11)", toggleFullscreen);
-GUI::Checkbox pause_button("Pause (P)", togglePaused);
-GUI::Checkbox mute_button("Mute (M)", toggleMute);
-GUI::Checkbox sprite_flicker_button("Sprite Flickering", toggleSpriteFlickering, true);
-GUI::Button save_movie_button("Save", saveMovie);
-GUI::Checkbox record_movie_button("Record", toggleRecording);
-GUI::Checkbox play_movie_button("Play", togglePlayback);
 
 // SDL
 SDL_Window* window = NULL;
@@ -126,27 +117,6 @@ void resetFrameNumber() {
 	total_real_fps = 0;
 	fps = 0;
 	real_fps = 0;
-}
-
-void reset() {
-	if (cartridge != NULL) {
-		clearScreen();
-		CPU::reset();
-		PPU::reset();
-		APU::reset();
-		resetFrameNumber();
-	}
-}
-
-void power() {
-	if (cartridge != NULL) {
-		clearScreen();
-		CPU::power();
-		PPU::power();
-		APU::reset();
-		resetFrameNumber();
-		
-	}
 }
 
 bool loadFile(std::string filename) {
@@ -386,74 +356,11 @@ int main(int argc, char** argv) {
 		loadFile(argv[1]);
 	}
 
-	// A, B, select, start, up, down, left, right
-	joypad[0].mapButtons((const int[8]){ SDLK_x, SDLK_z, SDLK_RSHIFT, SDLK_RETURN,
-		SDLK_UP, SDLK_DOWN, SDLK_LEFT, SDLK_RIGHT });
-
 	Movie::clear();
 
-	// construct menu bar
-	menu_bar.setMenuBar(window);
-
-	GUI::Menu file_menu("File");
-	GUI::Button load_rom_button("Open", selectRom);
-	GUI::Button close_rom_button("Close", closeFile);
-	file_menu.append(load_rom_button);
-	file_menu.append(close_rom_button);
-
-	GUI::Menu movie_submenu("Movie");
-	save_movie_button.disable();
-	GUI::Button load_movie_button("Load", loadMovie);
-	movie_submenu.append(save_movie_button);
-	movie_submenu.append(load_movie_button);
-	movie_submenu.append(record_movie_button);
-	movie_submenu.append(play_movie_button);
-	file_menu.append(movie_submenu);
-
-	GUI::Menu view_menu("View");
-	GUI::Menu scale_menu("Scale");
-	GUI::Button scale1_button("x1", setResolutionScale1);
-	GUI::Button scale2_button("x2", setResolutionScale2);
-	GUI::Button scale3_button("x3", setResolutionScale3);
-	scale_menu.append(scale1_button);
-	scale_menu.append(scale2_button);
-	scale_menu.append(scale3_button);
-	view_menu.append(fullscreen_button);
-	view_menu.append(scale_menu);
-
-	GUI::Menu machine_menu("Machine");
-	GUI::Button power_button("Power", power);
-	GUI::Button reset_button("Reset", reset);
-	machine_menu.append(power_button);
-	machine_menu.append(reset_button);
-
-	GUI::Menu machine_options_submenu("Options");
-	machine_options_submenu.append(sprite_flicker_button);
-	machine_menu.append(machine_options_submenu);
-
-	GUI::Menu options_menu("Options");
-	options_menu.append(pause_button);
-	options_menu.append(mute_button);
-
-	menu_bar.append(file_menu);
-	menu_bar.append(view_menu);
-	menu_bar.append(machine_menu);
-	menu_bar.append(options_menu);
+	constructMenu();
 
 	resizeWindow(window_width, window_height);
-
-
-	/*
-	Gui::SubDropDown crop_menu(gui_button_rect, "Crop Screen >");
-	Gui::Field<int> crop_x_input({ 0, 0, 64, GUI_HEIGHT }, &crop_area.x, finalizeCrop);
-	Gui::Field<int> crop_y_input({ 0, 0, 64, GUI_HEIGHT }, &crop_area.y, finalizeCrop);
-	Gui::Label crop_x_label(gui_button_rect, "Left/right: ", crop_x_input);
-	Gui::Label crop_y_label(gui_button_rect, "Top/bottom: ", crop_y_input);
-	crop_menu.addElement(crop_x_label);
-	crop_menu.addElement(crop_y_label);
-
-	view_dropdown.addElement(crop_menu);
-	*/
 
 	// run emulator
 	int last_time = SDL_GetTicks();

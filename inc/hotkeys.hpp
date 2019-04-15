@@ -7,18 +7,6 @@
 
 typedef void(*Callback)(void);
 struct Hotkey {
-	enum Type {
-		QUIT,
-		SCREENSHOT,
-		FULLSCREEN,
-		MUTE,
-		PAUSE,
-		STEP_FRAME,
-		RECORD,
-		PLAYBACK,
-
-		NUM_HOTKEYS
-	};
 	SDL_Keycode key;
 	Callback callback;
 };
@@ -26,6 +14,9 @@ struct Hotkey {
 extern std::vector<Hotkey> hotkeys;
 
 void quit();
+
+void power();
+void reset();
 
 void toggleSpriteFlickering();
 

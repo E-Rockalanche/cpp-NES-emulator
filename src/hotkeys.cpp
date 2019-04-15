@@ -9,8 +9,30 @@
 #include "api.hpp"
 #include "apu.hpp"
 #include "cartridge.hpp"
+#include "menu.hpp"
 
 void quit() { exit(0); }
+
+void reset() {
+	if (cartridge != NULL) {
+		clearScreen();
+		CPU::reset();
+		PPU::reset();
+		APU::reset();
+		resetFrameNumber();
+	}
+}
+
+void power() {
+	if (cartridge != NULL) {
+		clearScreen();
+		CPU::power();
+		PPU::power();
+		APU::reset();
+		resetFrameNumber();
+		
+	}
+}
 
 void toggleSpriteFlickering() {
 	PPU::sprite_flickering = !PPU::sprite_flickering;

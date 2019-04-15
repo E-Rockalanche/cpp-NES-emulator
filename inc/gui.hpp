@@ -48,16 +48,20 @@ namespace GUI {
 		std::string name;
 
 	public:
+		TextElement();
 		TextElement(const std::string& name);
 		void setName(const std::string& name);
+		void operator=(const TextElement& other);
 
 		const std::string& getName() { return name; }
 	};
 
 	class Button : public TextElement {
 	public:
+		Button();
 		Button(const std::string& name, VoidCallback callback = NULL);
 		void setCallback(VoidCallback callback);
+		void operator=(const Button& other);
 
 	protected:
 		VoidCallback callback;
@@ -65,9 +69,13 @@ namespace GUI {
 
 	class Checkbox : public Button {
 	public:
+		Checkbox();
 		Checkbox(const std::string& name, VoidCallback callback = NULL, bool checked = false);
 		void check(bool check = true);
 		void uncheck();
+		void operator=(const Checkbox& other) {
+			Button::operator=(static_cast<const Button&>(other));
+		}
 	};
 
 	class MenuSeperator : public Element {
@@ -80,11 +88,13 @@ namespace GUI {
 
 	class Menu : public TextElement {
 	public:
+		Menu();
 		Menu(const std::string& name);
 		void append(Element& element);
 		void setMenuBar(SDL_Window* window);
 		void hide();
 		void show();
+		void operator=(const Menu& other);
 
 	private:
 	#ifdef _WIN32

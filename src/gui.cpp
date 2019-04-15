@@ -1,4 +1,5 @@
 #include "gui.hpp"
+#include "debugging.hpp"
 
 #include <string>
 #include <vector>
@@ -12,15 +13,15 @@
 
 #include "assert.hpp"
 
-#ifdef _WIN32
-	std::vector<GUI::VoidCallback> void_callbacks;
-	HMENU menu_bar_handle = 0;
-	#define setFlag(mask) (flags) |= (mask)
-	#define clearFlag(mask) (flags) &= ~(mask)
-#endif
-
+#define setFlag(mask) (flags) |= (mask)
+#define clearFlag(mask) (flags) &= ~(mask)
 
 namespace GUI {
+	#ifdef _WIN32
+		std::vector<GUI::VoidCallback> void_callbacks;
+		HMENU menu_bar_handle = 0;
+	#endif
+
 	void handleMenuEvent(const SDL_Event& event) {
 	#ifdef _WIN32
 	    if (event.syswm.msg->msg.win.msg == WM_COMMAND) {
@@ -58,6 +59,13 @@ namespace GUI {
 		enable(false);
 	}
 
+	TextElement::TextElement() : Element() {
+		setName("");
+	#ifdef _WIN32
+		flags = MF_STRING;
+	#endif
+	}
+
 	TextElement::TextElement(const std::string& name) : Element() {
 		setName(name);
 	#ifdef _WIN32
@@ -69,6 +77,19 @@ namespace GUI {
 		this->name = name;
 	#ifdef _WIN32
 		display_ptr = this->name.c_str();
+	#endif
+	}
+
+	void TextElement::operator=(const TextElement& other) {
+		Element::operator=(static_cast<const Element&>(other));
+		setName(other.name);
+	}
+
+	Button::Button() : TextElement(""), callback(NULL) {
+	#ifdef _WIN32
+		flags = MF_STRING;
+		id = void_callbacks.size();
+		void_callbacks.push_back(callback);
 	#endif
 	}
 
@@ -87,6 +108,15 @@ namespace GUI {
 		void_callbacks[id] = callback;
 	#endif
 	}
+
+	void Button::operator=(const Button& other) {
+		TextElement::operator=(static_cast<const TextElement&>(other));
+		callback = other.callback;
+	}
+
+	Checkbox::Checkbox() : Button("", NULL) {
+		uncheck();
+	} 
 
 	Checkbox::Checkbox(const std::string& name, VoidCallback callback, bool checked)
 	: Button(name, callback) {
@@ -116,6 +146,13 @@ namespace GUI {
 	MenuBreak::MenuBreak() {
 	#ifdef _WIN32
 		flags = MF_MENUBARBREAK;
+	#endif
+	}
+
+	Menu::Menu() : TextElement("") {
+	#ifdef _WIN32
+		flags = MF_POPUP;
+		id = (UINT_PTR)menu_handle;
 	#endif
 	}
 
@@ -163,6 +200,11 @@ namespace GUI {
 	#ifdef _WIN32
 		SetMenu(window_handler, menu_handle);
 	#endif
+	}
+
+	void Menu::operator=(const Menu& other) {
+		TextElement::operator=(other);
+		window_handler = other.window_handler;
 	}
 
 } // end namespace GUI
