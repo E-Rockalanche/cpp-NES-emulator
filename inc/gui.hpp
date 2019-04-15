@@ -79,10 +79,12 @@ namespace GUI {
 	};
 
 	class MenuSeperator : public Element {
+	public:
 		MenuSeperator();
 	};
 
 	class MenuBreak : public Element {
+	public:
 		MenuBreak();
 	};
 
@@ -91,6 +93,8 @@ namespace GUI {
 		Menu();
 		Menu(const std::string& name);
 		void append(Element& element);
+		void seperateMenu();
+		void breakMenu();
 		void setMenuBar(SDL_Window* window);
 		void hide();
 		void show();

@@ -9,6 +9,7 @@ GUI::Menu menu_bar;
 GUI::Menu file_menu;
 GUI::Button load_rom_button;
 GUI::Button close_rom_button;
+GUI::Button exit_button;
 
 GUI::Menu movie_submenu;
 GUI::Button load_movie_button;
@@ -39,6 +40,7 @@ void constructMenu() {
 	file_menu = GUI::Menu("File");
 	load_rom_button = GUI::Button("Open", selectRom);
 	close_rom_button = GUI::Button("Close", closeFile);
+	exit_button = GUI::Button("Exit", quit);
 
 	movie_submenu = GUI::Menu("Movie");
 	load_movie_button = GUI::Button("Load", loadMovie);
@@ -72,12 +74,16 @@ void constructMenu() {
 
 	movie_submenu.append(save_movie_button);
 	movie_submenu.append(load_movie_button);
+	movie_submenu.seperateMenu();
 	movie_submenu.append(record_movie_button);
 	movie_submenu.append(play_movie_button);
 
 	file_menu.append(load_rom_button);
 	file_menu.append(close_rom_button);
+	file_menu.seperateMenu();
 	file_menu.append(movie_submenu);
+	file_menu.seperateMenu();
+	file_menu.append(exit_button);
 
 	scale_menu.append(scale1_button);
 	scale_menu.append(scale2_button);
@@ -88,6 +94,7 @@ void constructMenu() {
 
 	machine_menu.append(power_button);
 	machine_menu.append(reset_button);
+	machine_menu.seperateMenu();
 	machine_menu.append(sprite_flicker_button);
 
 	options_menu.append(pause_button);

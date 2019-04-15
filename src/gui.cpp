@@ -22,6 +22,9 @@ namespace GUI {
 		HMENU menu_bar_handle = 0;
 	#endif
 
+	MenuSeperator seperator;
+	MenuBreak breaker;
+
 	void handleMenuEvent(const SDL_Event& event) {
 	#ifdef _WIN32
 	    if (event.syswm.msg->msg.win.msg == WM_COMMAND) {
@@ -154,6 +157,14 @@ namespace GUI {
 			element.getId(),
 			element.getDisplay());
 	#endif
+	}
+
+	void Menu::seperateMenu() {
+		append(seperator);
+	}
+
+	void Menu::breakMenu() {
+		append(breaker);
 	}
 
 	void Menu::setMenuBar(SDL_Window* window) {
