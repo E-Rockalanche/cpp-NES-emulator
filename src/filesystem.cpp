@@ -1,7 +1,6 @@
 #include <string>
 #include <utility>
 #include "filesystem.hpp"
-#include "debugging.hpp"
 
 #define FS_MAX(a, b) (((a) > (b)) ? (a) : (b))
 
@@ -261,7 +260,7 @@ path path::extension() const {
 	int start;
 	for(start = pathname.size()-1; start >= 0; start--) {
 		if (pathname[start] == '.') {
-			return path(string_type(pathname, start+1));
+			return path(string_type(pathname, start));
 		}
 	}
 	return path();

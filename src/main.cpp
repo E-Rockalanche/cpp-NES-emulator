@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "SDL2/SDL.h"
+
 #include "filesystem.hpp"
 
 #include "common.hpp"
@@ -27,11 +28,8 @@
 #include "api.hpp"
 #include "movie.hpp"
 #include "hotkeys.hpp"
+#include "menu.hpp"
 #include "assert.hpp"
-
-// GUI
-Gui::HBox top_gui({ 0, 0, window_width, GUI_HEIGHT });
-Gui::Element* active_menu = &top_gui;
 
 // SDL
 SDL_Window* window = NULL;
@@ -55,6 +53,7 @@ fs::path screenshot_folder = std::string("screenshots");
 fs::path movie_folder = std::string("movies");
 fs::path savestate_folder = std::string("savestates");
 
+std::string rom_ext = ".nes";
 std::string save_ext = ".sav";
 std::string movie_ext = ".nesmov";
 std::string savestate_ext = ".state";
@@ -64,7 +63,7 @@ bool fullscreen = false;
 float render_scale = 1;
 SDL_Rect render_area = {
 	0,
-	GUI_HEIGHT,
+	0,
 	SCREEN_WIDTH - DEFAULT_CROP,
 	SCREEN_HEIGHT - DEFAULT_CROP
 };
@@ -75,7 +74,7 @@ SDL_Rect crop_area = {
 	SCREEN_HEIGHT - DEFAULT_CROP
 };
 int window_width = SCREEN_WIDTH - DEFAULT_CROP;
-int window_height = SCREEN_HEIGHT - DEFAULT_CROP - GUI_HEIGHT;
+int window_height = SCREEN_HEIGHT - DEFAULT_CROP;
 
 // frame timing
 const unsigned int TARGET_FPS = 60;
@@ -120,26 +119,6 @@ void resetFrameNumber() {
 	real_fps = 0;
 }
 
-void reset() {
-	if (cartridge != NULL) {
-		clearScreen();
-		CPU::reset();
-		PPU::reset();
-		APU::reset();
-		resetFrameNumber();
-	}
-}
-
-void power() {
-	if (cartridge != NULL) {
-		clearScreen();
-		CPU::power();
-		PPU::power();
-		APU::reset();
-		resetFrameNumber();
-	}
-}
-
 bool loadFile(std::string filename) {
 	if (cartridge) delete cartridge;
 	cartridge = Cartridge::loadFile(filename);
@@ -155,6 +134,7 @@ bool loadFile(std::string filename) {
 		} else {
 			save_filename = "";
 		}
+		power();
 		return true;
 	}
 }
@@ -171,23 +151,21 @@ bool loadSave(std::string filename) {
 
 void saveGame() {
 	if (cartridge && cartridge->hasSRAM()) {
-		cartridge->saveGame(save_filename.string());
+		cartridge->saveGame(save_filename);
 	}
 }
 
 // resize window and render area
 void resizeRenderArea(bool round_scale) {
 	SDL_GetWindowSize(window, &window_width, &window_height);
-	top_gui.setSize(window_width, GUI_HEIGHT);
 
-	// set viewport to fill window
+	// dout("window size: " << window_width << ", " << window_height);
+
+	// set viewport to entire window
 	SDL_RenderSetViewport(renderer, NULL);
 
-	int gui_height = fullscreen ? 0 : GUI_HEIGHT;
-
-	int allowed_height = window_height - gui_height;
 	float x_scale = (float)window_width / crop_area.w;
-	float y_scale = (float)allowed_height / crop_area.h;
+	float y_scale = (float)window_height / crop_area.h;
 	render_scale = MIN(x_scale, y_scale);
 
 	if (round_scale) {
@@ -198,11 +176,11 @@ void resizeRenderArea(bool round_scale) {
 	render_area.w = crop_area.w * render_scale;
 	render_area.h = crop_area.h * render_scale;
 	render_area.x = (window_width - render_area.w) / 2;
-	render_area.y = gui_height + (allowed_height - render_area.h) / 2;
+	render_area.y = (window_height - render_area.h) / 2;
 }
 
 void resizeWindow(int width, int height) {
-	SDL_SetWindowSize(window, width, height + GUI_HEIGHT);
+	SDL_SetWindowSize(window, width, height);
 	resizeRenderArea();
 }
 
@@ -237,8 +215,6 @@ void keyboardEvent(const SDL_Event& event) {
 		}
 
 		pressHotkey(key);
-
-		if (active_menu->keyInput(key)) return;
 	}
 
 	if (!Movie::isPlaying()) {
@@ -269,28 +245,34 @@ void windowEvent(const SDL_Event& event) {
 }
 
 void mouseMotionEvent(const SDL_Event& event) {
-	active_menu->mouseMotion(event.motion.x, event.motion.y);
-
 	int tv_x = (event.motion.x - render_area.x) / render_scale;
 	int tv_y = (event.motion.y - render_area.y) / render_scale;
 	zapper.aim(tv_x, tv_y);
 }
 
 void mouseButtonEvent(const SDL_Event& event) {
-	if (event.button.state == SDL_PRESSED) {
-		if (event.button.button == SDL_BUTTON_LEFT) {
-			bool clicked_menu = false;
-			if (active_menu) {
-				clicked_menu = active_menu->click(event.button.x, event.button.y);
-			}
-			if (!clicked_menu) {
-				int gui_height = fullscreen ? 0 : GUI_HEIGHT;
-				if (event.button.y > gui_height) {
-					zapper.pull();
-				}
-			}
+	if ((event.button.state == SDL_PRESSED)
+	&& (event.button.button == SDL_BUTTON_LEFT)) {
+		zapper.pull();
+	}
+}
+
+void dropEvent(const SDL_Event& event) {
+	if (event.type == SDL_DROPFILE) {
+		fs::path filename = std::string(event.drop.file);
+		fs::path extension = filename.extension();
+		if (extension == rom_ext) {
+			loadFile(filename);
+		} else if (extension == save_ext) {
+			cartridge->loadSave(filename);
+		} else if (extension == movie_ext) {
+			Movie::load(filename);
+		} else if (extension == savestate_ext) {
+			loadState(filename);
+		} else {
+			dout("cannot open " << filename.native());
 		}
-	} else if (event.button.state == SDL_RELEASED) {
+		SDL_free(event.drop.file);
 	}
 }
 
@@ -322,16 +304,23 @@ void pollEvents() {
 				windowEvent(event);
 				break;
 
+		    case SDL_DROPFILE:
+		    	dropEvent(event);
+		    	break;
+
+		    case SDL_GUI_EVENT:
+		    	GUI::handleMenuEvent(event);
+		        break;
+
 			default: break;
 		}
 	}
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char** argv) {
 	srand(time(NULL));
 
 	assert(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) == 0, "failed to initialize SDL");
-	Gui::init();
 
 	loadConfig();
 
@@ -348,7 +337,6 @@ int main(int argc, char* argv[]) {
 	// create renderer
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
 	assert(renderer != NULL, "failed to create renderer");
-	resizeRenderArea();
 
 	// create texture
 	nes_texture = SDL_CreateTexture(renderer,
@@ -365,79 +353,14 @@ int main(int argc, char* argv[]) {
 
 	// load ROM from command line
 	if (argc > 1) {
-		if (loadFile(argv[1])) {
-			power();
-		}
+		loadFile(argv[1]);
 	}
 
-	// A, B, select, start, up, down, left, right
-	joypad[0].mapButtons((const int[8]){ SDLK_x, SDLK_z, SDLK_RSHIFT, SDLK_RETURN,
-		SDLK_UP, SDLK_DOWN, SDLK_LEFT, SDLK_RIGHT });
+	Movie::clear();
 
-	// build gui bar
-	const SDL_Rect gui_button_rect = { 0, 0, 0, GUI_HEIGHT };
-	Gui::DropDown file_dropdown(gui_button_rect, "File");
-	Gui::DropDown view_dropdown(gui_button_rect, "View");
-	Gui::DropDown options_dropdown(gui_button_rect, "Options");
-	Gui::DropDown machine_dropdown(gui_button_rect, "Machine");
-	Gui::DynamicTextElement fps_display({ 0, 0, 64, GUI_HEIGHT }, &fps_text);
-	top_gui.addElement(file_dropdown);
-	top_gui.addElement(view_dropdown);
-	top_gui.addElement(options_dropdown);
-	top_gui.addElement(machine_dropdown);
-	top_gui.addElement(fps_display);
+	constructMenu();
 
-	// file
-	Gui::Button load_rom_button(gui_button_rect, "Load", selectRom);
-	Gui::Button close_rom_button(gui_button_rect, "Close", closeFile);
-	Gui::SubDropDown movie_dropdown(gui_button_rect, "Movie >");
-	Gui::Button save_movie_button(gui_button_rect, "Save", saveMovie);
-	Gui::Button load_movie_button(gui_button_rect, "Load", loadMovie);
-	movie_dropdown.addElement(save_movie_button);
-	movie_dropdown.addElement(load_movie_button);
-	file_dropdown.addElement(load_rom_button);
-	file_dropdown.addElement(close_rom_button);
-	file_dropdown.addElement(movie_dropdown);
-
-	// view
-	Gui::RadioButton fullscreen_button(gui_button_rect, "Fullscreen", &fullscreen, setFullscreen);
-	Gui::Button scale1_button(gui_button_rect, "Scale: 1", setResolutionScale1);
-	Gui::Button scale2_button(gui_button_rect, "Scale: 2", setResolutionScale2);
-	Gui::Button scale3_button(gui_button_rect, "Scale: 3", setResolutionScale3);
-	view_dropdown.addElement(fullscreen_button);
-	view_dropdown.addElement(scale1_button);
-	view_dropdown.addElement(scale2_button);
-	view_dropdown.addElement(scale3_button);
-
-	auto finalizeCrop = []{
-		cropScreen(0, 0);
-	};
-
-	Gui::SubDropDown crop_menu(gui_button_rect, "Crop Screen >");
-	Gui::Field<int> crop_x_input({ 0, 0, 64, GUI_HEIGHT }, &crop_area.x, finalizeCrop);
-	Gui::Field<int> crop_y_input({ 0, 0, 64, GUI_HEIGHT }, &crop_area.y, finalizeCrop);
-	Gui::Label crop_x_label(gui_button_rect, "Left/right: ", crop_x_input);
-	Gui::Label crop_y_label(gui_button_rect, "Top/bottom: ", crop_y_input);
-	crop_menu.addElement(crop_x_label);
-	crop_menu.addElement(crop_y_label);
-
-	view_dropdown.addElement(crop_menu);
-
-	// machine
-	Gui::Button power_button(gui_button_rect, "Power", &power);
-	Gui::Button reset_button(gui_button_rect, "Reset", &reset);
-	Gui::SubDropDown nes_dropdown(gui_button_rect, "Options >");
-	Gui::RadioButton flicker_button(gui_button_rect, "Sprite Flickering", &PPU::sprite_flickering);
-	nes_dropdown.addElement(flicker_button);
-	machine_dropdown.addElement(power_button);
-	machine_dropdown.addElement(reset_button);
-	machine_dropdown.addElement(nes_dropdown);
-
-
-	Gui::RadioButton pause_button(gui_button_rect, "Pause", &paused);
-	Gui::RadioButton mute_button(gui_button_rect, "Mute", &muted);
-	options_dropdown.addElement(pause_button);
-	options_dropdown.addElement(mute_button);
+	resizeWindow(window_width, window_height);
 
 	// run emulator
 	int last_time = SDL_GetTicks();
@@ -463,9 +386,6 @@ int main(int argc, char* argv[]) {
 		// render nes & gui
 		SDL_UpdateTexture(nes_texture, NULL, screen, SCREEN_WIDTH * sizeof (Pixel));
 		SDL_RenderCopy(renderer, nes_texture, &crop_area, &render_area);
-		if (!fullscreen || paused || (cartridge == NULL)) {
-			top_gui.render();
-		}
 
 		// preset screen
 		SDL_RenderPresent(renderer);

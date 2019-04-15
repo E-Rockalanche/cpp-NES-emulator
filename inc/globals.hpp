@@ -10,8 +10,8 @@
 #include "joypad.hpp"
 #include "zapper.hpp"
 #include "screen.hpp"
+#include "gui.hpp"
 
-#define GUI_HEIGHT 24
 #define DEFAULT_CROP 8
 #define MAX_CROP 8
 
@@ -36,6 +36,7 @@ extern fs::path screenshot_folder;
 extern fs::path movie_folder;
 extern fs::path savestate_folder;
 
+extern std::string rom_ext;
 extern std::string save_ext;
 extern std::string savestate_ext;
 extern std::string movie_ext;
