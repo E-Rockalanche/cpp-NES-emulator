@@ -38,6 +38,9 @@ namespace GUI {
 			UINT_PTR getId() { return id; }
 			LPCTSTR getDisplay() { return display_ptr; }
 		#endif
+			
+		void enable(bool e = true);
+		void disable();
 	};
 
 	class TextElement : public Element {

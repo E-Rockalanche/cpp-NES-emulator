@@ -4,6 +4,7 @@
 #include <string>
 #include "movie.hpp"
 #include "assert.hpp"
+#include "globals.hpp"
 
 namespace Movie {
 	struct ButtonPress {
@@ -17,12 +18,18 @@ namespace Movie {
 	std::vector<ButtonPress> button_presses;
 	int index = 0;
 
+	bool empty() { return button_presses.empty(); }
+	void clear() {
+		button_presses.clear();
+		save_movie_button.disable();
+		state = NONE;
+		index = 0;
+	}
+
 	bool save(std::string filename) {
 		if (isRecording()) {
 			stopRecording();
 		}
-
-		dout("savinf movie to " << filename);
 
 		std::ofstream fout(filename.c_str(), std::ios::binary);
 		if (!fout.is_open()) {
@@ -32,8 +39,6 @@ namespace Movie {
 
 		int size = button_presses.size();
 		fout.write((char*)&size, sizeof(size));
-
-		dout("number is keystrokes: " << size);
 
 		for(int i = 0; i < size; i++) {
 			ButtonPress press = button_presses[i];
@@ -48,8 +53,6 @@ namespace Movie {
 		if (state != NONE) {
 			state = NONE;
 		}
-
-		dout("loading movie from " << filename);
 		
 		std::ifstream fin(filename.c_str(), std::ios::binary);
 		if (!fin.is_open()) {
@@ -62,14 +65,13 @@ namespace Movie {
 		int size;
 		fin.read((char*)&size, sizeof(size));
 
-		dout("number is keystrokes: " << size);
-
 		for(int i = 0; i < size; i++) {
 			ButtonPress press;
 			fin.read((char*)&press, sizeof(press));
 			button_presses.push_back(press);
 		}
 
+		save_movie_button.enable(!empty());
 		fin.close();
 		return true;
 	}
@@ -84,6 +86,8 @@ namespace Movie {
 
 		button_presses.clear();
 		state = RECORDING;
+
+		save_movie_button.disable();
 	}
 
 	void stopRecording() {
@@ -91,6 +95,8 @@ namespace Movie {
 		dout("stopping recording");
 
 		state = NONE;
+
+		save_movie_button.enable();
 	}
 
 	bool isRecording() {
@@ -104,10 +110,14 @@ namespace Movie {
 
 	void startPlayback() {
 		assert(state == NONE, "cannot start playing movie");
-		dout("playing movie");
+		if (!empty()) {
+			dout("playing movie");
 
-		index = 0;
-		state = PLAYING;
+			index = 0;
+			state = PLAYING;
+		} else {
+			dout("movie is empty");
+		}
 	}
 
 	void stopPlayback() {

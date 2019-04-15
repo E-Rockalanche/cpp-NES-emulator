@@ -36,6 +36,7 @@ GUI::Checkbox fullscreen_button("Fullscreen", toggleFullscreen);
 GUI::Checkbox pause_button("Pause", togglePaused);
 GUI::Checkbox mute_button("Mute", toggleMute);
 GUI::Checkbox sprite_flicker_button("Sprite Flickering", toggleSpriteFlickering, true);
+GUI::Button save_movie_button("Save", saveMovie);
 
 // SDL
 SDL_Window* window = NULL;
@@ -284,31 +285,21 @@ void mouseButtonEvent(const SDL_Event& event) {
 }
 
 void dropEvent(const SDL_Event& event) {
-	dout("drop event");
-
-	switch(event.type) {
-		case SDL_DROPFILE: {
-			dout("drop file");
-
-			fs::path filename = std::string(event.drop.file);
-			dout("dropped file: " << filename.string());
-
-			fs::path extension = filename.extension();
-			dout("ext: " << extension.string());
-
-			if (extension == rom_ext) {
-				loadFile(filename.string());
-			} else if (extension == save_ext) {
-				cartridge->loadSave(filename);
-			} else if (extension == movie_ext) {
-				Movie::load(filename);
-			} else if (extension == savestate_ext) {
-				loadState(filename);
-			}
-			SDL_free(event.drop.file);
-		} break;
-
-		default: break;
+	if (event.type == SDL_DROPFILE) {
+		fs::path filename = std::string(event.drop.file);
+		fs::path extension = filename.extension();
+		if (extension == rom_ext) {
+			loadFile(filename.string());
+		} else if (extension == save_ext) {
+			cartridge->loadSave(filename);
+		} else if (extension == movie_ext) {
+			Movie::load(filename);
+		} else if (extension == savestate_ext) {
+			loadState(filename);
+		} else {
+			dout("cannot open " << filename.string());
+		}
+		SDL_free(event.drop.file);
 	}
 }
 
@@ -406,7 +397,7 @@ int main(int argc, char** argv) {
 	file_menu.append(close_rom_button);
 
 	GUI::Menu movie_submenu("Movie");
-	GUI::Button save_movie_button("Save", saveMovie);
+	save_movie_button.disable();
 	GUI::Button load_movie_button("Load", loadMovie);
 	movie_submenu.append(save_movie_button);
 	movie_submenu.append(load_movie_button);

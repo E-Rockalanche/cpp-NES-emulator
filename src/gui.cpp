@@ -14,8 +14,11 @@
 
 #ifdef _WIN32
 	std::vector<GUI::VoidCallback> void_callbacks;
-	HMENU menu_bar_handle;
+	HMENU menu_bar_handle = 0;
+	#define setFlag(mask) (flags) |= (mask)
+	#define clearFlag(mask) (flags) &= ~(mask)
 #endif
+
 
 namespace GUI {
 	void handleMenuEvent(const SDL_Event& event) {
@@ -37,6 +40,22 @@ namespace GUI {
 		menu_handle = CreateMenu();
 		display_ptr = 0;
 	#endif
+	}
+
+	void Element::enable(bool e) {
+	#ifdef _WIN32
+		UINT enable_flag = e ? MF_ENABLED : MF_GRAYED;
+		EnableMenuItem(menu_bar_handle, id, enable_flag);
+		if (e) {
+			clearFlag(MF_GRAYED);
+		} else {
+			setFlag(MF_GRAYED);
+		}
+	#endif
+	}
+
+	void Element::disable() {
+		enable(false);
 	}
 
 	TextElement::TextElement(const std::string& name) : Element() {
@@ -71,12 +90,17 @@ namespace GUI {
 
 	Checkbox::Checkbox(const std::string& name, VoidCallback callback, bool checked)
 	: Button(name, callback) {
-		flags |= checked ? MF_CHECKED : MF_UNCHECKED;
+		check(checked);
 	}
 
 	void Checkbox::check(bool check) {
 		int check_flag = check ? MF_CHECKED : MF_UNCHECKED;
 		CheckMenuItem(menu_bar_handle, id, check_flag);
+		if (check) {
+			setFlag(MF_CHECKED);
+		} else {
+			clearFlag(MF_CHECKED);
+		}
 	}
 
 	void Checkbox::uncheck() {

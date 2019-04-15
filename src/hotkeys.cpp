@@ -91,6 +91,7 @@ void closeFile() {
 	rom_filename = "";
 	save_filename = "";
 	clearScreen();
+	Movie::clear();
 }
 
 void toggleRecording() {
