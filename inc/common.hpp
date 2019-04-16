@@ -45,4 +45,14 @@ struct Constant {
 
 #define testFlag(mask, flag) ((bool)((mask) & (flag)))
 
+template<typename T>
+inline void writeBinary(std::ostream& out, const T& value) {
+	out.write((char*)&value, sizeof(T));
+}
+
+template<typename T>
+inline void readBinary(std::istream& in, T& value) {
+	in.read((char*)&value, sizeof(T));
+}
+
 #endif

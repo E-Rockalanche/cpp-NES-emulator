@@ -29,6 +29,7 @@
 #include "hotkeys.hpp"
 #include "menu_elements.hpp"
 #include "menu_bar.hpp"
+#include "message.hpp"
 #include "assert.hpp"
 
 // SDL
@@ -373,9 +374,14 @@ int main(int argc, char** argv) {
 			}
 			CPU::runFrame();
 			zapper.update();
-			frame_number++;
-			double elapsed = SDL_GetTicks() - last_time;
-			total_real_fps += 1000.0/elapsed;
+
+			if (CPU::halted()) {
+				showError("Halted", "The CPU encountered an illegal instruction");
+			} else {
+				frame_number++;
+				double elapsed = SDL_GetTicks() - last_time;
+				total_real_fps += 1000.0/elapsed;
+			}
 		}
 		step_frame = false;
 

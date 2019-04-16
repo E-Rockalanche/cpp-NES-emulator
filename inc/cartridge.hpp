@@ -47,6 +47,8 @@ public:
 	virtual void saveState(std::ostream& out);
 	virtual void loadState(std::istream& in);
 
+	unsigned int getChecksum();
+
 protected:
 	enum Header {
 		NES,
@@ -180,6 +182,8 @@ protected:
 	int ram_size;
 
 	NameTableMirroring nt_mirroring;
+
+	unsigned int checksum;
 
 	// bank switching
 	int prg_map[4];

@@ -7,6 +7,7 @@
 #include "mapper2.hpp"
 #include "mapper3.hpp"
 #include "mapper4.hpp"
+#include "crc32.hpp"
 #include "assert.hpp"
 
 Cartridge* cartridge = NULL;
@@ -105,6 +106,8 @@ Cartridge::Cartridge(Byte* data) : data(data) {
 	chr_size = data[CHR_SIZE] * 0x2000;
 	ram_size = data[RAM_SIZE] ? (data[RAM_SIZE] * 0x2000) : 0x2000;
 
+	checksum = crc32(data, HEADER_SIZE + prg_size + chr_size);
+
 	ram = new Byte[ram_size];
 	for(int n = 0; n < ram_size; n++) ram[n] = 0;
 
@@ -121,6 +124,7 @@ Cartridge::Cartridge(Byte* data) : data(data) {
 
 	nt_mirroring = (data[FLAGS_6] & 1) ? VERTICAL : HORIZONTAL;
 
+
 	setPRGBank(0, 0, 0x8000);
 	setCHRBank(0, 0, 0x2000);
 }
@@ -130,6 +134,8 @@ Cartridge::~Cartridge() {
 	delete[] ram;
 	if (has_chr_ram) delete[] chr;
 }
+
+unsigned int Cartridge::getChecksum() { return checksum; }
 
 bool Cartridge::hasSRAM() {
 	return data[FLAGS_6] & 0x02;
@@ -238,7 +244,7 @@ void Cartridge::saveState(std::ostream& out) {
 	out.write((char*)&ss, sizeof(SaveState));
 	out.write((char*)ram, ram_size);
 
-	if(has_chr_ram) {
+	if (has_chr_ram) {
 		out.write((char*)chr, chr_size);
 	}
 }
@@ -249,7 +255,7 @@ void Cartridge::loadState(std::istream& in) {
 	in.read((char*)&ss, sizeof(SaveState));
 	in.read((char*)ram, ram_size);
 
-	if(has_chr_ram) {
+	if (has_chr_ram) {
 		in.read((char*)chr, chr_size);
 	}
 
