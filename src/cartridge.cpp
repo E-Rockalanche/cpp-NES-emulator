@@ -43,7 +43,7 @@ Cartridge* Cartridge::loadFile(std::string filename) {
 	fin.close();
 
 	if (data_size < (HEADER_SIZE + 8*KB)) {
-		showError("Error", "This file is too small to be a NES ROM");
+		showError("Error", "File too small");
 		delete[] data;
 		return NULL;
 	}

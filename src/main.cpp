@@ -124,7 +124,6 @@ bool loadFile(std::string filename) {
 	if (cartridge) delete cartridge;
 	cartridge = Cartridge::loadFile(filename);
 	if (!cartridge) {
-		dout("could not load " << filename);
 		return false;
 	} else {
 		rom_filename = filename;
@@ -271,7 +270,7 @@ void dropEvent(const SDL_Event& event) {
 		} else if (extension == savestate_ext) {
 			loadState(filename);
 		} else {
-			dout("cannot open " << filename.native());
+			showError("Error", "Cannot open " + filename.native());
 		}
 		SDL_free(event.drop.file);
 	}
