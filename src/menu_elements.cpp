@@ -1,4 +1,4 @@
-#include "gui.hpp"
+#include "menu_elements.hpp"
 #include "debugging.hpp"
 
 #include <string>
@@ -16,14 +16,14 @@
 #define setFlag(mask) (flags) |= (mask)
 #define clearFlag(mask) (flags) &= ~(mask)
 
-namespace GUI {
+namespace Menu {
 	#ifdef _WIN32
-		std::vector<GUI::VoidCallback> void_callbacks;
+		std::vector<VoidCallback> void_callbacks;
 		HMENU menu_bar_handle = 0;
 	#endif
 
-	MenuSeperator seperator;
-	MenuBreak breaker;
+	Seperator seperator;
+	Break breaker;
 
 	void handleMenuEvent(const SDL_Event& event) {
 	#ifdef _WIN32
@@ -129,13 +129,13 @@ namespace GUI {
 		check(false);
 	}
 
-	MenuSeperator::MenuSeperator() {
+	Seperator::Seperator() {
 	#ifdef _WIN32
 		flags = MF_SEPARATOR;
 	#endif
 	}
 
-	MenuBreak::MenuBreak() {
+	Break::Break() {
 	#ifdef _WIN32
 		flags = MF_MENUBARBREAK;
 	#endif
@@ -202,4 +202,4 @@ namespace GUI {
 		window_handler = other.window_handler;
 	}
 
-} // end namespace GUI
+} // end namespace Menu

@@ -9,7 +9,7 @@
 #include "api.hpp"
 #include "apu.hpp"
 #include "cartridge.hpp"
-#include "menu.hpp"
+#include "menu_bar.hpp"
 
 void quit() { exit(0); }
 

@@ -1,5 +1,5 @@
-#ifndef GUI_HPP
-#define GUI_HPP
+#ifndef MENU_HPP
+#define MENU_HPP
 
 #include <string>
 
@@ -10,12 +10,12 @@
 #include "SDL2/SDL.h"
 
 #ifdef _WIN32
-	#define SDL_GUI_EVENT SDL_SYSWMEVENT
+	#define SDL_MENU_EVENT SDL_SYSWMEVENT
 #else
-	#define SDL_GUI_EVENT -1
+	#define SDL_MENU_EVENT -1
 #endif
 
-namespace GUI {
+namespace Menu {
 	typedef void(*VoidCallback)(void);
 
 	void handleMenuEvent(const SDL_Event& event);
@@ -78,14 +78,14 @@ namespace GUI {
 		}
 	};
 
-	class MenuSeperator : public Element {
+	class Seperator : public Element {
 	public:
-		MenuSeperator();
+		Seperator();
 	};
 
-	class MenuBreak : public Element {
+	class Break : public Element {
 	public:
-		MenuBreak();
+		Break();
 	};
 
 	class Menu : public TextElement {
@@ -106,6 +106,6 @@ namespace GUI {
 	#endif
 	};
 
-} // end namespace GUI
+} // end namespace Menu
 
 #endif

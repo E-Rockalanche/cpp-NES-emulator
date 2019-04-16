@@ -22,13 +22,13 @@
 #include "program_end.hpp"
 #include "screen.hpp"
 #include "config.hpp"
-#include "gui.hpp"
 #include "keyboard.hpp"
 #include "globals.hpp"
 #include "api.hpp"
 #include "movie.hpp"
 #include "hotkeys.hpp"
-#include "menu.hpp"
+#include "menu_elements.hpp"
+#include "menu_bar.hpp"
 #include "assert.hpp"
 
 // SDL
@@ -308,8 +308,8 @@ void pollEvents() {
 		    	dropEvent(event);
 		    	break;
 
-		    case SDL_GUI_EVENT:
-		    	GUI::handleMenuEvent(event);
+		    case SDL_MENU_EVENT:
+		    	Menu::handleMenuEvent(event);
 		        break;
 
 			default: break;

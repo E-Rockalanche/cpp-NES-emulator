@@ -4,7 +4,7 @@
 #include <string>
 #include "movie.hpp"
 #include "assert.hpp"
-#include "menu.hpp"
+#include "menu_bar.hpp"
 
 namespace Movie {
 	struct ButtonPress {
