@@ -51,7 +51,7 @@ void constructMenu() {
 
 	view_menu = Menu::Menu("View");
 	fullscreen_button = Menu::Checkbox("Fullscreen (F11)", toggleFullscreen);
-	scale_menu = Menu::Menu("Scale");
+	scale_menu = Menu::Menu("Resolution");
 	scale1_button = Menu::Button("x1", setResolutionScale1);
 	scale2_button = Menu::Button("x2", setResolutionScale2);
 	scale3_button = Menu::Button("x3", setResolutionScale3);
