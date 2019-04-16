@@ -391,7 +391,9 @@ struct Registers {
 	bool _halt;
 	int _nmi;
 	int _irq;
+
 	int wait_cycles;
+	int test_ticks;
 };
 
 void saveState(std::ostream& out) {
@@ -407,6 +409,7 @@ void saveState(std::ostream& out) {
 	ss._nmi = _nmi;
 	ss._irq = _irq;
 	ss.wait_cycles = wait_cycles;
+	ss.test_ticks = test_ticks;
 
 	out.write((const char*)ram, RAM_SIZE);
 	out.write((const char*)&ss, sizeof(Registers));
@@ -429,6 +432,7 @@ void loadState(std::istream& in) {
 	_nmi = ss._nmi;
 	_irq = ss._irq;
 	wait_cycles = ss.wait_cycles;
+	test_ticks = ss.test_ticks;
 }
 
 const int NMI_VECTOR = 0xfffa;
@@ -617,10 +621,6 @@ Byte read(Word address) {
 		case CARTRIDGE_START ... CARTRIDGE_END:
 			value = cartridge->readPRG(address);
 			break;
-
-		default:
-			assert(false, "invalid address");
-			break;
 	}
 
 	return value;
@@ -666,10 +666,6 @@ void write(Word address, Byte value) {
 
 		case CARTRIDGE_START ... CARTRIDGE_END:
 			cartridge->writePRG(address, value);
-			break;
-
-		default:
-			assert(false, "invalid address");
 			break;
 	}
 }

@@ -376,7 +376,7 @@ int main(int argc, char** argv) {
 			zapper.update();
 
 			if (CPU::halted()) {
-				showError("Halted", "The CPU encountered an illegal instruction");
+				showError("Error", "The CPU encountered an illegal instruction");
 			} else {
 				frame_number++;
 				double elapsed = SDL_GetTicks() - last_time;

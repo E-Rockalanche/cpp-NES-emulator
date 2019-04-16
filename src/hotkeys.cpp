@@ -232,7 +232,7 @@ void loadState(const std::string& filename) {
 			readBinary(fin, checksum);
 			bool load = true;
 			if (cartridge->getChecksum() != checksum) {
-				load = askYesNo("Invalid Checksum",
+				load = askYesNo("Warning",
 					"This save state appears to be for a different game. Load it anyway?",
 					WARNING_ICON);
 			}

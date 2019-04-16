@@ -1,8 +1,6 @@
 #include "mapper1.hpp"
 
 Mapper1::Mapper1(Byte* data) : Cartridge(data) {
-	dout("Mapper1()");
-
 	shift_register = SHIFT_REG_INIT;
 
 	// set initial banks

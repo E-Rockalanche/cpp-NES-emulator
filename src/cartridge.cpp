@@ -8,6 +8,7 @@
 #include "mapper3.hpp"
 #include "mapper4.hpp"
 #include "crc32.hpp"
+#include "message.hpp"
 #include "assert.hpp"
 
 Cartridge* cartridge = NULL;
@@ -19,7 +20,7 @@ Cartridge* Cartridge::loadFile(std::string filename) {
 
 	std::ifstream fin(filename, std::ios::binary);
 	if (!fin.is_open() || !fin.good() || fin.eof()) {
-		dout("Could not open " << filename);
+		showError("Error", "Could not open " + filename);
 		return NULL;
 	}
 
@@ -32,7 +33,7 @@ Cartridge* Cartridge::loadFile(std::string filename) {
 	data = new Byte[data_size];
 
 	if (data == NULL) {
-		dout("Could not allocate memory");
+		showError("Error", "Could not allocate cartridge memory");
 		fin.close();
 		return NULL;
 	}
@@ -42,20 +43,19 @@ Cartridge* Cartridge::loadFile(std::string filename) {
 	fin.close();
 
 	if (data_size < (HEADER_SIZE + 8*KB)) {
-		dout("File size is too small to be a ROM");
-		dout("size: " << toHex(data_size));
+		showError("Error", "This file is too small to be a NES ROM");
 		delete[] data;
 		return NULL;
 	}
 
 	if (!verifyHeader(data)) {
-		dout("file verification failed");
+		showError("Error", "ROM header is invalid");
 		delete[] data;
 		return NULL;
 	}
 
 	if ((data[FLAGS_7] & 0x0c) == 0x08) {
-		dout("NES 2.0 format not supported");
+		showError("Error", "NES 2.0 formatted ROMs are not supported yet");
 		delete[] data;
 		return NULL;
 	}
@@ -67,7 +67,11 @@ Cartridge* Cartridge::loadFile(std::string filename) {
 		case 2: mapper = new Mapper2(data); break;
 		case 3: mapper = new Mapper3(data); break;
 		case 4: mapper = new Mapper4(data); break;
-		default: assert(false, "mapper " << mapper_number << " is not supported");
+
+		default:
+			showError("Error", "Mapper " + std::to_string(mapper_number) + " is not supported");
+			delete[] data;
+			return NULL;
 	}
 
 	return mapper;
@@ -79,7 +83,6 @@ bool Cartridge::verifyHeader(Byte* data) {
 	for(int n = 0; n < 4; n++) {
 		if (data[n] != nes[n]) {
 			ok = false;
-			dout("NES verification failed");
 			break;
 		}
 	}
@@ -143,13 +146,11 @@ bool Cartridge::hasSRAM() {
 
 bool Cartridge::saveGame(std::string filename) {
 	if (!hasSRAM()) {
-		dout("Cartridge does not have SRAM");
-		return false;
+		return true;
 	}
 
 	std::ofstream fout(filename, std::ios::binary);
 	if (!fout.is_open()) {
-		dout("Could not save to " << filename);
 		return false;
 	}
 
@@ -161,13 +162,11 @@ bool Cartridge::saveGame(std::string filename) {
 
 bool Cartridge::loadSave(std::string filename) {
 	if (!hasSRAM()) {
-		dout("Cartridge does not have SRAM");
-		return false;
+		return true;
 	}
 
 	std::ifstream fin(filename, std::ios::binary);
 	if (!fin.is_open()) {
-		dout("Could not load save from " << filename);
 		return false;
 	}
 
@@ -177,7 +176,6 @@ bool Cartridge::loadSave(std::string filename) {
 	fin.seekg(0);
 
 	if (file_size != ram_size) {
-		dout("Save file is not 8KB");
 		fin.close();
 		return false;
 	}
@@ -202,7 +200,6 @@ Byte Cartridge::readPRG(Word address) {
 		return ram[address - RAM_START];
 
 	} else {
-		dout("cartridge read unmapped at " << toHex(address, 2));
 		return address >> 8; // unmapped
 	}
 }
