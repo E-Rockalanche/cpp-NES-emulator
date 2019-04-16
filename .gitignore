@@ -10,6 +10,7 @@ roms/
 saves/
 screenshots/
 movies/
+savestates/
 config.json
 
 # test roms (will add them with automated testing)

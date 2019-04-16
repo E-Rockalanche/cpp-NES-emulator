@@ -15,14 +15,18 @@ public:
 	void writePRG(Word address, Byte value);
 
 	Byte readCHR(Word address);
-	void writeCHR(Word address, Byte value);
 
 	void signalVBlank();
 	void signalHBlank();
 	void signalHRender();
 	void signalScanlineMMC5();
 
+	void saveState(std::ostream& out);
+	void loadState(std::istream& in);
+
 protected:
+	struct SaveState;
+
 	enum Register {
 		AUDIO_START = 0x5000,
 		AUDIO_END = 0x5015,
@@ -116,6 +120,7 @@ protected:
 		FETCH_SPRITE
 	};
 
+	NametableMode current_nametable_mode[4];
 	SpriteSize sprite_size;
 	FetchMode fetch_mode;
 	bool rendering_enabled;
@@ -166,6 +171,7 @@ protected:
 	void applyPRG();
 	void applyChrA();
 	void applyChrB();
+	void applyNametableMode(int nametable, NametableMode mode);
 };
 
 #endif

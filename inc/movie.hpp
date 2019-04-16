@@ -12,6 +12,9 @@ namespace Movie {
 		PLAYING
 	};
 
+	bool empty();
+	void clear();
+
 	bool save(std::string filename);
 	bool load(std::string filename);
 

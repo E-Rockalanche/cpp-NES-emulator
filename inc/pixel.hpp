@@ -5,6 +5,7 @@
 #include "assert.hpp"
 
 struct Pixel {
+	// big endian
 	Byte red;
 	Byte green;
 	Byte blue;
@@ -17,7 +18,7 @@ struct Pixel {
 						  blue(rgb & 0xff) {}
 
 	operator int() {
-		return red << 16 | green << 8 | blue;
+		return (red << 16) | (green << 8) | (blue << 0);
 	}
 
 	Byte& operator [](unsigned int index) {
@@ -28,6 +29,11 @@ struct Pixel {
 			default: assert(false, "invalid pixel index");
 		}
 	}
+
+	static const int r_mask = 0x0000ff;
+	static const int g_mask = 0x00ff00;
+	static const int b_mask = 0xff0000;
+	static const int a_mask = 0;
 };
 
 #endif

@@ -1,8 +1,7 @@
 TARGET := nes.exe
 CXX := g++
-CLEAN := del .\obj\*.o .\obj\mappers\*.o .\lib\obj\*.o $(TARGET)
 
-SDL_LFLAGS := -Wl,-Bdynamic -lSDL2main -lSDL2 -lSDL2_ttf -Wl,-Bstatic
+SDL_LFLAGS := -Wl,-Bdynamic -lSDL2main -lSDL2 -lSDL2_ttf -lSDL2_image -Wl,-Bstatic
 LFLAGS := -std=c++17 -O3 -lmingw32 -lm -mwindows -mconsole $(SDL_LFLAGS)
 CCFLAGS := -c -std=c++17 -O3
 LIB_INCLUDE := -isystem ./lib/inc -isystem ./lib/inc/boost
@@ -33,4 +32,7 @@ obj/%.o: src/%.cpp inc/%.hpp inc/common.hpp inc/debugging.hpp
 	$(MAKE_OBJ) -Wall -Wextra -Wno-unused-parameter
 
 clean:
-	$(CLEAN)
+	del .\obj\*.o .\obj\mappers\*.o $(TARGET)
+
+cleanall:
+	del .\obj\*.o .\obj\mappers\*.o .\lib\obj\*.o $(TARGET)

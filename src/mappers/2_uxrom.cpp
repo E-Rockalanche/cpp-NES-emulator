@@ -14,8 +14,3 @@ void UxROM::writePRG(Word address, Byte value) {
 		setPRGBank(0, value & 0x0f, 16 * KB);
 	}
 }
-
-void UxROM::writeCHR(Word address, Byte value) {
-	assert(address < chr_size, "chr address out of bounds");
-	chr[address] = value;
-}

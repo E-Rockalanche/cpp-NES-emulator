@@ -9,7 +9,9 @@ public:
 	~MMC1() {}
 
 	void writePRG(Word address, Byte value);
-	void writeCHR(Word address, Byte value);
+
+	void saveState(std::ostream& out);
+	void loadState(std::istream& in);
 
 protected:
 	enum Register {

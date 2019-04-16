@@ -1,4 +1,5 @@
 #include "4_mmc3.hpp"
+#include <cstring>
 
 MMC3::MMC3(Byte* data) : Cartridge(data) {
 	irq_enabled = false;
@@ -41,11 +42,6 @@ void MMC3::writePRG(Word address, Byte value) {
 	}
 }
 
-void MMC3::writeCHR(Word address, Byte value) {
-	assert(address < chr_size, "chr address out of bounds");
-	chr[address] = value;
-}
-
 void MMC3::applyBankSwitch() {
 	setPRGBank(1, bank_registers[7], 8 * KB);
 
@@ -82,4 +78,41 @@ void MMC3::signalScanlineMMC3() {
 	if (irq_enabled && (irq_counter == 0)) {
 		CPU::setIRQ();
 	}
+}
+
+struct SaveState {
+	Byte bank_select;
+	bool protectRAM;
+	bool enableRAM;
+	Byte irq_latch;
+	Byte irq_counter;
+	bool irq_enabled;
+	Byte bank_registers[8];
+};
+
+void MMC3::saveState(std::ostream& out) {
+	SaveState ss;
+	ss.bank_select = bank_select;
+	ss.protectRAM = protectRAM;
+	ss.enableRAM = enableRAM;
+	ss.irq_latch = irq_latch;
+	ss.irq_counter = irq_counter;
+	memcpy(ss.bank_registers, bank_registers, sizeof(bank_registers));
+
+	Cartridge::saveState(out);
+	out.write((char*)&ss, sizeof(SaveState));
+}
+
+void MMC3::loadState(std::istream& in) {
+	SaveState ss;
+
+	Cartridge::loadState(in);
+	in.read((char*)&ss, sizeof(SaveState));
+
+	bank_select = ss.bank_select;
+	protectRAM = ss.protectRAM;
+	enableRAM = ss.enableRAM;
+	irq_latch = ss.irq_latch;
+	irq_counter = ss.irq_counter;
+	memcpy(bank_registers, ss.bank_registers, sizeof(bank_registers));
 }

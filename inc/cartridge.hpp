@@ -38,10 +38,10 @@ public:
 	bool loadSave(std::string);
 
 	virtual Byte readPRG(Word address);
-	virtual void writePRG(Word address, Byte value) {}
+	virtual void writePRG(Word address, Byte value);
 
 	virtual Byte readCHR(Word address);
-	virtual void writeCHR(Word address, Byte value) {}
+	virtual void writeCHR(Word address, Byte value);
 
 	NameTableMirroring nameTableMirroring();
 
@@ -50,6 +50,9 @@ public:
 	virtual void signalHBlank() {}
 	virtual void signalHRender() {}
 	virtual void signalVBlank() {}
+
+	virtual void saveState(std::ostream& out);
+	virtual void loadState(std::istream& in);
 
 protected:
 	enum Header {
@@ -172,6 +175,7 @@ protected:
 
 	static const int MIN_PRG_BANK_SIZE = 0x2000;
 	static const int MIN_CHR_BANK_SIZE = 0x0400;
+	static const int MIN_RAM_BANK_SIZE = 0x2000;
 
 	Byte* data;
 
@@ -186,15 +190,29 @@ protected:
 	int ram_size;
 
 	// bank switching
+	enum DataSource {
+		PRG,
+		CHR,
+		RAM
+	};
 	Byte* prg_map[4];
 	Byte* chr_map[8];
 	Byte* ram_map[1];
+
+	// need for save states
+	struct Bank {
+		DataSource source;
+		int bank;
+	};
+	Bank prg_bank_map[4];
+	Bank chr_bank_map[8];
+	Bank ram_bank_map[1];
 
 	static Format getFormat(Byte* data);
 	static bool verifyHeader(Byte* data);
 	static int getMapperNumber(Byte* data);
 
-	void setBank(Byte* map[], Byte* src, int slot, int bank, int bank_size);
+	void setBank(DataSource data_map, DataSource data_src, int slot, int bank, int bank_size);
 	void setPRGBank(int slot, int bank, int bank_size);
 	void setCHRBank(int slot, int bank, int bank_size);
 };

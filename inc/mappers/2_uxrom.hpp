@@ -9,7 +9,6 @@ public:
 	~UxROM() {}
 
 	void writePRG(Word address, Byte value);
-	void writeCHR(Word address, Byte value);
 };
 
 #endif

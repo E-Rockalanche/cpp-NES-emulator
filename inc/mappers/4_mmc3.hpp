@@ -10,8 +10,10 @@ public:
 	~MMC3() {}
 
 	void writePRG(Word address, Byte value);
-	void writeCHR(Word address, Byte value);
 	void signalScanlineMMC3();
+
+	void saveState(std::ostream& out);
+	void loadState(std::istream& in);
 
 protected:
 	Byte bank_select;

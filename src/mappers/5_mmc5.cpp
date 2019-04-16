@@ -1,3 +1,5 @@
+#include <cstring>
+
 #include "5_mmc5.hpp"
 #include "ppu.hpp"
 
@@ -77,42 +79,7 @@ void MMC5::writePRG(Word address, Byte value) {
 				registers.nt_mapping = value;
 				for(int i = 0; i < 4; i++) {
 					int mode = (registers.nt_mapping >> i*2) & 0x03;
-					switch(mode) {
-						case NT_VRAM_0: PPU::mapNametable(i, 0); break;
-
-						case NT_VRAM_1: PPU::mapNametable(i, 1); break;
-
-						case NT_EXT_RAM:
-							if (registers.ext_ram_mode < 0x02) {
-								auto read_func = [] (Word index) -> Byte {
-									MMC5* mmc5 = static_cast<MMC5*>(cartridge);
-									return mmc5->ext_ram[index];
-								};
-								auto write_func = [] (Word index, Byte value) -> void {
-									MMC5* mmc5 = static_cast<MMC5*>(cartridge);
-									mmc5->ext_ram[index] = value;
-								};
-								PPU::mapNametable(i, read_func, write_func);
-							} else {
-								auto read_func = [] (Word index) -> Byte {
-									return 0;
-								};
-								auto write_func = [] (Word index, Byte value) -> void {};
-								PPU::mapNametable(i, read_func, write_func);
-							}
-							break;
-
-						case NT_FILL_MODE: {
-							auto read_func = [] (Word address) -> Byte {
-								MMC5* mmc5 = static_cast<MMC5*>(cartridge);
-								return ((address & 0x03ff) < 0x03c0)
-									? mmc5->registers.fill_tile
-									: mmc5->registers.fill_colour;
-							};
-							auto write_func = [] (Word index, Byte value) -> void {};
-							PPU::mapNametable(i, read_func, write_func);
-						} break;
-					}
+					applyNametableMode(i, (NametableMode)mode);
 				}
 			}
 			break;
@@ -271,12 +238,6 @@ Byte MMC5::readPRG(Word address) {
 	return value;
 }
 
-void MMC5::writeCHR(Word address, Byte value) {
-	dout("writeCHR(" << address << ", " << toHex(value) << ")");
-
-	chr[address % chr_size] = value;
-}
-
 Byte MMC5::readCHR(Word address) {
 	Byte value = 0;
 	switch(registers.ext_ram_mode) {
@@ -288,7 +249,8 @@ Byte MMC5::readCHR(Word address) {
 
 		case EXT_ATTRIBUTE_DATA:
 			if (fetch_mode == FETCH_BACKGROUND) {
-				value = chr[((upper_chr_bits << 12) | (address & 0x0fff)) % chr_size];
+				int index = ((upper_chr_bits << 12) | (address & 0x0fff));
+				value = chr[index % chr_size];
 			} else {
 				value = Cartridge::readCHR(address);
 			}
@@ -304,13 +266,13 @@ void MMC5::setPRGBankExt(int slot, int bank, int bank_size) {
 		setPRGBank(slot, bank, bank_size);
 	} else {
 		bank &= 0x0f;
-		setBank(prg_map, ram, slot, bank, bank_size);
+		setBank(PRG, RAM, slot, bank, bank_size);
 	}
 }
 
 void MMC5::applyPRG() {
 	// map ram
-	setBank(ram_map, ram, 0, prg_registers[0] & 0x0f, 8*KB);
+	setBank(RAM, RAM, 0, prg_registers[0] & 0x0f, 8*KB);
 
 	// map prg rom
 	switch(registers.prg_mode) {
@@ -370,6 +332,48 @@ void MMC5::applyChrA() {
 	}
 }
 
+void MMC5::applyNametableMode(int nametable, NametableMode mode) {
+	current_nametable_mode[nametable] = mode;
+	switch(mode) {
+		case NT_VRAM_0: PPU::mapNametable(nametable, 0); break;
+
+		case NT_VRAM_1: PPU::mapNametable(nametable, 1); break;
+
+		case NT_EXT_RAM:
+			if (registers.ext_ram_mode < 0x02) {
+				auto read_func = [] (Word index) -> Byte {
+					MMC5* mmc5 = static_cast<MMC5*>(cartridge);
+					return mmc5->ext_ram[index];
+				};
+				auto write_func = [] (Word index, Byte value) -> void {
+					MMC5* mmc5 = static_cast<MMC5*>(cartridge);
+					mmc5->ext_ram[index] = value;
+				};
+				PPU::mapNametable(nametable, read_func, write_func);
+			} else {
+				auto read_func = [] (Word index) -> Byte {
+					return 0;
+				};
+				auto write_func = [] (Word index, Byte value) -> void {};
+				PPU::mapNametable(nametable, read_func, write_func);
+			}
+			break;
+
+		case NT_FILL_MODE: {
+			auto read_func = [] (Word address) -> Byte {
+				MMC5* mmc5 = static_cast<MMC5*>(cartridge);
+				return ((address & 0x03ff) < 0x03c0)
+					? mmc5->registers.fill_tile
+					: mmc5->registers.fill_colour;
+			};
+			auto write_func = [] (Word index, Byte value) -> void {};
+			PPU::mapNametable(nametable, read_func, write_func);
+		} break;
+
+		default: assert(false, "Invalid nametable mode");
+	}
+}
+
 MMC5::SpriteSize MMC5::spriteSize() {
 	return (testFlag(PPU::getControl(), 0x20) && testFlag(PPU::getMask(), 0x18))
 		? SPR_8x16 : SPR_8x8;
@@ -425,5 +429,103 @@ void MMC5::signalScanlineMMC5() {
 		} else {
 			irq_pending = false;
 		}
+	}
+}
+
+struct MMC5::SaveState {
+	NametableMode current_nametable_mode[4];
+	SpriteSize sprite_size;
+	FetchMode fetch_mode;
+	bool rendering_enabled;
+
+	MMC5::Registers registers;
+
+	Byte prg_registers[5];
+	Byte chr_registers_a[8];
+	Byte chr_registers_b[4];
+	int upper_chr_bits;
+	MMC5::ChrSet last_chr_set;
+
+	int vsplit_tile;
+	MMC5::VSplitSide vsplit_side;
+	bool vsplit_enabled;
+	Byte vsplit_scroll;
+	Byte vsplit_bank;
+
+	Byte irq_scanline;
+	bool irq_enabled;
+	bool irq_pending;
+	bool in_frame;
+	int current_scanline;
+
+	Byte multiplicand;
+	Byte multiplier;
+	Word result;
+
+	// Byte ext_ram[EXT_RAM_SIZE];
+};
+
+void MMC5::saveState(std::ostream& out) {
+	SaveState ss;
+	memcpy(ss.current_nametable_mode, current_nametable_mode, sizeof(current_nametable_mode));
+	ss.sprite_size = sprite_size;
+	ss.fetch_mode = fetch_mode;
+	ss.rendering_enabled = rendering_enabled;
+	ss.registers = registers;
+	memcpy(ss.prg_registers, prg_registers, sizeof(prg_registers));
+	memcpy(ss.chr_registers_a, chr_registers_a, sizeof(chr_registers_a));
+	memcpy(ss.chr_registers_b, chr_registers_b, sizeof(chr_registers_b));
+	ss.upper_chr_bits = upper_chr_bits;
+	ss.last_chr_set = last_chr_set;
+	ss.vsplit_tile = vsplit_tile;
+	ss.vsplit_side = vsplit_side;
+	ss.vsplit_enabled = vsplit_enabled;
+	ss.vsplit_scroll = vsplit_scroll;
+	ss.vsplit_bank = vsplit_bank;
+	ss.irq_scanline = irq_scanline;
+	ss.irq_enabled = irq_enabled;
+	ss.irq_pending = irq_pending;
+	ss.in_frame = in_frame;
+	ss.current_scanline = current_scanline;
+	ss.multiplicand = multiplicand;
+	ss.multiplier = multiplier;
+	ss.result = result;
+
+	out.write((char*)&ss, sizeof(SaveState));
+	out.write((char*)ext_ram, EXT_RAM_SIZE);
+}
+
+void MMC5::loadState(std::istream& in) {
+	SaveState ss;
+
+	in.read((char*)&ss, sizeof(SaveState));
+	in.read((char*)ext_ram, EXT_RAM_SIZE);
+
+	memcpy(current_nametable_mode, ss.current_nametable_mode, sizeof(current_nametable_mode));
+	sprite_size = ss.sprite_size;
+	fetch_mode = ss.fetch_mode;
+	rendering_enabled = ss.rendering_enabled;
+	registers = ss.registers;
+	memcpy(prg_registers, ss.prg_registers, sizeof(prg_registers));
+	memcpy(chr_registers_a, ss.chr_registers_a, sizeof(chr_registers_a));
+	memcpy(chr_registers_b, ss.chr_registers_b, sizeof(chr_registers_b));
+	upper_chr_bits = ss.upper_chr_bits;
+	last_chr_set = ss.last_chr_set;
+	vsplit_tile = ss.vsplit_tile;
+	vsplit_side = ss.vsplit_side;
+	vsplit_enabled = ss.vsplit_enabled;
+	vsplit_scroll = ss.vsplit_scroll;
+	vsplit_bank = ss.vsplit_bank;
+	irq_scanline = ss.irq_scanline;
+	irq_enabled = ss.irq_enabled;
+	irq_pending = ss.irq_pending;
+	in_frame = ss.in_frame;
+	current_scanline = ss.current_scanline;
+	multiplicand = ss.multiplicand;
+	multiplier = ss.multiplier;
+	result = ss.result;
+
+	for(int i = 0; i < 4; i++) {
+		applyNametableMode(i, current_nametable_mode[i]);
 	}
 }

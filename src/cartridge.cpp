@@ -1,4 +1,6 @@
 #include <fstream>
+#include <iostream>
+#include <cstring>
 
 #include "cartridge.hpp"
 #include "1_mmc1.hpp"
@@ -155,7 +157,7 @@ bool Cartridge::saveGame(std::string filename) {
 		return false;
 	}
 
-	fout.write((const char*)ram, ram_size);
+	fout.write((const char*)(const char*)ram, ram_size);
 	fout.close();
 
 	return true;
@@ -214,47 +216,110 @@ Byte Cartridge::readCHR(Word address) {
 	return bank[address % MIN_CHR_BANK_SIZE];
 }
 
-void Cartridge::setBank(Byte* map[], Byte* src, int slot, int bank, int bank_size) {
-	int min_size, src_size;
+void Cartridge::writePRG(Word address, Byte value) {}
 
-	if (map == prg_map) min_size = MIN_PRG_BANK_SIZE;
-	else if (map == chr_map) min_size = MIN_CHR_BANK_SIZE;
-	else if (map == ram_map) min_size = 0x2000;
-	else assert(false, "Invalid bank");
+void Cartridge::writeCHR(Word address, Byte value) {
+	if (has_chr_ram) {
+		chr[address % chr_size] = value;
+	}
+}
 
-	if (src == prg) src_size = prg_size;
-	else if (src == chr) src_size = chr_size;
-	else if (src == ram) src_size = ram_size;
-	else assert(false, "Invalid source");
+void Cartridge::setBank(DataSource data_map, DataSource data_src, int slot, int bank, int bank_size) {
+	int min_size = 0;
+	int src_size = 0;
+	Byte* src = NULL;
+	Byte** map = NULL;
+	Bank* bank_map = NULL;
 
+	switch(data_src) {
+		case PRG:
+			src_size = prg_size;
+			src = prg;
+			break;
+		case CHR:
+			src_size = chr_size;
+			src = chr;
+			break;
+		case RAM:
+			src_size = ram_size;
+			src = ram;
+			break;
+		default:
+			assert(false, "Invalid data source");
+	}
+
+	switch(data_map) {
+		case PRG:
+			map = prg_map;
+			bank_map = prg_bank_map;
+			min_size = MIN_PRG_BANK_SIZE;
+			break;
+		case CHR:
+			map = chr_map;
+			bank_map = chr_bank_map;
+			min_size = MIN_CHR_BANK_SIZE;
+			break;
+		case RAM:
+			map = ram_map;
+			bank_map = ram_bank_map;
+			min_size = MIN_RAM_BANK_SIZE;
+			break;
+		default:
+			assert(false, "Invalid data map");
+	}
+
+	assert((bank_size % min_size) == 0, "Invalid bank size");
+
+	// wrap
 	if (bank < 0) {
 		bank = (src_size / bank_size) + bank;
 	}
+
+	// number of map slots to fill
 	int map_size = bank_size / min_size;
+
 	for(int i = 0; i < map_size; i++) {
-		map[(slot * map_size) + i] = src + (((bank * bank_size) + (i * min_size)) % src_size);
+		int map_index = (slot * map_size) + i;
+		map[map_index] = src + (((bank * bank_size) + (i * min_size)) % src_size);
+		bank_map[map_index] = { data_src, (bank * map_size + i) };
 	}
-
-	
-	// DEBUG
-	int size;
-	if (map == prg_map) size = 4;
-	else if (map == chr_map) size = 8;
-	else size = 1;
-
-	for(int i = slot*map_size; i < map_size*(slot+1); i++) {
-		unsigned long offset = (unsigned long)map[i] - (unsigned long)src;
-		assert(offset <= src_size - min_size, "slot " << i << " mapped out of bounds. offset: " << offset);
-	}
-	
 }
 
 void Cartridge::setPRGBank(int slot, int bank, int bank_size) {
 	assert(slot < 4 / (bank_size / MIN_PRG_BANK_SIZE), "Invalid prg slot");
-	setBank(prg_map, prg, slot, bank, bank_size);
+	setBank(PRG, PRG, slot, bank, bank_size);
 }
 
 void Cartridge::setCHRBank(int slot, int bank, int bank_size) {
 	assert(slot < 8 / (bank_size / MIN_CHR_BANK_SIZE), "Invalid chr slot");
-	setBank(chr_map, chr, slot, bank, bank_size);
+	setBank(CHR, CHR, slot, bank, bank_size);
+}
+
+void Cartridge::saveState(std::ostream& out) {
+	out.write((char*)prg_bank_map, sizeof(prg_bank_map));
+	out.write((char*)chr_bank_map, sizeof(chr_bank_map));
+	out.write((char*)ram_bank_map, sizeof(ram_bank_map));
+	out.write((char*)ram, ram_size);
+	if(has_chr_ram) {
+		out.write((char*)chr, chr_size);
+	}
+}
+
+void Cartridge::loadState(std::istream& in) {
+	in.read((char*)prg_bank_map, sizeof(prg_bank_map));
+	in.read((char*)chr_bank_map, sizeof(chr_bank_map));
+	in.read((char*)ram_bank_map, sizeof(ram_bank_map));
+	in.read((char*)ram, ram_size);
+	if(has_chr_ram) {
+		in.read((char*)chr, chr_size);
+	}
+
+	// set data map pointers
+	for(int i = 0; i < 4; i++) {
+		setBank(PRG, prg_bank_map[i].source, i, prg_bank_map[i].bank, MIN_PRG_BANK_SIZE);
+	}
+	for(int i = 0; i < 8; i++) {
+		setBank(CHR, chr_bank_map[i].source, i, chr_bank_map[i].bank, MIN_CHR_BANK_SIZE);
+	}
+	setBank(RAM, ram_bank_map[0].source, 0, ram_bank_map[0].bank, MIN_RAM_BANK_SIZE);
 }

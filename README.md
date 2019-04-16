@@ -2,6 +2,13 @@
 
 A cycle acurate NES emulator written in c++
 
+![Super Mario Bros.](https://i.imgur.com/gA96Uwy.png)
+![Legend of Zelda](https://i.imgur.com/81l9FRR.png)
+![Final Fantasy](https://i.imgur.com/D40ymWX.png)
+![Kirby's Adventure](https://i.imgur.com/SwNf1VF.png)
+![Duck Hunt](https://i.imgur.com/nuQ9tGI.png)
+![Castlevania](https://i.imgur.com/xjy94Mc.png)
+
 ## Controls
 only configurable through config.json for now
 
@@ -14,6 +21,18 @@ only configurable through config.json for now
 
 ### Port 2
 * Zapper trigger: left mouse button
+
+## Hotkeys
+* Quit: escape
+* Screenshot: F9
+* Toggle fullscreen: F11
+* Toggle mute: M
+* Toggle paused: P
+* Next frame: S
+* Start/stop recording button input: R
+* Start/stop button playback: A
+* Save state: F5
+* Load state: F6
 
 ## Mappers working
 0. NROM

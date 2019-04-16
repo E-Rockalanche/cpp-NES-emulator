@@ -2,6 +2,7 @@
 #define CPU_HPP
 
 #include <vector>
+#include <iostream>
 
 #include "Nes_Apu.h"
 #include "common.hpp"
@@ -17,11 +18,20 @@ namespace CPU {
 	bool breaked();
 
 	void runFrame();
+
+	// DMC callback for Blargg APU
 	int readDMC(void*, cpu_addr_t address);
+
+	void saveState(std::ostream& out);
+	void loadState(std::istream& in);
 
 	void dump(Word address);
 	void dumpStack();
 	void dumpState();
+
+
+
+
 
 	enum BreakpointCondition {
 		PROGRAM_POSITION,

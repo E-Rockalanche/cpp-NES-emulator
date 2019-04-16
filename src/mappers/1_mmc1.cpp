@@ -32,11 +32,6 @@ void MMC1::writePRG(Word address, Byte value) {
 	}
 }
 
-void MMC1::writeCHR(Word address, Byte value) {
-	assert(address < chr_size, "chr address out of bounds");
-	chr[address] = value;
-}
-
 int MMC1::mirrorMode() {
 	return registers[CONTROL] & 0x03;
 }
@@ -89,4 +84,18 @@ void MMC1::applyBankSwitch() {
 		case 3:  PPU::mapNametable(HORIZONTAL); break;
 		default: dout("mirror mode = " << (int)mirrorMode()); break;
 	}
+}
+
+void MMC1::saveState(std::ostream& out) {
+	Cartridge::saveState(out);
+	
+	out.write((char*)&shift_register, sizeof(shift_register));
+	out.write((char*)registers, sizeof(registers));
+}
+
+void MMC1::loadState(std::istream& in) {
+	Cartridge::loadState(in);
+
+	in.read((char*)&shift_register, sizeof(shift_register));
+	in.read((char*)registers, sizeof(registers));
 }
