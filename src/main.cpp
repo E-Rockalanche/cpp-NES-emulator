@@ -29,6 +29,7 @@
 #include "hotkeys.hpp"
 #include "menu_elements.hpp"
 #include "menu_bar.hpp"
+#include "message.hpp"
 #include "assert.hpp"
 
 // SDL
@@ -123,7 +124,6 @@ bool loadFile(std::string filename) {
 	if (cartridge) delete cartridge;
 	cartridge = Cartridge::loadFile(filename);
 	if (!cartridge) {
-		dout("could not load " << filename);
 		return false;
 	} else {
 		rom_filename = filename;
@@ -270,7 +270,7 @@ void dropEvent(const SDL_Event& event) {
 		} else if (extension == savestate_ext) {
 			loadState(filename);
 		} else {
-			dout("cannot open " << filename.native());
+			showError("Error", "Cannot open " + filename.native());
 		}
 		SDL_free(event.drop.file);
 	}
@@ -373,9 +373,14 @@ int main(int argc, char** argv) {
 			}
 			CPU::runFrame();
 			zapper.update();
-			frame_number++;
-			double elapsed = SDL_GetTicks() - last_time;
-			total_real_fps += 1000.0/elapsed;
+
+			if (CPU::halted()) {
+				showError("Error", "The CPU encountered an illegal instruction");
+			} else {
+				frame_number++;
+				double elapsed = SDL_GetTicks() - last_time;
+				total_real_fps += 1000.0/elapsed;
+			}
 		}
 		step_frame = false;
 

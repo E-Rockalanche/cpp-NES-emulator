@@ -7,6 +7,8 @@
 #include "mapper2.hpp"
 #include "mapper3.hpp"
 #include "mapper4.hpp"
+#include "crc32.hpp"
+#include "message.hpp"
 #include "assert.hpp"
 
 Cartridge* cartridge = NULL;
@@ -18,7 +20,7 @@ Cartridge* Cartridge::loadFile(std::string filename) {
 
 	std::ifstream fin(filename, std::ios::binary);
 	if (!fin.is_open() || !fin.good() || fin.eof()) {
-		dout("Could not open " << filename);
+		showError("Error", "Could not open " + filename);
 		return NULL;
 	}
 
@@ -31,7 +33,7 @@ Cartridge* Cartridge::loadFile(std::string filename) {
 	data = new Byte[data_size];
 
 	if (data == NULL) {
-		dout("Could not allocate memory");
+		showError("Error", "Could not allocate cartridge memory");
 		fin.close();
 		return NULL;
 	}
@@ -41,20 +43,19 @@ Cartridge* Cartridge::loadFile(std::string filename) {
 	fin.close();
 
 	if (data_size < (HEADER_SIZE + 8*KB)) {
-		dout("File size is too small to be a ROM");
-		dout("size: " << toHex(data_size));
+		showError("Error", "File too small");
 		delete[] data;
 		return NULL;
 	}
 
 	if (!verifyHeader(data)) {
-		dout("file verification failed");
+		showError("Error", "ROM header is invalid");
 		delete[] data;
 		return NULL;
 	}
 
 	if ((data[FLAGS_7] & 0x0c) == 0x08) {
-		dout("NES 2.0 format not supported");
+		showError("Error", "NES 2.0 formatted ROMs are not supported yet");
 		delete[] data;
 		return NULL;
 	}
@@ -66,7 +67,11 @@ Cartridge* Cartridge::loadFile(std::string filename) {
 		case 2: mapper = new Mapper2(data); break;
 		case 3: mapper = new Mapper3(data); break;
 		case 4: mapper = new Mapper4(data); break;
-		default: assert(false, "mapper " << mapper_number << " is not supported");
+
+		default:
+			showError("Error", "Mapper " + std::to_string(mapper_number) + " is not supported");
+			delete[] data;
+			return NULL;
 	}
 
 	return mapper;
@@ -78,7 +83,6 @@ bool Cartridge::verifyHeader(Byte* data) {
 	for(int n = 0; n < 4; n++) {
 		if (data[n] != nes[n]) {
 			ok = false;
-			dout("NES verification failed");
 			break;
 		}
 	}
@@ -105,24 +109,22 @@ Cartridge::Cartridge(Byte* data) : data(data) {
 	chr_size = data[CHR_SIZE] * 0x2000;
 	ram_size = data[RAM_SIZE] ? (data[RAM_SIZE] * 0x2000) : 0x2000;
 
+	checksum = crc32(data, HEADER_SIZE + prg_size + chr_size);
+
 	ram = new Byte[ram_size];
 	for(int n = 0; n < ram_size; n++) ram[n] = 0;
 
 	prg = data + HEADER_SIZE;
 
-	if (chr_size) {
-		has_chr_ram = false;
-		chr = prg + prg_size;
-	} else {
-		has_chr_ram = true;
+	has_chr_ram = (chr_size == 0);
+	if (has_chr_ram) {
 		chr_size = 0x2000;
 		chr = new Byte[chr_size];
+	} else {
+		chr = prg + prg_size;
 	}
-
-	nt_mirroring = (data[FLAGS_6] & 1) ? VERTICAL : HORIZONTAL;
-
-	setPRGBank(0, 0, 0x8000);
-	setCHRBank(0, 0, 0x2000);
+	
+	reset();
 }
 
 Cartridge::~Cartridge() {
@@ -131,19 +133,25 @@ Cartridge::~Cartridge() {
 	if (has_chr_ram) delete[] chr;
 }
 
+void Cartridge::reset() {
+	setPRGBank(0, 0, 0x8000);
+	setCHRBank(0, 0, 0x2000);
+	nt_mirroring = (data[FLAGS_6] & 1) ? VERTICAL : HORIZONTAL;
+}
+
+unsigned int Cartridge::getChecksum() { return checksum; }
+
 bool Cartridge::hasSRAM() {
 	return data[FLAGS_6] & 0x02;
 }
 
 bool Cartridge::saveGame(std::string filename) {
 	if (!hasSRAM()) {
-		dout("Cartridge does not have SRAM");
-		return false;
+		return true;
 	}
 
 	std::ofstream fout(filename, std::ios::binary);
 	if (!fout.is_open()) {
-		dout("Could not save to " << filename);
 		return false;
 	}
 
@@ -155,13 +163,11 @@ bool Cartridge::saveGame(std::string filename) {
 
 bool Cartridge::loadSave(std::string filename) {
 	if (!hasSRAM()) {
-		dout("Cartridge does not have SRAM");
-		return false;
+		return true;
 	}
 
 	std::ifstream fin(filename, std::ios::binary);
 	if (!fin.is_open()) {
-		dout("Could not load save from " << filename);
 		return false;
 	}
 
@@ -171,8 +177,8 @@ bool Cartridge::loadSave(std::string filename) {
 	fin.seekg(0);
 
 	if (file_size != ram_size) {
-		dout("Save file is not 8KB");
 		fin.close();
+		showError("Error", "Save file is wrong size");
 		return false;
 	}
 
@@ -196,7 +202,6 @@ Byte Cartridge::readPRG(Word address) {
 		return ram[address - RAM_START];
 
 	} else {
-		dout("cartridge read unmapped at " << toHex(address, 2));
 		return address >> 8; // unmapped
 	}
 }
@@ -230,26 +235,26 @@ struct SaveState {
 };
 
 void Cartridge::saveState(std::ostream& out) {
+	dout("saveState()");
 	SaveState ss;
 	ss.nt_mirroring = nt_mirroring;
 	std::memcpy(ss.prg_map, prg_map, sizeof(prg_map));
 	std::memcpy(ss.chr_map, chr_map, sizeof(chr_map));
 
-	out.write((char*)&ss, sizeof(SaveState));
-	out.write((char*)ram, ram_size);
-
-	if(has_chr_ram) {
-		out.write((char*)chr, chr_size);
+	out.write((const char*)&ss, sizeof(SaveState));
+	out.write((const char*)ram, ram_size);
+	if (has_chr_ram) {
+		out.write((const char*)chr, chr_size);
 	}
 }
 
 void Cartridge::loadState(std::istream& in) {
+	dout("loadState()");
 	SaveState ss;
 
 	in.read((char*)&ss, sizeof(SaveState));
 	in.read((char*)ram, ram_size);
-
-	if(has_chr_ram) {
+	if (has_chr_ram) {
 		in.read((char*)chr, chr_size);
 	}
 

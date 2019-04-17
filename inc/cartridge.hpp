@@ -30,9 +30,7 @@ public:
 
 	Cartridge(Byte* data);
 	virtual ~Cartridge();
-	bool hasSRAM();
-	bool saveGame(std::string);
-	bool loadSave(std::string);
+	virtual void reset();
 
 	Byte readPRG(Word address);
 	virtual void writePRG(Word address, Byte value) {}
@@ -40,7 +38,12 @@ public:
 	Byte readCHR(Word address);
 	virtual void writeCHR(Word address, Byte value) {}
 
+	bool hasSRAM();
 	NameTableMirroring nameTableMirroring();
+	unsigned int getChecksum();
+
+	bool saveGame(std::string);
+	bool loadSave(std::string);
 
 	virtual void signalScanline() {}
 
@@ -180,6 +183,8 @@ protected:
 	int ram_size;
 
 	NameTableMirroring nt_mirroring;
+
+	unsigned int checksum;
 
 	// bank switching
 	int prg_map[4];
