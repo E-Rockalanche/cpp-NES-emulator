@@ -135,6 +135,7 @@ bool loadFile(std::string filename) {
 			save_filename = "";
 		}
 		power();
+		Movie::clear();
 		return true;
 	}
 }
@@ -334,6 +335,8 @@ int main(int argc, char** argv) {
 	assert(window != NULL, "failed to create screen");
 	SDL_SetWindowResizable(window, SDL_bool(true));
 
+	constructMenu();
+
 	// create renderer
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
 	assert(renderer != NULL, "failed to create renderer");
@@ -357,8 +360,6 @@ int main(int argc, char** argv) {
 	}
 
 	Movie::clear();
-
-	constructMenu();
 
 	resizeWindow(window_width, window_height);
 

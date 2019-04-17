@@ -498,7 +498,6 @@ void power() {
 	cycles = 0;
 
 	program_counter = readWord(RESET_VECTOR);
-	dout("pc: " << toHex(program_counter, 2));
 
 	_halt = false;
 	_nmi = -1;
@@ -518,7 +517,6 @@ void reset() {
 	write(APU_STATUS, 0);
 	
 	program_counter = readWord(RESET_VECTOR);
-	dout("pc: " << toHex(program_counter, 2));
 
 	cycles = 0;
 

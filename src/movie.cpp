@@ -5,6 +5,8 @@
 #include "movie.hpp"
 #include "assert.hpp"
 #include "menu_bar.hpp"
+#include "cartridge.hpp"
+#include "message.hpp"
 
 namespace Movie {
 	struct ButtonPress {
@@ -23,6 +25,8 @@ namespace Movie {
 		button_presses.clear();
 		save_movie_button.disable();
 		play_movie_button.disable();
+		load_movie_button.enable(cartridge != NULL);
+		record_movie_button.enable(cartridge != NULL);
 		state = NONE;
 		index = 0;
 	}
@@ -34,16 +38,19 @@ namespace Movie {
 
 		std::ofstream fout(filename.c_str(), std::ios::binary);
 		if (!fout.is_open()) {
-			dout("cannot save movie");
+			showError("Error", "Cannot save movie to " + filename);
 			return false;
 		}
 
+		unsigned int checksum = cartridge->getChecksum();
+		writeBinary(fout, checksum);
+
 		int size = button_presses.size();
-		fout.write((char*)&size, sizeof(size));
+		writeBinary(fout, size);
 
 		for(int i = 0; i < size; i++) {
 			ButtonPress press = button_presses[i];
-			fout.write((char*)&press, sizeof(press));
+			writeBinary(fout, press);
 		}
 
 		fout.close();
@@ -56,23 +63,37 @@ namespace Movie {
 		
 		std::ifstream fin(filename.c_str(), std::ios::binary);
 		if (!fin.is_open()) {
-			dout("cannot open movie");
+			showError("Error", "Cannot load movie from " + filename);
 			return false;
 		}
 
 		button_presses.clear();
 
-		int size;
-		fin.read((char*)&size, sizeof(size));
-
-		for(int i = 0; i < size; i++) {
-			ButtonPress press;
-			fin.read((char*)&press, sizeof(press));
-			button_presses.push_back(press);
+		unsigned int checksum = 0;
+		readBinary(fin, checksum);
+		bool load = true;
+		if (checksum != cartridge->getChecksum()) {
+			load = askYesNo("Warning",
+				"This movie appears to be for a different game. Load anyway?",
+				WARNING_ICON);
 		}
+		if (load) {
+			int size = 0;
+			readBinary(fin, size);
 
-		save_movie_button.enable(!empty());
+			for(int i = 0; i < size; i++) {
+				ButtonPress press;
+				readBinary(fin, press);
+
+				assert(press.button < 8, "loaded button out of bounds");
+
+				button_presses.push_back(press);
+			}
+
+			save_movie_button.enable(!empty());
+		}
 		fin.close();
+
 		return true;
 	}
 
@@ -116,8 +137,6 @@ namespace Movie {
 
 	void startPlayback() {
 		if (state == NONE && !empty()) {
-			dout("playing movie");
-
 			index = 0;
 			state = PLAYING;
 
@@ -128,8 +147,6 @@ namespace Movie {
 
 	void stopPlayback() {
 		if (isPlaying()) {
-			dout("stopping movie");
-
 			state = NONE;
 
 			play_movie_button.uncheck();
@@ -157,7 +174,7 @@ namespace Movie {
 		if (index >= (int)button_presses.size()) {
 			// stop playback
 			state = NONE;
-			dout("movie has ended at frame " << frame);
+			showMessage("", "Movie has ended");
 		}
 	}
 }
