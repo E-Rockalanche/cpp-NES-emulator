@@ -1,9 +1,7 @@
 #include "mapper3.hpp"
 #include "assert.hpp"
 
-Mapper3::Mapper3(Byte* data) : Cartridge(data) {
-	dout("Mapper3()");
-}
+Mapper3::Mapper3(Byte* data) : Cartridge(data) {}
 
 void Mapper3::writePRG(Word address, Byte value) {
 	if (address & 0x8000) {

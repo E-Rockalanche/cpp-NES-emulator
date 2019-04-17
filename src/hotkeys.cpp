@@ -4,18 +4,21 @@
 #include "SDL2/SDL_image.h"
 
 #include "hotkeys.hpp"
+#include "common.hpp"
 #include "globals.hpp"
 #include "movie.hpp"
 #include "api.hpp"
 #include "apu.hpp"
 #include "cartridge.hpp"
-#include "menu.hpp"
+#include "menu_bar.hpp"
+#include "message.hpp"
 
 void quit() { exit(0); }
 
 void reset() {
 	if (cartridge != NULL) {
 		clearScreen();
+		cartridge->reset();
 		CPU::reset();
 		PPU::reset();
 		APU::reset();
@@ -26,6 +29,7 @@ void reset() {
 void power() {
 	if (cartridge != NULL) {
 		clearScreen();
+		cartridge->reset();
 		CPU::power();
 		PPU::power();
 		APU::reset();
@@ -172,7 +176,7 @@ void saveMovie() {
 	if (!filename.empty()) {
 		filename += movie_ext;
 		if (!Movie::save(filename)) {
-			dout("failed to save movie");
+			showError("Error", "Failed to save movie to " + filename);
 		}
 	}
 }
@@ -187,7 +191,7 @@ void loadMovie() {
 		power();
 		Movie::startPlayback();
 	} else {
-		dout("failed to load movie");
+		showError("Error", "Failed to load movie from " + filename);
 	}
 }
 
@@ -203,13 +207,17 @@ void takeScreenshot() {
 }
 
 void saveState(const std::string& filename) {
-	std::ofstream fout(filename.c_str(), std::ios::binary);
-	if (fout.is_open()) {
-		CPU::saveState(fout);
-		PPU::saveState(fout);
-		APU::saveState(fout);
-		cartridge->saveState(fout);
-		fout.close();
+	if (cartridge != NULL) {
+		std::ofstream fout(filename.c_str(), std::ios::binary);
+		if (fout.is_open()) {
+			unsigned int checksum = cartridge->getChecksum();
+			writeBinary(fout, checksum);
+			CPU::saveState(fout);
+			PPU::saveState(fout);
+			APU::saveState(fout);
+			cartridge->saveState(fout);
+			fout.close();
+		}
 	}
 }
 
@@ -220,13 +228,25 @@ void saveState() {
 }
 
 void loadState(const std::string& filename) {
-	std::ifstream fin(filename.c_str(), std::ios::binary);
-	if (fin.is_open()) {
-		CPU::loadState(fin);
-		PPU::loadState(fin);
-		APU::loadState(fin);
-		cartridge->loadState(fin);
-		fin.close();
+	if (cartridge != NULL) {
+		std::ifstream fin(filename.c_str(), std::ios::binary);
+		if (fin.is_open()) {
+			unsigned int checksum = 0;
+			readBinary(fin, checksum);
+			bool load = true;
+			if (cartridge->getChecksum() != checksum) {
+				load = askYesNo("Warning",
+					"This save state appears to be for a different game. Load it anyway?",
+					WARNING_ICON);
+			}
+			if (load) {
+				CPU::loadState(fin);
+				PPU::loadState(fin);
+				APU::loadState(fin);
+				cartridge->loadState(fin);
+			} 
+			fin.close();
+		}
 	}
 }
 

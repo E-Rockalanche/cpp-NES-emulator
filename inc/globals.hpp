@@ -10,7 +10,6 @@
 #include "joypad.hpp"
 #include "zapper.hpp"
 #include "screen.hpp"
-#include "gui.hpp"
 
 #define DEFAULT_CROP 8
 #define MAX_CROP 8

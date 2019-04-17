@@ -1,6 +1,3 @@
-#include "gui.hpp"
-#include "debugging.hpp"
-
 #include <string>
 #include <vector>
 
@@ -11,19 +8,22 @@
 
 #include "SDL2/SDL.h"
 
+#include "menu_elements.hpp"
+#include "api.hpp"
+#include "debugging.hpp"
 #include "assert.hpp"
 
 #define setFlag(mask) (flags) |= (mask)
 #define clearFlag(mask) (flags) &= ~(mask)
 
-namespace GUI {
+namespace Menu {
 	#ifdef _WIN32
-		std::vector<GUI::VoidCallback> void_callbacks;
+		std::vector<VoidCallback> void_callbacks;
 		HMENU menu_bar_handle = 0;
 	#endif
 
-	MenuSeperator seperator;
-	MenuBreak breaker;
+	Seperator seperator;
+	Break breaker;
 
 	void handleMenuEvent(const SDL_Event& event) {
 	#ifdef _WIN32
@@ -129,13 +129,13 @@ namespace GUI {
 		check(false);
 	}
 
-	MenuSeperator::MenuSeperator() {
+	Seperator::Seperator() {
 	#ifdef _WIN32
 		flags = MF_SEPARATOR;
 	#endif
 	}
 
-	MenuBreak::MenuBreak() {
+	Break::Break() {
 	#ifdef _WIN32
 		flags = MF_MENUBARBREAK;
 	#endif
@@ -171,16 +171,14 @@ namespace GUI {
 		assert(window != NULL, "Menu::setMenuBar() SDL window is NULL");
 
 	#ifdef _WIN32
-		SDL_SysWMinfo infoWindow;
-		SDL_VERSION(&infoWindow.version);
-		bool ok = SDL_GetWindowWMInfo(window, &infoWindow);
-		assert(ok, "Could not get window info");
-
-		window_handler = (infoWindow.info.win.window);
+		// enable windows menu bar events
 		SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);
 
-		SetMenu(window_handler, menu_handle);
+		// set this as menu bar
+		HWND window_handle = API::getWindowHandle();
+		SetMenu(window_handle, menu_handle);
 
+		// let other elements know this is the menu bar
 		menu_bar_handle = menu_handle;
 	#endif
 	}
@@ -202,4 +200,4 @@ namespace GUI {
 		window_handler = other.window_handler;
 	}
 
-} // end namespace GUI
+} // end namespace Menu

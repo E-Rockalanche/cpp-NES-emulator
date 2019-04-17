@@ -3,6 +3,12 @@
 #include "mapper4.hpp"
 
 Mapper4::Mapper4(Byte* data) : Cartridge(data) {
+	reset();
+}
+
+void Mapper4::reset() {
+	Cartridge::reset();
+
 	irq_enabled = false;
 	irq_latch = 0;
 	irq_counter = 0;
@@ -19,22 +25,26 @@ Mapper4::Mapper4(Byte* data) : Cartridge(data) {
 void Mapper4::writePRG(Word address, Byte value) {
 	if (address >= 0x8000) {
 		switch(address & 0xe001) {
-			case 0x8000: bank_select = value; break;
-			case 0x8001:
+			case BANK_SELECT_EVEN: bank_select = value; break;
+			case BANK_SELECT_ODD:
 				bank_registers[bank_select & 0x07] = value;
 				applyBankSwitch();
 				break;
-			case 0xa000:
+
+			case MIRRORING:
 				nt_mirroring = (value & 1) ? HORIZONTAL : VERTICAL;
 				break;
-			case 0xa001: /* ram protection */ break;
-			case 0xc000: irq_latch = value; break;
-			case 0xc001: irq_counter = 0; break;
-			case 0xe000:
+			case PRG_RAM_PROTECT: break;
+
+			case IRQ_LATCH: irq_latch = value; break;
+			case IRQ_RELOAD: irq_counter = 0; break;
+
+			case IRQ_DISABLE:
 				irq_enabled = false;
 				CPU::setIRQ(false);
 				break;
-			case 0xe001: irq_enabled = true; break;
+			case IRQ_ENABLE: irq_enabled = true; break;
+			
 			default:
 				assert(false, "invalid mapper 4 register");
 		}

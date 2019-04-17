@@ -354,6 +354,15 @@ memory from 0x4018-0x401f is normally disabled
 const int CARTRIDGE_START = 0x4020;
 const int CARTRIDGE_END = 0xffff;
 
+const int NMI_VECTOR = 0xfffa;
+const int RESET_VECTOR = 0xfffc;
+const int IRQ_VECTOR = 0xfffe;
+
+const Byte STACK_START = 0xfd;
+const int STACK_OFFSET = 0x0100;
+
+const Byte STATUS_START = 0x34;
+
 typedef void (*InstructionFunction)(AddressMode);
 
 enum ByteInterpretation {
@@ -380,66 +389,10 @@ bool _halt;
 int _nmi; // time since nmi was set
 int _irq; // time since irq was set
 
-struct Registers {
-	Byte accumulator;
-	Byte x_register;
-	Byte y_register;
-	Word program_counter;
-	Byte stack_pointer;
-	Byte status;
-	bool odd_cycle;
-	bool _halt;
-	int _nmi;
-	int _irq;
-	int wait_cycles;
-};
 
-void saveState(std::ostream& out) {
-	Registers ss;
-	ss.accumulator = accumulator;
-	ss.x_register = x_register;
-	ss.y_register = y_register;
-	ss.program_counter = program_counter;
-	ss.stack_pointer = stack_pointer;
-	ss.status = status;
-	ss.odd_cycle = odd_cycle;
-	ss._halt = _halt;
-	ss._nmi = _nmi;
-	ss._irq = _irq;
-	ss.wait_cycles = wait_cycles;
 
-	out.write((const char*)ram, RAM_SIZE);
-	out.write((const char*)&ss, sizeof(Registers));
-}
 
-void loadState(std::istream& in) {
-	Registers ss;
-
-	in.read((char*)ram, RAM_SIZE);
-	in.read((char*)&ss, sizeof(Registers));
-
-	accumulator = ss.accumulator;
-	x_register = ss.x_register;
-	y_register = ss.y_register;
-	program_counter = ss.program_counter;
-	stack_pointer = ss.stack_pointer;
-	status = ss.status;
-	odd_cycle = ss.odd_cycle;
-	_halt = ss._halt;
-	_nmi = ss._nmi;
-	_irq = ss._irq;
-	wait_cycles = ss.wait_cycles;
-}
-
-const int NMI_VECTOR = 0xfffa;
-const int RESET_VECTOR = 0xfffc;
-const int IRQ_VECTOR = 0xfffe;
-
-const Byte STACK_START = 0xfd;
-const int STACK_OFFSET = 0x0100;
-
-const Byte STATUS_START = 0x34;
-
+// debug
 struct Operation {
 	Instruction instruction;
 	AddressMode address_mode;
@@ -545,6 +498,7 @@ void power() {
 	cycles = 0;
 
 	program_counter = readWord(RESET_VECTOR);
+	dout("pc: " << toHex(program_counter, 2));
 
 	_halt = false;
 	_nmi = -1;
@@ -564,6 +518,7 @@ void reset() {
 	write(APU_STATUS, 0);
 	
 	program_counter = readWord(RESET_VECTOR);
+	dout("pc: " << toHex(program_counter, 2));
 
 	cycles = 0;
 
@@ -617,10 +572,6 @@ Byte read(Word address) {
 		case CARTRIDGE_START ... CARTRIDGE_END:
 			value = cartridge->readPRG(address);
 			break;
-
-		default:
-			assert(false, "invalid address");
-			break;
 	}
 
 	return value;
@@ -666,10 +617,6 @@ void write(Word address, Byte value) {
 
 		case CARTRIDGE_START ... CARTRIDGE_END:
 			cartridge->writePRG(address, value);
-			break;
-
-		default:
-			assert(false, "invalid address");
 			break;
 	}
 }
@@ -1879,6 +1826,61 @@ void init() {
 	setInstructionFunction(TXS, &transferXToStackPointer);
 	setInstructionFunction(TYA, &transferYToAcc);
 	setInstructionFunction(ILL, &illegalOpcode);
+}
+
+struct Registers {
+	Byte accumulator;
+	Byte x_register;
+	Byte y_register;
+	Word program_counter;
+	Byte stack_pointer;
+	Byte status;
+	bool odd_cycle;
+	bool _halt;
+	int _nmi;
+	int _irq;
+
+	int wait_cycles;
+	int test_ticks;
+};
+
+void saveState(std::ostream& out) {
+	Registers ss;
+	ss.accumulator = accumulator;
+	ss.x_register = x_register;
+	ss.y_register = y_register;
+	ss.program_counter = program_counter;
+	ss.stack_pointer = stack_pointer;
+	ss.status = status;
+	ss.odd_cycle = odd_cycle;
+	ss._halt = _halt;
+	ss._nmi = _nmi;
+	ss._irq = _irq;
+	ss.wait_cycles = wait_cycles;
+	ss.test_ticks = test_ticks;
+
+	out.write((const char*)ram, RAM_SIZE);
+	out.write((const char*)&ss, sizeof(Registers));
+}
+
+void loadState(std::istream& in) {
+	Registers ss;
+
+	in.read((char*)ram, RAM_SIZE);
+	in.read((char*)&ss, sizeof(Registers));
+
+	accumulator = ss.accumulator;
+	x_register = ss.x_register;
+	y_register = ss.y_register;
+	program_counter = ss.program_counter;
+	stack_pointer = ss.stack_pointer;
+	status = ss.status;
+	odd_cycle = ss.odd_cycle;
+	_halt = ss._halt;
+	_nmi = ss._nmi;
+	_irq = ss._irq;
+	wait_cycles = ss.wait_cycles;
+	test_ticks = ss.test_ticks;
 }
 
 } // end namespace

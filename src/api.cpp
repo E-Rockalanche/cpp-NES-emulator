@@ -4,8 +4,12 @@
 #ifdef _WIN32
 	#include <windows.h>
 	#include <commdlg.h>
+	#include "SDL2/SDL_syswm.h"
 #endif
 
+#include "SDL2/SDL.h"
+
+#include "globals.hpp"
 #include "api.hpp"
 #include "common.hpp"
 #include "debugging.hpp"
@@ -115,5 +119,16 @@ namespace API {
 
 		return ok;
 	}
+
+#ifdef _WIN32
+	HWND getWindowHandle() {
+		SDL_SysWMinfo infoWindow;
+		SDL_VERSION(&infoWindow.version);
+		bool ok = SDL_GetWindowWMInfo(window, &infoWindow);
+		assert(ok, "Could not get window info");
+
+		return infoWindow.info.win.window;
+	}
+#endif
 
 } // end API namespace

@@ -15,6 +15,10 @@ namespace API {
 	bool directoryExists(std::string name);
 	bool fileExists(std::string filename);
 
+#ifdef _WIN32
+	HWND getWindowHandle();
+#endif
+
 	class FileDialog {
 	public:
 		FileDialog();
