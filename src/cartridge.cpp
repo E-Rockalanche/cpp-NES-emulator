@@ -116,26 +116,27 @@ Cartridge::Cartridge(Byte* data) : data(data) {
 
 	prg = data + HEADER_SIZE;
 
-	if (chr_size) {
-		has_chr_ram = false;
-		chr = prg + prg_size;
-	} else {
-		has_chr_ram = true;
+	has_chr_ram = (chr_size == 0);
+	if (has_chr_ram) {
 		chr_size = 0x2000;
 		chr = new Byte[chr_size];
+	} else {
+		chr = prg + prg_size;
 	}
-
-	nt_mirroring = (data[FLAGS_6] & 1) ? VERTICAL : HORIZONTAL;
-
-
-	setPRGBank(0, 0, 0x8000);
-	setCHRBank(0, 0, 0x2000);
+	
+	reset();
 }
 
 Cartridge::~Cartridge() {
 	delete[] data;
 	delete[] ram;
 	if (has_chr_ram) delete[] chr;
+}
+
+void Cartridge::reset() {
+	setPRGBank(0, 0, 0x8000);
+	setCHRBank(0, 0, 0x2000);
+	nt_mirroring = (data[FLAGS_6] & 1) ? VERTICAL : HORIZONTAL;
 }
 
 unsigned int Cartridge::getChecksum() { return checksum; }
@@ -177,6 +178,7 @@ bool Cartridge::loadSave(std::string filename) {
 
 	if (file_size != ram_size) {
 		fin.close();
+		showError("Error", "Save file is wrong size");
 		return false;
 	}
 
@@ -233,25 +235,25 @@ struct SaveState {
 };
 
 void Cartridge::saveState(std::ostream& out) {
+	dout("saveState()");
 	SaveState ss;
 	ss.nt_mirroring = nt_mirroring;
 	std::memcpy(ss.prg_map, prg_map, sizeof(prg_map));
 	std::memcpy(ss.chr_map, chr_map, sizeof(chr_map));
 
-	out.write((char*)&ss, sizeof(SaveState));
-	out.write((char*)ram, ram_size);
-
+	out.write((const char*)&ss, sizeof(SaveState));
+	out.write((const char*)ram, ram_size);
 	if (has_chr_ram) {
-		out.write((char*)chr, chr_size);
+		out.write((const char*)chr, chr_size);
 	}
 }
 
 void Cartridge::loadState(std::istream& in) {
+	dout("loadState()");
 	SaveState ss;
 
 	in.read((char*)&ss, sizeof(SaveState));
 	in.read((char*)ram, ram_size);
-
 	if (has_chr_ram) {
 		in.read((char*)chr, chr_size);
 	}

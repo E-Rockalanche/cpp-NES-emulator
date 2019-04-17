@@ -30,9 +30,7 @@ public:
 
 	Cartridge(Byte* data);
 	virtual ~Cartridge();
-	bool hasSRAM();
-	bool saveGame(std::string);
-	bool loadSave(std::string);
+	virtual void reset();
 
 	Byte readPRG(Word address);
 	virtual void writePRG(Word address, Byte value) {}
@@ -40,14 +38,17 @@ public:
 	Byte readCHR(Word address);
 	virtual void writeCHR(Word address, Byte value) {}
 
+	bool hasSRAM();
 	NameTableMirroring nameTableMirroring();
+	unsigned int getChecksum();
+
+	bool saveGame(std::string);
+	bool loadSave(std::string);
 
 	virtual void signalScanline() {}
 
 	virtual void saveState(std::ostream& out);
 	virtual void loadState(std::istream& in);
-
-	unsigned int getChecksum();
 
 protected:
 	enum Header {

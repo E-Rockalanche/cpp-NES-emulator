@@ -7,6 +7,7 @@ class Mapper1 : public Cartridge {
 public:
 	Mapper1(Byte* data);
 	~Mapper1() {}
+	void reset();
 
 	void writePRG(Word address, Byte value);
 	void writeCHR(Word address, Byte value);

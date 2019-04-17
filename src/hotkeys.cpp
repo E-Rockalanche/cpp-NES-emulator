@@ -18,6 +18,7 @@ void quit() { exit(0); }
 void reset() {
 	if (cartridge != NULL) {
 		clearScreen();
+		cartridge->reset();
 		CPU::reset();
 		PPU::reset();
 		APU::reset();
@@ -28,6 +29,7 @@ void reset() {
 void power() {
 	if (cartridge != NULL) {
 		clearScreen();
+		cartridge->reset();
 		CPU::power();
 		PPU::power();
 		APU::reset();
@@ -208,7 +210,8 @@ void saveState(const std::string& filename) {
 	if (cartridge != NULL) {
 		std::ofstream fout(filename.c_str(), std::ios::binary);
 		if (fout.is_open()) {
-			writeBinary(fout, cartridge->getChecksum());
+			unsigned int checksum = cartridge->getChecksum();
+			writeBinary(fout, checksum);
 			CPU::saveState(fout);
 			PPU::saveState(fout);
 			APU::saveState(fout);
@@ -241,8 +244,8 @@ void loadState(const std::string& filename) {
 				PPU::loadState(fin);
 				APU::loadState(fin);
 				cartridge->loadState(fin);
-				fin.close();
-			}
+			} 
+			fin.close();
 		}
 	}
 }

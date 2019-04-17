@@ -3,6 +3,12 @@
 #include "mapper4.hpp"
 
 Mapper4::Mapper4(Byte* data) : Cartridge(data) {
+	reset();
+}
+
+void Mapper4::reset() {
+	Cartridge::reset();
+
 	irq_enabled = false;
 	irq_latch = 0;
 	irq_counter = 0;

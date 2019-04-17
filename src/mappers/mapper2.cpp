@@ -1,6 +1,12 @@
 #include "mapper2.hpp"
 
 Mapper2::Mapper2(Byte* data) : Cartridge(data) {
+	reset();
+}
+
+void Mapper2::reset() {
+	Cartridge::reset();
+	
 	setPRGBank(0, 0, 16 * KB); // switchable
 	setPRGBank(1, -1, 16 * KB); // fixed
 
