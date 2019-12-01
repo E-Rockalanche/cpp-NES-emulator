@@ -1,7 +1,6 @@
 #ifndef NES_CPU_HPP
 #define NES_CPU_HPP
 
-#include "MemoryRegion.hpp"
 #include "Ram.hpp"
 #include "types.hpp"
 
@@ -35,7 +34,7 @@ namespace nes
 			m_irq = on ? 0 : -1;
 		}
 
-		bool isHalted() const { return m_halt; }
+		bool halted() const { return m_halt; }
 
 		void saveState( std::ostream& out );
 		void loadState( std::istream& in );
@@ -85,7 +84,7 @@ namespace nes
 			return ( high << 8 ) | low;
 		}
 
-		Word readWordTickBugged( Word address )
+		Word readWordTickBug( Word address )
 		{
 			Word low = readByteTick( address );
 			Word highAddress = ( ( address & 0xff ) == 0xff )
@@ -268,6 +267,8 @@ namespace nes
 		bool m_oddCycle = false;
 		bool m_halt = false;
 	};
+
+	extern Cpu cpu; // temp
 }
 
 #endif

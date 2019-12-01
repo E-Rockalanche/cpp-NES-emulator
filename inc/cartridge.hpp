@@ -4,7 +4,6 @@
 class Cartridge;
 
 #include "common.hpp"
-#include "debugging.hpp"
 #include "cpu.hpp"
 #include "assert.hpp"
 

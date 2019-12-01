@@ -1,5 +1,5 @@
 #include "zapper.hpp"
-#include "debugging.hpp"
+
 #include "screen.hpp"
 
 Zapper::Zapper() {

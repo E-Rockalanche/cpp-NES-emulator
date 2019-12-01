@@ -1,15 +1,17 @@
-#include <fstream>
-#include <iomanip>
 
 #include "json.hpp"
 using nlohmann::json;
 
+#include "debug.hpp"
 #include "globals.hpp"
 #include "joypad.hpp"
 #include "keyboard.hpp"
 #include "api.hpp"
 #include "ppu.hpp"
 #include "assert.hpp"
+
+#include <fstream>
+#include <iomanip>
 
 json config;
 
@@ -77,36 +79,46 @@ const char* DEFAULT_CONFIG = R"(
 		]
 	})";
 
-void saveConfig(const json& config) {
-	std::ofstream fout(CONFIG_FILE);
-	assert((fout.is_open()), "Cannot save config");
-	fout << std::setw(4) << config;
+void saveConfig( const json& config )
+{
+	std::ofstream fout( CONFIG_FILE );
+	assert( ( fout.is_open() ), "Cannot save config" );
+	fout << std::setw( 4 ) << config;
 	fout.close();
 }
 
-std::string fixExtension(const std::string& ext) {
-	if (ext.size() == 0 || ext[0] == '.') {
+std::string fixExtension( const std::string& ext )
+{
+	if ( ext.size() == 0 || ext[0] == '.' )
+	{
 		return ext;
-	} else {
-		return std::string(".") + ext;
+	}
+	else
+	{
+		return std::string( "." ) + ext;
 	}
 }
 
-void loadConfig() {
-	config = json::parse(DEFAULT_CONFIG);
+void loadConfig()
+{
+	config = json::parse( DEFAULT_CONFIG );
 
-	std::ifstream fin(CONFIG_FILE);
-	if (fin.is_open()) {
+	std::ifstream fin( CONFIG_FILE );
+	if ( fin.is_open() )
+	{
 		// load config
 		json config_patch;
 		fin >> config_patch;
 		fin.close();
-		config.merge_patch(config_patch);
-	} else {
-		saveConfig(config);
+		config.merge_patch( config_patch );
+	}
+	else
+	{
+		saveConfig( config );
 	}
 
-	try {
+	try
+	{
 		const json& general = config["general"];
 		PPU::sprite_flickering = general["sprite flickering"].get<bool>();
 		fullscreen = general["fullscreen"].get<bool>();
@@ -114,8 +126,8 @@ void loadConfig() {
 		crop_area.x = general["crop x"].get<int>();
 		crop_area.y = general["crop y"].get<int>();
 
-		crop_area.x = CLAMP(crop_area.x, 0, MAX_CROP);
-		crop_area.y = CLAMP(crop_area.y, 0, MAX_CROP);
+		crop_area.x = CLAMP( crop_area.x, 0, MAX_CROP );
+		crop_area.y = CLAMP( crop_area.y, 0, MAX_CROP );
 		crop_area.w = SCREEN_WIDTH - 2 * crop_area.x;
 		crop_area.h = SCREEN_HEIGHT - 2 * crop_area.y;
 		window_width = render_scale * crop_area.w;
@@ -128,28 +140,32 @@ void loadConfig() {
 		movie_folder = paths["movie folder"].get<std::string>();
 		savestate_folder = paths["savestate folder"].get<std::string>();
 
-		rom_ext = fixExtension(paths["rom extension"].get<std::string>());
-		save_ext = fixExtension(paths["save extension"].get<std::string>());
-		movie_ext = fixExtension(paths["movie extension"].get<std::string>());
-		savestate_ext = fixExtension(paths["savestate extension"].get<std::string>());
+		rom_ext = fixExtension( paths["rom extension"].get<std::string>() );
+		save_ext = fixExtension( paths["save extension"].get<std::string>() );
+		movie_ext = fixExtension( paths["movie extension"].get<std::string>() );
+		savestate_ext = fixExtension( paths["savestate extension"].get<std::string>() );
 
-		API::createDirectory(rom_folder);
-		API::createDirectory(save_folder);
-		API::createDirectory(screenshot_folder);
-		API::createDirectory(movie_folder);
-		API::createDirectory(savestate_folder);
+		API::createDirectory( rom_folder );
+		API::createDirectory( save_folder );
+		API::createDirectory( screenshot_folder );
+		API::createDirectory( movie_folder );
+		API::createDirectory( savestate_folder );
 
 		// joypads
-		for(int j = 0; j < 4; j++) {
+		for ( int j = 0; j < 4; j++ )
+		{
 			const json& keys = config["controls"][j];
-			for(int b = 0; b < Joypad::NUM_BUTTONS; b++) {
-				const char* button_name = Joypad::getButtonName((Joypad::Button)b);
+			for ( int b = 0; b < Joypad::NUM_BUTTONS; b++ )
+			{
+				const char* button_name = Joypad::getButtonName( ( Joypad::Button )b );
 				std::string key_name = keys[button_name].get<std::string>();
-				SDL_Keycode keycode = getKeycode(key_name);
-				joypad[j].mapButton((Joypad::Button)b, keycode);
+				SDL_Keycode keycode = getKeycode( key_name );
+				joypad[j].mapButton( ( Joypad::Button )b, keycode );
 			}
 		}
-	} catch( ... ) {
-		dout("A config variable was invalid");
+	}
+	catch ( ... )
+	{
+		dbLogError( "A config variable was invalid" );
 	}
 }

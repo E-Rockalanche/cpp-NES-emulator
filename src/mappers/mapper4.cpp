@@ -1,6 +1,10 @@
-#include <cstring>
+
 
 #include "mapper4.hpp"
+
+#include "cpu.hpp"
+
+#include <cstring>
 
 Mapper4::Mapper4(Byte* data) : Cartridge(data) {
 	reset();
@@ -41,7 +45,7 @@ void Mapper4::writePRG(Word address, Byte value) {
 
 			case IRQ_DISABLE:
 				irq_enabled = false;
-				CPU::setIRQ(false);
+				nes::cpu.setIRQ(false);
 				break;
 			case IRQ_ENABLE: irq_enabled = true; break;
 			
@@ -92,7 +96,7 @@ void Mapper4::signalScanline() {
 	}
 
 	if (irq_enabled && (irq_counter == 0)) {
-		CPU::setIRQ();
+		nes::cpu.setIRQ();
 	}
 }
 

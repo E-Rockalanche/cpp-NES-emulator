@@ -61,7 +61,7 @@ namespace APU
         buffer.clock_rate( APU_CLOCK_RATE );
 
         apu.output( &buffer );
-        apu.dmc_reader( CPU::readDMC );
+        apu.dmc_reader( []( void*, cpu_addr_t ){ } );
 
         sound_queue = new Sound_Queue;
         sound_queue->init( SAMPLE_RATE );

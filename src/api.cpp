@@ -1,3 +1,10 @@
+
+#include "api.hpp"
+
+#include "debug.hpp"
+#include "globals.hpp"
+#include "common.hpp"
+
 #include <string>
 #include <cstring>
 
@@ -9,10 +16,6 @@
 
 #include "SDL2/SDL.h"
 
-#include "globals.hpp"
-#include "api.hpp"
-#include "common.hpp"
-#include "debugging.hpp"
 
 namespace API {
 
@@ -33,9 +36,7 @@ namespace API {
 	}
 
 	FileDialog& FileDialog::setFilename(const char* filename) {
-		dout("set filename: " << filename);
 		std::strcpy(ofn.lpstrFile, filename);
-		dout("lpstrFile: " << ofn.lpstrFile);
 		return *this;
 	}
 
@@ -85,7 +86,7 @@ namespace API {
 		if (CreateDirectory(name.c_str(), NULL)) {
 		    ok = true;
 		} else if (ERROR_ALREADY_EXISTS != GetLastError()) {
-			dout("Could not create directory");
+			dbLogError( "could not create directory: %s", name.c_str() );
 		}
 	#endif
 

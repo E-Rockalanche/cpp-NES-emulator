@@ -1,3 +1,10 @@
+
+
+#include "menu_elements.hpp"
+#include "api.hpp"
+
+#include "assert.hpp"
+
 #include <string>
 #include <vector>
 
@@ -7,11 +14,6 @@
 #endif
 
 #include "SDL2/SDL.h"
-
-#include "menu_elements.hpp"
-#include "api.hpp"
-#include "debugging.hpp"
-#include "assert.hpp"
 
 #define setFlag(mask) (flags) |= (mask)
 #define clearFlag(mask) (flags) &= ~(mask)

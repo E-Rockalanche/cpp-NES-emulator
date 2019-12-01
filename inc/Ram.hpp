@@ -16,22 +16,22 @@ namespace nes
 		Byte& operator[]( Word index )
 		{
 			if constexpr ( Mirror )
-				return m_data[ address % Size ];
+				return m_data[ index % Size ];
 			else
 			{
 				dbAssert( index < Size );
-				return m_data[ address ];
+				return m_data[ index ];
 			}
 		}
 
 		Byte operator[]( Word index ) const
 		{
 			if constexpr ( Mirror )
-				return m_data[ address % Size ];
+				return m_data[ index % Size ];
 			else
 			{
 				dbAssert( index < Size );
-				return m_data[ address ];
+				return m_data[ index ];
 			}
 		}
 

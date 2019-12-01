@@ -6,14 +6,14 @@
 *.exe
 
 #generated folders
-movies/
-roms/
-saves/
-screenshots/
-savestates/
+movies
+roms
+saves
+screenshots
+savestates
 
 # test roms
-tests/
+tests
 
 # config
 config.json

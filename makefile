@@ -22,13 +22,13 @@ MAKE_EXE = $(CXX) $^ -o $@ $(LFLAGS)
 $(TARGET): $(LIB_OBJECTS) $(MAP_OBJECTS) $(OBJECTS)
 	$(MAKE_EXE)
 
-obj/mappers/%.o: src/mappers/%.cpp inc/mappers/%.hpp inc/cartridge.hpp inc/common.hpp inc/debugging.hpp
+obj/mappers/%.o: src/mappers/%.cpp inc/mappers/%.hpp inc/cartridge.hpp inc/common.hpp
 	$(MAKE_OBJ) -Wall -Wextra -Wno-unused-parameter
 
 lib/obj/%.o: lib/src/%.cpp lib/inc/%.h
 	$(MAKE_OBJ)
 
-obj/%.o: src/%.cpp inc/%.hpp inc/common.hpp inc/debugging.hpp
+obj/%.o: src/%.cpp inc/%.hpp inc/common.hpp
 	$(MAKE_OBJ) -Wall -Wextra -Wno-unused-parameter
 
 clean:

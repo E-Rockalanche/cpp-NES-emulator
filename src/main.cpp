@@ -1,18 +1,9 @@
-#include <iostream>
-#include <iomanip>
-#include <string>
-#include <ctime>
-#include <cstdlib>
-#include <fstream>
-#include <sstream>
-
-#include "SDL2/SDL.h"
 
 #include "filesystem.hpp"
 
 #include "common.hpp"
 #include "main.hpp"
-#include "debugging.hpp"
+
 #include "cpu.hpp"
 #include "ppu.hpp"
 #include "apu.hpp"
@@ -31,6 +22,16 @@
 #include "menu_bar.hpp"
 #include "message.hpp"
 #include "assert.hpp"
+
+#include <iostream>
+#include <iomanip>
+#include <string>
+#include <ctime>
+#include <cstdlib>
+#include <fstream>
+#include <sstream>
+
+#include "SDL2/SDL.h"
 
 nes::Cpu cpu;
 
@@ -94,8 +95,8 @@ float fps = 0;
 float total_fps = 0;
 float real_fps = 0;
 float total_real_fps = 0;
-#define ave_fps (total_fps / frame_number)
-#define ave_real_fps (total_real_fps / frame_number)
+#define ave_fps ( total_fps / frame_number )
+#define ave_real_fps ( total_real_fps / frame_number )
 
 #define FPS_COUNT 15
 float fps_count[FPS_COUNT];
@@ -181,8 +182,6 @@ void resizeRenderArea( bool round_scale )
 {
 	SDL_GetWindowSize( window, &window_width, &window_height );
 
-	// dout("window size: " << window_width << ", " << window_height);
-
 	// set viewport to entire window
 	SDL_RenderSetViewport( renderer, NULL );
 
@@ -233,8 +232,8 @@ void keyboardEvent( const SDL_Event& event )
 		switch ( key )
 		{
 			case SDLK_f:
-				dout( "fps: " << ave_fps );
-				dout( "real fps: " << ave_real_fps );
+				dbLog( "fps: %f", ave_fps );
+				dbLog( "real fps: %f", ave_real_fps );
 				break;
 
 			case SDLK_KP_4:

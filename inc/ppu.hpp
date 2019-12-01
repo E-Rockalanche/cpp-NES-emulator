@@ -7,14 +7,8 @@
 #include "cartridge.hpp"
 #include "screen.hpp"
 
-namespace nes
-{
-	class Cpu;
-}
-
 namespace PPU
 {
-	void setCPU( nes::Cpu* cpu );
 	Byte readByte( Word address );
 	void writeByte( Word address, Byte value );
 	void clockTick();

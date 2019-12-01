@@ -9,6 +9,8 @@
 
 using namespace nes;
 
+nes::Cpu cpu; // temp
+
 namespace
 {
 	constexpr size_t RAM_START = 0x0000;
@@ -111,7 +113,7 @@ void Cpu::reset()
 
 void Cpu::executeInstruction()
 {
-	if ( ! isHalted() )
+	if ( ! halted() )
 	{
 		if ( testStatus( DisableInterrupts ) )
 			m_irq = -1;
@@ -144,7 +146,7 @@ void Cpu::runFrame()
 		executeInstruction();
 	}
 
-	APU::runFrame( cycles );
+	APU::runFrame( m_cycles );
 }
 
 void Cpu::tick()
@@ -154,7 +156,8 @@ void Cpu::tick()
 	{
 		m_nmi += ( m_nmi >= 0 );
 		m_irq += ( m_irq >= 0 );
-		m_ppu->tick();
+		// m_ppu->tick();
+		PPU::clockTick();
 	}
 	++m_cycles;
 }
@@ -245,7 +248,7 @@ void Cpu::write( Word address, Byte value )
 			if ( address == OAM_DMA )
 				oamDmaTransfer( value );
 			else
-				// m_apu->write( cycles, address, value );
+				// m_apu->write( m_cycles, address, value );
 				APU::writeByte( m_cycles, address, value );
 			break;
 		}
@@ -303,7 +306,7 @@ void Cpu::conditionalBranch( bool branch )
 }
 
 template <AddressMode Mode>
-Word getAddress()
+Word Cpu::getAddress()
 {
 	switch ( Mode )
 	{
@@ -312,31 +315,31 @@ Word getAddress()
 
 		case AddressMode::Absolute:
 		{
-			auto address = readWord( m_programCounter );
+			auto address = readWordTick( m_programCounter );
 			m_programCounter += 2;
 			return address;
 		}
 
 		case AddressMode::ZeroPage:
-			return readByte( m_programCounter++ );
+			return readByteTick( m_programCounter++ );
 
 		case AddressMode::ZeroPageX:
 		{
-			auto address = ( readByte( m_programCounter++ ) + m_xRegister ) & 0xff;
+			auto address = ( readByteTick( m_programCounter++ ) + m_xRegister ) & 0xff;
 			tick();
 			return address;
 		}
 
 		case AddressMode::ZeroPageY:
 		{
-			auto address = ( readByte( m_programCounter++ ) + m_yRegister ) & 0xff;
-			clockTick();
+			auto address = ( readByteTick( m_programCounter++ ) + m_yRegister ) & 0xff;
+			tick();
 			return address;
 		}
 
 		case AddressMode::AbsoluteX:
 		{
-			auto page1 = readWord( m_programCounter );
+			auto page1 = readWordTick( m_programCounter );
 			m_programCounter += 2;
 			auto address = page1 + m_xRegister;
 			if ( crossedPage( page1, address ) )
@@ -346,7 +349,7 @@ Word getAddress()
 
 		case AddressMode::AbsoluteXStore:
 		{
-			auto page1 = readWord( m_programCounter );
+			auto page1 = readWordTick( m_programCounter );
 			m_programCounter += 2;
 			auto address = page1 + m_xRegister;
 			dummyRead();
@@ -355,7 +358,7 @@ Word getAddress()
 
 		case AddressMode::AbsoluteY:
 		{
-			auto page1 = readWord( m_programCounter );
+			auto page1 = readWordTick( m_programCounter );
 			m_programCounter += 2;
 			auto address = page1 + m_yRegister;
 			if ( crossedPage( page1, address ) )
@@ -365,7 +368,7 @@ Word getAddress()
 
 		case AddressMode::AbsoluteYStore:
 		{
-			auto page1 = readWord( m_programCounter );
+			auto page1 = readWordTick( m_programCounter );
 			m_programCounter += 2;
 			auto address = page1 + m_yRegister;
 			dummyRead();
@@ -374,22 +377,22 @@ Word getAddress()
 
 		case AddressMode::Indirect:
 		{
-			auto address = readWordBug( readWord( m_programCounter ) );
+			auto address = readWordTickBug( readWordTick( m_programCounter ) );
 			m_programCounter += 2;
 			return address;
 		}
 
 		case AddressMode::IndirectX:
 		{
-			auto zp = ( readByte( m_programCounter++ ) + m_xRegister ) & 0xff;
-			clockTick();
-			return readWordBug( zp );
+			auto zp = ( readByteTick( m_programCounter++ ) + m_xRegister ) & 0xff;
+			tick();
+			return readWordTickBug( zp );
 		}
 
 		case AddressMode::IndirectY:
 		{
-			auto zp = readByte( m_programCounter++ );
-			auto address = readWordBug( zp ) + m_yRegister;
+			auto zp = readByteTick( m_programCounter++ );
+			auto address = readWordTickBug( zp ) + m_yRegister;
 			if ( crossedPage( address - m_yRegister, address ) )
 				dummyRead();
 			return address;
@@ -397,8 +400,8 @@ Word getAddress()
 
 		case AddressMode::IndirectYStore:
 		{
-			auto zp = readByte( m_programCounter++ );
-			auto address = readWordBug( zp ) + m_yRegister;
+			auto zp = readByteTick( m_programCounter++ );
+			auto address = readWordTickBug( zp ) + m_yRegister;
 			dummyRead();
 			return address;
 		}

@@ -1,14 +1,15 @@
-#include <bitset>
-#include <cstdlib>
+
 
 #include "ppu.hpp"
-#include "debugging.hpp"
+
 #include "common.hpp"
+#include "cpu.hpp"
+#include "debug.hpp"
+
+#include <cstdlib>
 
 namespace PPU
 {
-
-#define doutCycle(message) dout(message << ", s: " << scanline << ", c: " << cycle);
 	int frame = 0;
 
 	enum Scanline
@@ -20,11 +21,6 @@ namespace PPU
 	};
 	template <Scanline s>
 	void scanlineCycle();
-
-	void setCPU( nes::Cpu* cpu_ )
-	{
-		cpu = cpu_;
-	}
 
 	void setStatusFlag( int flag, bool value = true );
 
@@ -113,8 +109,6 @@ namespace PPU
 	Byte palette[PALETTE_SIZE];
 	Byte primary_oam[PRIMARY_OAM_SIZE * OBJECT_SIZE];
 	Byte secondary_oam[PRIMARY_OAM_SIZE * OBJECT_SIZE]; // uses secondary size if sprite flickering is on
-
-	nes::Cpu* cpu = nullptr;
 
 	// lets main know when the screen can be drawn
 	bool can_draw;
@@ -436,7 +430,7 @@ namespace PPU
 				break;
 
 			default:
-				dout( "writing to " << register_names[address] );
+				dbLogError( "PPU writing to %s", register_names[ address ] );
 		}
 	}
 
@@ -457,7 +451,7 @@ namespace PPU
 					}
 					else if ( cycle == 1 || cycle == 2 )
 					{
-						cpu->setNMI( false );
+						nes::cpu.setNMI( false );
 					}
 				}
 				break;
@@ -496,7 +490,7 @@ namespace PPU
 			 && testFlag( status, VBLANK )
 			 && ( scanline != PRERENDER_SCANLINE ) )
 		{
-			cpu->setNMI();
+			nes::cpu.setNMI();
 
 			// NMI suppression near vblank
 		}
@@ -505,7 +499,7 @@ namespace PPU
 				  && ( scanline == VBLANK_SCANLINE )
 				  && ( cycle <= 2 ) )
 		{
-			cpu->setNMI( false );
+			nes::cpu.setNMI( false );
 		}
 
 		control = value;
@@ -581,7 +575,7 @@ namespace PPU
 			setStatusFlag( VBLANK, true );
 			if ( testFlag( control, NMI_ENABLE ) )
 			{
-				cpu->setNMI();
+				nes::cpu.setNMI();
 			}
 		}
 		suppress_vblank = false;
