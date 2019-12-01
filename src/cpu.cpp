@@ -775,8 +775,7 @@ void Cpu::returnFromSubroutine()
 template <AddressMode Mode>
 void Cpu::subtractFromAcc()
 {
-	// ones compliment subtraction
-	addToAccumulator( ~readByteTick( getAddress<Mode>() ) );
+	addToAccumulator( 1 + ~readByteTick( getAddress<Mode>() ) );
 }
 
 void Cpu::setCarryFlag()
