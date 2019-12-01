@@ -3,23 +3,29 @@
 
 #include <iostream>
 
-#include "cpu.hpp"
 #include "common.hpp"
 #include "cartridge.hpp"
 #include "screen.hpp"
 
-namespace PPU {
-	Byte readByte(Word address);
-	void writeByte(Word address, Byte value);
+namespace nes
+{
+	class Cpu;
+}
+
+namespace PPU
+{
+	void setCPU( nes::Cpu* cpu );
+	Byte readByte( Word address );
+	void writeByte( Word address, Byte value );
 	void clockTick();
 	void power();
 	void reset();
 	bool readyToDraw();
-	void writeToOAM(Byte value);
+	void writeToOAM( Byte value );
 	bool renderingEnabled();
 
-	void saveState(std::ostream& out);
-	void loadState(std::istream& in);
+	void saveState( std::ostream& out );
+	void loadState( std::istream& in );
 
 	void dump();
 	bool nmiEnabled();
@@ -35,7 +41,8 @@ namespace PPU {
 	3: x position of left side of sprite
 	*/
 
-	enum Register {
+	enum Register
+	{
 		PPU_CONTROL,
 		/*
 		write
@@ -129,27 +136,28 @@ namespace PPU {
 		NUM_REGISTERS,
 
 		OAM_DMA = 0x4014
-		/*
-		write
-		Writing $XX will upload 256 bytes of data from CPU page $XX00-$XXff to
-		internal PPU OAM.
-		This page is typically located in internal RAM, commonly $0200-$02ff,
-		but cartridge RAM or ROM can be used as well
-		The CPU is suspended during transfer, which takes 513 or 514 cycles
-		after $4014 write tick (1 dummy read cycle while waiting for writes to
-		complete, +1 if on add odd CPU cycle, then 256 alternating read/write
-		cycles)
-		Only effective method for transfering all 256 bytes of OAM
-		DMA transfer will begin at the current oam write address.
-		It is common to initialize oam address to 0 before DMA transfer
-		*/
+				  /*
+				  write
+				  Writing $XX will upload 256 bytes of data from CPU page $XX00-$XXff to
+				  internal PPU OAM.
+				  This page is typically located in internal RAM, commonly $0200-$02ff,
+				  but cartridge RAM or ROM can be used as well
+				  The CPU is suspended during transfer, which takes 513 or 514 cycles
+				  after $4014 write tick (1 dummy read cycle while waiting for writes to
+				  complete, +1 if on add odd CPU cycle, then 256 alternating read/write
+				  cycles)
+				  Only effective method for transfering all 256 bytes of OAM
+				  DMA transfer will begin at the current oam write address.
+				  It is common to initialize oam address to 0 before DMA transfer
+				  */
 	};
 
 	extern const char* register_names[NUM_REGISTERS];
 
-	enum ControlFlag {
-		NAMETABLE_0 = BL(0), // 1: x scroll += 256
-		NAMETABLE_1 = BL(1), // 1: y scroll += 240
+	enum ControlFlag
+	{
+		NAMETABLE_0 = BL( 0 ), // 1: x scroll += 256
+		NAMETABLE_1 = BL( 1 ), // 1: y scroll += 240
 		/*
 		base nametable address
 		0: $2000
@@ -158,14 +166,14 @@ namespace PPU {
 		3: $2c00
 		*/
 
-		INCREMENT_MODE = BL(2),
+		INCREMENT_MODE = BL( 2 ),
 		/*
 		VRAM address increment per CPU read/write of PPU_DATA
 		0: add 1 (going across)
 		1: add 32 (going down)
 		*/
 
-		SPRITE_TILE_SELECT = BL(3),
+		SPRITE_TILE_SELECT = BL( 3 ),
 		/*
 		sprite pattern table address for 8x8 sprites
 		(ignored in 8x16 mode)
@@ -173,77 +181,79 @@ namespace PPU {
 		1: $1000
 		*/
 
-		BACKGROUND_TILE_SELECT = BL(4),
+		BACKGROUND_TILE_SELECT = BL( 4 ),
 		/*
 		background pattern table address
 		0: $0000
 		1: $1000
 		*/
 
-		SPRITE_HEIGHT = BL(5),
+		SPRITE_HEIGHT = BL( 5 ),
 		/*
 		sprite size
 		0: 8x8
 		1: 8x16
 		*/
 
-		MASTER_SLAVE = BL(6),
+		MASTER_SLAVE = BL( 6 ),
 		/*
 		PPU master/slave select
 		0: read backdrop from EXT pins
 		1: output colour on EXT pins
 		*/
 
-		NMI_ENABLE = BL(7)
-		/*
-		generate an NMI at the start of the vertical blanking interval
-		0: off
-		1: on
-		*/
+		NMI_ENABLE = BL( 7 )
+					 /*
+					 generate an NMI at the start of the vertical blanking interval
+					 0: off
+					 1: on
+					 */
 	};
 
-	enum MaskFlag {
-		GREYSCALE = BL(0),
+	enum MaskFlag
+	{
+		GREYSCALE = BL( 0 ),
 		/*
 		0: normal colour
 		1: greyscale display
 		*/
 
-		SHOW_BKG_LEFT_8 = BL(1),
+		SHOW_BKG_LEFT_8 = BL( 1 ),
 		/*
 		1: show background in leftmost 8 pixels of screen
 		0: hide
 		*/
 
-		SHOW_SPR_LEFT_8 = BL(2),
+		SHOW_SPR_LEFT_8 = BL( 2 ),
 		/*
 		1: show sprites in leftmost 8 pixels of screen
 		0: hide
 		*/
 
-		SHOW_BACKGROUND = BL(3),
-		SHOW_SPRITES = BL(4),
-		RED = BL(5), // green on PAL
-		GREEN = BL(6), // red on PAL
-		BLUE = BL(7)
+		SHOW_BACKGROUND = BL( 3 ),
+		SHOW_SPRITES = BL( 4 ),
+		RED = BL( 5 ), // green on PAL
+		GREEN = BL( 6 ), // red on PAL
+		BLUE = BL( 7 )
 	};
 
-	enum StatusFlag {
-		SPRITE_OVERFLOW = BL(5),
+	enum StatusFlag
+	{
+		SPRITE_OVERFLOW = BL( 5 ),
 		/*
 		Set when more than 8 sprites appear on a scanline.
 		A hardware bug causes this to give false positives and negatives.
 		Set during sprite evaluation and cleared at dot 1 (second dot) of the pre-render line.
 		*/
 
-		SPRITE_0_HIT = BL(6),
+		SPRITE_0_HIT = BL( 6 ),
 		/*
 		Set when a nonzero pixel of sprite 0 overlaps with a nonzero background pixel.
 		Cleared at dot 1 of the pre-render line.
 		Used for raster timing
 		*/
 
-		VBLANK = BL(7),
+		VBLANK = BL( 7 ),
 		/*
 		Set at dot 1 of line 241 (line after post-render line).
 		Cleared after reading $2002 and at dot 1 of the pre-render line
