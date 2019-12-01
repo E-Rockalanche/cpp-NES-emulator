@@ -61,7 +61,7 @@ namespace APU
         buffer.clock_rate( APU_CLOCK_RATE );
 
         apu.output( &buffer );
-        apu.dmc_reader( []( void*, cpu_addr_t ){ } );
+        apu.dmc_reader( []( void*, cpu_addr_t address ){ return nes::cpu.read( address ); } );
 
         sound_queue = new Sound_Queue;
         sound_queue->init( SAMPLE_RATE );

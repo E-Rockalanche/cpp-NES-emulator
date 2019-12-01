@@ -33,8 +33,6 @@
 
 #include "SDL2/SDL.h"
 
-nes::Cpu cpu;
-
 // SDL
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
@@ -431,16 +429,16 @@ int main( int argc, char** argv )
 	{
 		pollEvents();
 
-		if ( ( !paused || step_frame ) && ( cartridge != NULL ) && !cpu.halted() )
+		if ( ( !paused || step_frame ) && ( cartridge != NULL ) && !nes::cpu.halted() )
 		{
 			if ( Movie::isPlaying() )
 			{
 				Movie::updateInput( frame_number );
 			}
-			cpu.runFrame();
+			nes::cpu.runFrame();
 			zapper.update();
 
-			if ( cpu.halted() )
+			if ( nes::cpu.halted() )
 			{
 				showError( "Error", "The CPU encountered an illegal instruction" );
 			}

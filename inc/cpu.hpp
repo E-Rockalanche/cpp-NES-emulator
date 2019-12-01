@@ -39,6 +39,8 @@ namespace nes
 		void saveState( std::ostream& out );
 		void loadState( std::istream& in );
 
+		Byte read( Word address );
+
 		static void initialize();
 
 	private:
@@ -61,8 +63,6 @@ namespace nes
 	private:
 
 		void tick();
-
-		Byte read( Word address );
 
 		void write( Word address, Byte value );
 

@@ -7,9 +7,12 @@
 #include "Instruction.hpp"
 #include "ppu.hpp"
 
-using namespace nes;
+namespace nes
+{
+	Cpu cpu;
+}
 
-nes::Cpu cpu; // temp
+using namespace nes;
 
 namespace
 {
@@ -933,7 +936,7 @@ void Cpu::initialize()
 	SET_ADDRMODE_OP( 0xce, decrement, Absolute )
 	SET_ADDRMODE_OP( 0xde, decrement, AbsoluteXStore )
 
-	SET_OP( 0xc1, decrementX )
+	SET_OP( 0xca, decrementX )
 	SET_OP( 0x88, decrementY )
 
 	SET_ADDRMODE_OP( 0x49, exclusiveOr, Immediate )
