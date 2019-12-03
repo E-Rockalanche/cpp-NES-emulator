@@ -338,7 +338,7 @@ void Cpu::write( Word address, Byte value )
 			break;
 
 		case PPU_START ... PPU_END:
-			m_ppu->writeRegister( address - PPU_START, value );
+			m_ppu->writeRegister( ( address - PPU_START ) % PPU_SIZE, value );
 			break;
 
 		case APU_START ... APU_END:

@@ -19,9 +19,9 @@
 	#define dbAbort() { *(int*)nullptr = 0; }
 
 	#define dbPrintFileLine()	\
-		std::printf( "\tin %s at line %i", __FILE__, __LINE__ );
+		std::printf( "\n\tin %s at line %i\n", __FILE__, __LINE__ );
 
-	#define dbLog( ... ) std::printf( __VA_ARGS__ );
+	#define dbLog( ... ) { std::printf( __VA_ARGS__ ); std::printf( "\n" ); }
 
 	#define dbLogByte( varname, value )	\
 		std::printf( "%s: 0x%02x", varname, (int)value );
@@ -36,12 +36,14 @@
 
 	#define dbBreak() {			\
 		std::printf( "Break" );	\
-		dbPrintFileLine(); }
+		dbPrintFileLine();		\
+		dbAbort(); }
 
 	#define dbBreakMessage( ... ) {	\
 		std::printf( "Break: " );	\
 		std::printf( __VA_ARGS__ );	\
-		dbPrintFileLine(); }
+		dbPrintFileLine();			\
+		dbAbort(); }
 
 	#define dbAssert( condition )	\
 		if ( !( condition ) ) {		\

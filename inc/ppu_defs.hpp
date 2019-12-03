@@ -1,6 +1,8 @@
 #ifndef PPU_DEFS_HPP
 #define PPU_DEFS_HPP
 
+#include "types.hpp"
+
 namespace nes
 {
 
@@ -114,7 +116,7 @@ namespace nes
 				  */
 	};
 
-	enum PPUControlFlag
+	enum PPUControlFlag : Byte
 	{
 		Nametable0 = 1 << 0, // 1: x scroll += 256
 		Nametable1 = 1 << 1, // 1: y scroll += 240
@@ -170,7 +172,7 @@ namespace nes
 					 */
 	};
 
-	enum PPUMaskFlag
+	enum PPUMaskFlag : Byte
 	{
 		GreyScale = 1 << 0,
 		/*
@@ -197,7 +199,7 @@ namespace nes
 		Blue = 1 << 7
 	};
 
-	enum PPUStatusFlag
+	enum PPUStatusFlag : Byte
 	{
 		SpriteOverflow = 1 << 5,
 		/*
@@ -206,7 +208,7 @@ namespace nes
 		Set during sprite evaluation and cleared at dot 1 (second dot) of the pre-render line.
 		*/
 
-		Sprite0Hit = 1 << 6,
+		SpriteZeroHit = 1 << 6,
 		/*
 		Set when a nonzero pixel of sprite 0 overlaps with a nonzero background pixel.
 		Cleared at dot 1 of the pre-render line.

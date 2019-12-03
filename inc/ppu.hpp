@@ -158,7 +158,7 @@ namespace nes
 		Word m_bgShiftLow = 0;
 		Word m_bgShiftHigh = 0;
 
-		Ram<NAMETABLE_SIZE> m_nametable;
+		Ram<NAMETABLE_SIZE, false> m_nametable;
 		Ram<PALETTE_SIZE> m_palette;
 		Ram<PRIMARY_OAM_SIZE * OBJECT_SIZE> m_primaryOAM;
 		Ram<PRIMARY_OAM_SIZE * OBJECT_SIZE> m_secondaryOAM; // need full size to turn off sprite flickering

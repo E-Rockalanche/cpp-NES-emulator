@@ -130,7 +130,9 @@ void resetFrameNumber()
 
 bool loadFile( std::string filename )
 {
-	if ( cartridge ) delete cartridge;
+	if ( cartridge )
+		delete cartridge;
+	
 	cartridge = nes::Cartridge::loadFile( filename );
 	if ( !cartridge )
 	{
