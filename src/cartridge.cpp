@@ -1,29 +1,33 @@
-#include <fstream>
-#include <iostream>
-#include <cstring>
 
 #include "cartridge.hpp"
+
+#include "debug.hpp"
 #include "mapper1.hpp"
 #include "mapper2.hpp"
 #include "mapper3.hpp"
 #include "mapper4.hpp"
 #include "crc32.hpp"
 #include "message.hpp"
-#include "assert.hpp"
 
-Cartridge* cartridge = NULL;
+#include <fstream>
+#include <iostream>
+#include <cstring>
+
+using namespace nes;
+
+Cartridge* cartridge = nullptr;
 
 Cartridge* Cartridge::loadFile( std::string filename )
 {
-	Cartridge* mapper = NULL;
+	Cartridge* mapper = nullptr;
 	int data_size = 0;
-	Byte* data = NULL;
+	Byte* data = nullptr;
 
 	std::ifstream fin( filename, std::ios::binary );
 	if ( !fin.is_open() || !fin.good() || fin.eof() )
 	{
 		showError( "Error", "Could not open " + filename );
-		return NULL;
+		return nullptr;
 	}
 
 	// check file size
@@ -34,11 +38,11 @@ Cartridge* Cartridge::loadFile( std::string filename )
 	// allocate memory
 	data = new Byte[data_size];
 
-	if ( data == NULL )
+	if ( data == nullptr )
 	{
 		showError( "Error", "Could not allocate cartridge memory" );
 		fin.close();
-		return NULL;
+		return nullptr;
 	}
 
 	// read file
@@ -49,21 +53,21 @@ Cartridge* Cartridge::loadFile( std::string filename )
 	{
 		showError( "Error", "File too small" );
 		delete[] data;
-		return NULL;
+		return nullptr;
 	}
 
 	if ( !verifyHeader( data ) )
 	{
 		showError( "Error", "ROM header is invalid" );
 		delete[] data;
-		return NULL;
+		return nullptr;
 	}
 
 	if ( ( data[FLAGS_7] & 0x0c ) == 0x08 )
 	{
 		showError( "Error", "NES 2.0 formatted ROMs are not supported yet" );
 		delete[] data;
-		return NULL;
+		return nullptr;
 	}
 
 	int mapper_number = getMapperNumber( data );
@@ -88,7 +92,7 @@ Cartridge* Cartridge::loadFile( std::string filename )
 		default:
 			showError( "Error", "Mapper " + std::to_string( mapper_number ) + " is not supported" );
 			delete[] data;
-			return NULL;
+			return nullptr;
 	}
 
 	return mapper;
@@ -168,7 +172,7 @@ void Cartridge::reset()
 {
 	setPRGBank( 0, 0, 0x8000 );
 	setCHRBank( 0, 0, 0x2000 );
-	nt_mirroring = ( data[FLAGS_6] & 1 ) ? VERTICAL : HORIZONTAL;
+	nt_mirroring = ( data[FLAGS_6] & 1 ) ? NameTableMirroring::Vertical : NameTableMirroring::Horizontal;
 }
 
 unsigned int Cartridge::getChecksum()

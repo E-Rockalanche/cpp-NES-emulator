@@ -16,6 +16,15 @@
 
 #include "SDL2/SDL.h"
 
+namespace
+{
+	template <typename MASK, typename FLAG>
+	bool testFlag( MASK mask, FLAG flag )
+	{
+		return mask & flag;
+	}
+}
+
 
 namespace API {
 
@@ -126,7 +135,7 @@ namespace API {
 		SDL_SysWMinfo infoWindow;
 		SDL_VERSION(&infoWindow.version);
 		bool ok = SDL_GetWindowWMInfo(window, &infoWindow);
-		assert(ok, "Could not get window info");
+		dbAssertMessage(ok, "Could not get window info");
 
 		return infoWindow.info.win.window;
 	}

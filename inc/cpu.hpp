@@ -8,7 +8,6 @@
 
 namespace nes
 {
-	enum class AddressMode;
 
 	class Apu;
 	class Cartridge;
@@ -18,6 +17,21 @@ namespace nes
 	class Cpu
 	{
 	public:
+
+		void setPPU( Ppu& ppu )
+		{
+			m_ppu = &ppu;
+		}
+
+		void setCartridge( Cartridge* cartridge )
+		{
+			m_cartridge = cartridge;
+		}
+
+		void setController( Controller* controller, size_t port )
+		{
+			m_controllerPorts[ port ] = controller;
+		}
 
 		void reset();
 		void power();
@@ -39,11 +53,14 @@ namespace nes
 		void saveState( std::ostream& out );
 		void loadState( std::istream& in );
 
+		// public so APU can read DMC
 		Byte read( Word address );
 
 		static void initialize();
 
 	private:
+
+		enum class AddressMode;
 
 		enum StatusFlag : Byte
 		{
@@ -245,9 +262,7 @@ namespace nes
 
 		Apu* m_apu = nullptr;
 		Ppu* m_ppu = nullptr;
-
 		Cartridge* m_cartridge = nullptr;
-
 		Controller* m_controllerPorts[ 2 ]{ nullptr, nullptr };
 
 		int m_cycles = 0;
@@ -267,8 +282,6 @@ namespace nes
 		bool m_oddCycle = false;
 		bool m_halt = false;
 	};
-
-	extern Cpu cpu; // temp
 }
 
 #endif

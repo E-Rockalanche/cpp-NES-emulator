@@ -1,17 +1,14 @@
 
-#include "filesystem.hpp"
-
-#include "common.hpp"
 #include "main.hpp"
 
-#include "cpu.hpp"
-#include "ppu.hpp"
-#include "apu.hpp"
+#include "debug.hpp"
+#include "filesystem.hpp"
+#include "common.hpp"
+#include "nes.hpp"
 #include "cartridge.hpp"
 #include "joypad.hpp"
 #include "zapper.hpp"
 #include "program_end.hpp"
-#include "screen.hpp"
 #include "config.hpp"
 #include "keyboard.hpp"
 #include "globals.hpp"
@@ -21,7 +18,6 @@
 #include "menu_elements.hpp"
 #include "menu_bar.hpp"
 #include "message.hpp"
-#include "assert.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -34,17 +30,21 @@
 #include "SDL2/SDL.h"
 
 // SDL
-SDL_Window* window = NULL;
-SDL_Renderer* renderer = NULL;
-SDL_Texture* nes_texture = NULL;
+SDL_Window* window = nullptr;
+SDL_Renderer* renderer = nullptr;
+SDL_Texture* nes_texture = nullptr;
+
+constexpr size_t ScreenWidth = nes::Ppu::ScreenWidth;
+constexpr size_t ScreenHeight = nes::Ppu::ScreenHeight;
 
 // NES
-Zapper zapper;
+nes::Nes s_nes;
+nes::Zapper zapper;
+nes::Joypad joypad[ 4 ];
 bool paused = false;
 bool step_frame = false;
 bool in_menu = false;
 bool muted = false;
-Pixel screen[SCREEN_WIDTH * SCREEN_HEIGHT];
 
 // paths
 fs::path rom_filename;
@@ -67,18 +67,18 @@ SDL_Rect render_area =
 {
 	0,
 	0,
-	SCREEN_WIDTH - DEFAULT_CROP,
-	SCREEN_HEIGHT - DEFAULT_CROP
+	ScreenWidth - DefaultCrop * 2,
+	ScreenHeight - DefaultCrop * 2
 };
 SDL_Rect crop_area =
 {
-	DEFAULT_CROP,
-	DEFAULT_CROP,
-	SCREEN_WIDTH - DEFAULT_CROP,
-	SCREEN_HEIGHT - DEFAULT_CROP
+	DefaultCrop,
+	DefaultCrop,
+	ScreenWidth - DefaultCrop,
+	ScreenHeight - DefaultCrop
 };
-int window_width = SCREEN_WIDTH - DEFAULT_CROP;
-int window_height = SCREEN_HEIGHT - DEFAULT_CROP;
+int window_width = ScreenWidth - DefaultCrop;
+int window_height = ScreenHeight - DefaultCrop;
 
 // frame timing
 const unsigned int TARGET_FPS = 60;
@@ -131,7 +131,7 @@ void resetFrameNumber()
 bool loadFile( std::string filename )
 {
 	if ( cartridge ) delete cartridge;
-	cartridge = Cartridge::loadFile( filename );
+	cartridge = nes::Cartridge::loadFile( filename );
 	if ( !cartridge )
 	{
 		return false;
@@ -149,6 +149,7 @@ bool loadFile( std::string filename )
 		{
 			save_filename = "";
 		}
+		s_nes.setCartridge( cartridge );
 		power();
 		return true;
 	}
@@ -207,10 +208,10 @@ void resizeWindow( int width, int height )
 
 void cropScreen( int dx, int dy )
 {
-	crop_area.x = CLAMP( crop_area.x + dx, 0, MAX_CROP );
-	crop_area.y = CLAMP( crop_area.y + dy, 0, MAX_CROP );
-	crop_area.w = SCREEN_WIDTH - crop_area.x * 2;
-	crop_area.h = SCREEN_HEIGHT - crop_area.y * 2;
+	crop_area.x = CLAMP( crop_area.x + dx, 0, MaxCrop );
+	crop_area.y = CLAMP( crop_area.y + dy, 0, MaxCrop );
+	crop_area.w = ScreenWidth - crop_area.x * 2;
+	crop_area.h = ScreenHeight - crop_area.y * 2;
 	resizeWindow( crop_area.w * render_scale, crop_area.h * render_scale );
 }
 
@@ -256,10 +257,10 @@ void keyboardEvent( const SDL_Event& event )
 		// get joypad input
 		for ( int i = 0; i < 4; i++ )
 		{
-			Joypad::Button button = joypad[i].setKeyState( key, pressed );
+			nes::Joypad::Button button = joypad[i].setKeyState( key, pressed );
 
 			// record button press
-			if ( Movie::isRecording() && ( button != Joypad::NONE ) )
+			if ( Movie::isRecording() && ( button != nes::Joypad::NONE ) )
 			{
 				Movie::recordButtonState( frame_number, i, button, pressed );
 			}
@@ -381,7 +382,7 @@ int main( int argc, char** argv )
 
 	nes::Cpu::initialize();
 
-	assert( SDL_Init( SDL_INIT_VIDEO | SDL_INIT_AUDIO ) == 0, "failed to initialize SDL" );
+	dbAssertMessage( SDL_Init( SDL_INIT_VIDEO | SDL_INIT_AUDIO ) == 0, "failed to initialize SDL" );
 
 	loadConfig();
 
@@ -392,24 +393,23 @@ int main( int argc, char** argv )
 							   SDL_WINDOWPOS_UNDEFINED,
 							   window_width, window_height,
 							   window_flags );
-	assert( window != NULL, "failed to create screen" );
+	dbAssertMessage( window != NULL, "failed to create screen" );
 	SDL_SetWindowResizable( window, SDL_bool( true ) );
 
 	// create renderer
 	renderer = SDL_CreateRenderer( window, -1, SDL_RENDERER_PRESENTVSYNC );
-	assert( renderer != NULL, "failed to create renderer" );
+	dbAssertMessage( renderer != NULL, "failed to create renderer" );
 
 	// create texture
 	nes_texture = SDL_CreateTexture( renderer,
 									 ( sizeof( Pixel ) == 32 ) ? SDL_PIXELFORMAT_RGBA32 : SDL_PIXELFORMAT_RGB24,
 									 SDL_TEXTUREACCESS_STREAMING,
-									 SCREEN_WIDTH, SCREEN_HEIGHT );
-	assert( nes_texture != NULL, "failed to create texture" );
+									 ScreenWidth, ScreenHeight );
+	dbAssertMessage( nes_texture != NULL, "failed to create texture" );
 
 	// initialize NES
-	controller_ports[0] = &joypad[0];
-	controller_ports[1] = &zapper;
-	APU::init();
+	s_nes.setController( &joypad[ 0 ], 0 );
+	s_nes.setController( &zapper, 1 );
 
 	// load ROM from command line
 	if ( argc > 1 )
@@ -429,16 +429,16 @@ int main( int argc, char** argv )
 	{
 		pollEvents();
 
-		if ( ( !paused || step_frame ) && ( cartridge != NULL ) && !nes::cpu.halted() )
+		if ( ( !paused || step_frame ) && ( cartridge != NULL ) && !s_nes.halted() )
 		{
 			if ( Movie::isPlaying() )
 			{
 				Movie::updateInput( frame_number );
 			}
-			nes::cpu.runFrame();
+			s_nes.runFrame();
 			zapper.update();
 
-			if ( nes::cpu.halted() )
+			if ( s_nes.halted() )
 			{
 				showError( "Error", "The CPU encountered an illegal instruction" );
 			}
@@ -456,7 +456,7 @@ int main( int argc, char** argv )
 		SDL_RenderClear( renderer );
 
 		// render nes & gui
-		SDL_UpdateTexture( nes_texture, NULL, screen, SCREEN_WIDTH * sizeof ( Pixel ) );
+		SDL_UpdateTexture( nes_texture, nullptr, s_nes.getPixelBuffer(), ScreenWidth * sizeof ( Pixel ) );
 		SDL_RenderCopy( renderer, nes_texture, &crop_area, &render_area );
 
 		// preset screen

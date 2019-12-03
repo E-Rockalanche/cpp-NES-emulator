@@ -3,7 +3,11 @@
 
 #include "cartridge.hpp"
 
-class Mapper2 : public Cartridge {
+namespace nes
+{
+
+class Mapper2 : public Cartridge
+{
 public:
 	Mapper2(Byte* data);
 	~Mapper2() {}
@@ -12,5 +16,7 @@ public:
 	void writePRG(Word address, Byte value);
 	void writeCHR(Word address, Byte value);
 };
+
+}
 
 #endif

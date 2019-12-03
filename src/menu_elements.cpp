@@ -2,8 +2,7 @@
 
 #include "menu_elements.hpp"
 #include "api.hpp"
-
-#include "assert.hpp"
+#include "debug.hpp"
 
 #include <string>
 #include <vector>
@@ -170,7 +169,7 @@ namespace Menu {
 	}
 
 	void Menu::setMenuBar(SDL_Window* window) {
-		assert(window != NULL, "Menu::setMenuBar() SDL window is NULL");
+		dbAssertMessage(window != nullptr, "Menu::setMenuBar() SDL window is NULL");
 
 	#ifdef _WIN32
 		// enable windows menu bar events

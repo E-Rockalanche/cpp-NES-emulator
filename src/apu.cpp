@@ -6,19 +6,23 @@
 #include "cpu.hpp"
 #include "Sound_Queue.h"
 
-namespace APU
+namespace nes::APU
 {
 
     Nes_Apu apu;
     Blip_Buffer buffer;
 
-    bool muted;
+    bool muted = false;
 
-    const int OUT_SIZE = 4096;
-    blip_sample_t outBuf[OUT_SIZE];
+    const size_t OUT_SIZE = 4096;
+    blip_sample_t outBuf[ OUT_SIZE ];
 
-    Sound_Queue* sound_queue = NULL;
+    Sound_Queue* sound_queue = nullptr;
 
+    void setDmcReader( dmc_reader_t reader )
+    {
+        apu.dmc_reader( reader );
+    }
 
     void saveState( std::ostream& out )
     {
@@ -41,7 +45,7 @@ namespace APU
         apu.load_snapshot( ss );
     }
 
-    void mute( bool m )
+    void setMute( bool m )
     {
         muted = m;
         apu.output( muted ? NULL : &buffer );
@@ -61,7 +65,6 @@ namespace APU
         buffer.clock_rate( APU_CLOCK_RATE );
 
         apu.output( &buffer );
-        apu.dmc_reader( []( void*, cpu_addr_t address ){ return nes::cpu.read( address ); } );
 
         sound_queue = new Sound_Queue;
         sound_queue->init( SAMPLE_RATE );
@@ -97,7 +100,7 @@ namespace APU
         {
             buffer.clear();
         }
-        else if ( buffer.samples_avail() >= OUT_SIZE )
+        else if ( buffer.samples_avail() >= (int)OUT_SIZE )
         {
             newSamples( outBuf, buffer.read_samples( outBuf, OUT_SIZE ) );
         }

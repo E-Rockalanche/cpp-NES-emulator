@@ -29,28 +29,19 @@
 	&& (y) < ((top) + (height)))
 
 typedef unsigned int uint;
-typedef unsigned char Byte;
-typedef unsigned short Word;
 typedef void(*Callback)(void);
-
-#define BL(bit) (1 << (bit))
 
 #define KB 0x400
 
-template <class T, T V>
-struct Constant {
-	operator T() const { return V; }
-};
-
-#define testFlag(mask, flag) ((bool)((mask) & (flag)))
-
 template<typename T>
-inline void writeBinary(std::ostream& out, const T& value) {
+inline void writeBinary(std::ostream& out, const T& value)
+{
 	out.write((char*)&value, sizeof(T));
 }
 
 template<typename T>
-inline void readBinary(std::istream& in, T& value) {
+inline void readBinary(std::istream& in, T& value)
+{
 	in.read((char*)&value, sizeof(T));
 }
 

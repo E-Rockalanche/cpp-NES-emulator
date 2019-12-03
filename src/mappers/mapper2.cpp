@@ -1,4 +1,7 @@
 #include "mapper2.hpp"
+#include "debug.hpp"
+
+using namespace nes;
 
 Mapper2::Mapper2(Byte* data) : Cartridge(data) {
 	reset();
@@ -20,6 +23,6 @@ void Mapper2::writePRG(Word address, Byte value) {
 }
 
 void Mapper2::writeCHR(Word address, Byte value) {
-	assert(address < chr_size, "chr address out of bounds");
+	dbAssertMessage(address < chr_size, "chr address out of bounds");
 	chr[address] = value;
 }

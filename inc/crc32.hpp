@@ -1,6 +1,9 @@
 #ifndef CRC32_HPP
 #define CRC32_HPP
 
-unsigned int crc32(const unsigned char* data, unsigned int size);
+#include <cstddef>
+#include <cstdint>
+
+uint32_t crc32(const unsigned char* data, size_t size);
 
 #endif

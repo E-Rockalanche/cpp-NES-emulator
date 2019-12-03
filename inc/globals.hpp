@@ -9,18 +9,19 @@
 #include "pixel.hpp"
 #include "joypad.hpp"
 #include "zapper.hpp"
-#include "screen.hpp"
+#include "Nes.hpp"
 
-#define DEFAULT_CROP 8
-#define MAX_CROP 8
+constexpr int DefaultCrop = 8;
+constexpr int MaxCrop = 8;
 
 // SDL
 extern SDL_Window* window;
 extern SDL_Renderer* renderer;
 
 // NES
-extern Joypad joypad[4];
-extern Zapper zapper;
+extern nes::Joypad joypad[ 4 ];
+extern nes::Zapper zapper;
+extern nes::Nes s_nes;
 extern bool paused;
 extern bool step_frame;
 extern bool in_menu;

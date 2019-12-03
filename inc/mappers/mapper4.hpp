@@ -4,21 +4,30 @@
 #include "ppu.hpp"
 #include "cartridge.hpp"
 
-class Mapper4 : public Cartridge {
-public:
-	Mapper4(Byte* data);
-	~Mapper4() {}
-	void reset();
+namespace nes
+{
 
-	void writePRG(Word address, Byte value);
-	void writeCHR(Word address, Byte value);
-	void signalScanline();
+class Mapper4 : public Cartridge
+{
+public:
+	Mapper4( Byte* data );
+	~Mapper4() override = default;
+	void reset() override;
+
+	void writePRG(Word address, Byte value) override;
+	void writeCHR(Word address, Byte value) override;
+	void signalScanline() override;
+	void setCPU( nes::Cpu& cpu ) override
+	{
+		m_cpu = &cpu;
+	}
 
 	void saveState(std::ostream& out);
 	void loadState(std::istream& in);
 
 protected:
-	enum {
+	enum
+	{
 		BANK_SELECT_EVEN = 0x8000,
 		BANK_SELECT_ODD = 0x8001,
 
@@ -31,6 +40,8 @@ protected:
 		IRQ_DISABLE = 0xe000,
 		IRQ_ENABLE = 0xe001
 	};
+
+	nes::Cpu* m_cpu = nullptr;
 	
 	Byte bank_select;
 	Byte bank_registers[8];
@@ -42,5 +53,7 @@ protected:
 
 	void applyBankSwitch();
 };
+
+}
 
 #endif

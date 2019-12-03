@@ -5,11 +5,10 @@
 #include "globals.hpp"
 #include "movie.hpp"
 #include "api.hpp"
-#include "apu.hpp"
 #include "cartridge.hpp"
+#include "main.hpp"
 #include "menu_bar.hpp"
 #include "message.hpp"
-#include "ppu.hpp"
 
 #include <fstream>
 
@@ -25,11 +24,8 @@ void reset()
 {
 	if ( cartridge != NULL )
 	{
-		clearScreen();
 		cartridge->reset();
-		nes::cpu.reset();
-		PPU::reset();
-		APU::reset();
+		s_nes.reset();
 		resetFrameNumber();
 	}
 }
@@ -38,11 +34,8 @@ void power()
 {
 	if ( cartridge != NULL )
 	{
-		clearScreen();
 		cartridge->reset();
-		nes::cpu.power();
-		PPU::power();
-		APU::reset();
+		s_nes.power();
 		resetFrameNumber();
 
 	}
@@ -50,8 +43,9 @@ void power()
 
 void toggleSpriteFlickering()
 {
-	PPU::sprite_flickering = !PPU::sprite_flickering;
-	sprite_flicker_button.check( PPU::sprite_flickering );
+	bool flicker = !s_nes.getSpriteFlickering();
+	s_nes.setSpriteFlickering( flicker );
+	sprite_flicker_button.check( flicker );
 }
 
 // hiding menu before and show after fullscreen toggle prevents window size changes on Windows
@@ -115,8 +109,8 @@ void stepFrame()
 void setMute( bool mute )
 {
 	muted = mute;
-	APU::mute( muted );
-	mute_button.check( muted );
+	s_nes.setMute( mute );
+	mute_button.check( mute );
 }
 void toggleMute()
 {
@@ -143,8 +137,9 @@ void closeFile()
 	cartridge = NULL;
 	rom_filename = "";
 	save_filename = "";
-	clearScreen();
 	Movie::clear();
+
+	s_nes.setCartridge( nullptr );
 }
 
 void toggleRecording()
@@ -202,7 +197,7 @@ void saveMovie()
 	dialog.setDirectory( movie_folder.c_str() );
 
 	fs::path default_name = movie_folder
-							/ fs::path( rom_filename ).filename().replace_extension( movie_ext );
+		/ fs::path( rom_filename ).filename().replace_extension( movie_ext );
 	dialog.setFilename( default_name.c_str() );
 
 	std::string filename = dialog.getSaveFileName();
@@ -237,9 +232,9 @@ void loadMovie()
 
 void takeScreenshot()
 {
-	SDL_Surface* surface = SDL_CreateRGBSurface( 0, SCREEN_WIDTH, SCREEN_HEIGHT,
+	SDL_Surface* surface = SDL_CreateRGBSurface( 0, nes::Ppu::ScreenWidth, nes::Ppu::ScreenHeight,
 						   24, Pixel::r_mask, Pixel::g_mask, Pixel::b_mask, Pixel::a_mask );
-	surface->pixels = screen;
+	surface->pixels = const_cast<Pixel*>( s_nes.getPixelBuffer() );
 
 	int timestamp = std::time( NULL );
 	std::string name = "screenshot_" + std::to_string( timestamp ) + ".png";
@@ -256,10 +251,7 @@ void saveState( const std::string& filename )
 		{
 			unsigned int checksum = cartridge->getChecksum();
 			writeBinary( fout, checksum );
-			nes::cpu.saveState( fout );
-			PPU::saveState( fout );
-			APU::saveState( fout );
-			cartridge->saveState( fout );
+			s_nes.saveState( fout );
 			fout.close();
 		}
 	}
@@ -290,10 +282,7 @@ void loadState( const std::string& filename )
 			}
 			if ( load )
 			{
-				nes::cpu.loadState( fin );
-				PPU::loadState( fin );
-				APU::loadState( fin );
-				cartridge->loadState( fin );
+				s_nes.loadState( fin );
 			}
 			fin.close();
 		}

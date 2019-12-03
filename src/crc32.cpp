@@ -1,6 +1,6 @@
 #include "crc32.hpp"
 
-const unsigned int crc_table[256] = {
+const uint32_t crc_table[256] = {
     0x00000000UL, 0x77073096UL, 0xee0e612cUL, 0x990951baUL, 0x076dc419UL,
     0x706af48fUL, 0xe963a535UL, 0x9e6495a3UL, 0x0edb8832UL, 0x79dcb8a4UL,
     0xe0d5e91eUL, 0x97d2d988UL, 0x09b64c2bUL, 0x7eb17cbdUL, 0xe7b82d07UL,
@@ -55,11 +55,14 @@ const unsigned int crc_table[256] = {
     0x2d02ef8dUL
 };
 
-unsigned int crc32(const unsigned char* data, unsigned int size) {
-	unsigned int crc = 0xffffffff;
-	for(unsigned int i = 0; i < size; i++) {
-		int index = (crc ^ data[i]) & 0xff;
-		crc = (crc >> 8) ^ crc_table[index];
+uint32_t crc32(const unsigned char* data, size_t size) {
+	uint32_t crc = 0xffffffff;
+    auto it = data;
+    auto end = data + size;
+	for( ; it != end; ++it )
+    {
+		size_t index = ( crc ^ *it ) & 0xff;
+		crc = ( crc >> 8 ) ^ crc_table[ index ];
 	}
 	return crc ^ 0xffffffff;
 }

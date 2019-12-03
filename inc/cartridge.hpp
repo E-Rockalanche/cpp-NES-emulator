@@ -1,23 +1,27 @@
 #ifndef CARTRIDGE_HPP
 #define CARTRIDGE_HPP
 
-class Cartridge;
-
 #include "common.hpp"
-#include "cpu.hpp"
-#include "assert.hpp"
+#include "types.hpp"
 
-class Cartridge /* aka mapper0 */ {
+namespace nes
+{
+
+class Cpu;
+
+class Cartridge /* aka mapper0 */
+{
 public:
-	enum NameTableMirroring {
-		HORIZONTAL,
+	enum class NameTableMirroring
+	{
+		Horizontal,
 		/*
 		       000 400
 		0x2000 A   A
 		0x2800 B   B
 		*/
 
-		VERTICAL
+		Vertical
 		/*
 		       000 400
 		0x2000 A   B
@@ -25,32 +29,34 @@ public:
 		*/
 	};
 
-	static Cartridge* loadFile(std::string);
+	static Cartridge* loadFile( std::string );
 
-	Cartridge(Byte* data);
+	Cartridge( Byte* data );
 	virtual ~Cartridge();
 	virtual void reset();
 
-	Byte readPRG(Word address);
-	virtual void writePRG(Word address, Byte value) {}
+	Byte readPRG( Word address );
+	virtual void writePRG( Word address, Byte value ) {}
 
-	Byte readCHR(Word address);
-	virtual void writeCHR(Word address, Byte value) {}
+	Byte readCHR( Word address );
+	virtual void writeCHR( Word address, Byte value ) {}
 
 	bool hasSRAM();
 	NameTableMirroring nameTableMirroring();
 	unsigned int getChecksum();
 
-	bool saveGame(std::string);
-	bool loadSave(std::string);
+	bool saveGame( std::string );
+	bool loadSave( std::string );
 
 	virtual void signalScanline() {}
+	virtual void setCPU( nes::Cpu& cpu ) {}
 
-	virtual void saveState(std::ostream& out);
-	virtual void loadState(std::istream& in);
+	virtual void saveState( std::ostream& out );
+	virtual void loadState( std::istream& in );
 
 protected:
-	enum Header {
+	enum Header
+	{
 		NES,
 		PRG_SIZE = 4, // 16 KB units
 		CHR_SIZE, // 8 KB units. 0 implies this cartridge has CHR RAM
@@ -97,7 +103,7 @@ protected:
 		  ||  ++- TV system (0: NTSC; 2: PAL; 1/3: dual compatible)
 		  |+----- PRG RAM ($6000-$7FFF) (0: present; 1: not present)
 		  +------ 0: Board has no bus conflicts; 1: Board has bus conflicts
-		
+
 		NES2.0
 		7654 3210
 		---------
@@ -126,11 +132,11 @@ protected:
 		7654 3210
 		---------
 		.... ..VV
-			   ++- CPU/PPU timing mode
-			        0: RP2C02 ("NTSC NES")
-			        1: RP2C07 ("Licensed PAL NES")
-			        2: Multiple-region
-			        3: UMC 6527P ("Dendy")
+		       ++- CPU/PPU timing mode
+		            0: RP2C02 ("NTSC NES")
+		            1: RP2C07 ("Licensed PAL NES")
+		            2: Multiple-region
+		            3: UMC 6527P ("Dendy")
 		*/
 		FLAGS_13,
 		/*
@@ -145,19 +151,20 @@ protected:
 		7654 3210
 		---------
 		.... ..RR
-               ++- Number of miscellaneous ROMs present
+		       ++- Number of miscellaneous ROMs present
 		*/
 		FLAGS_15,
 		/*
 		7654 3210
 		---------
 		..DD DDDD
-          ++-++++- Default Expansion Device
+		  ++-++++- Default Expansion Device
 		*/
 		HEADER_SIZE
 	};
 
-	enum Format {
+	enum Format
+	{
 		ARCHAIC_INES,
 		INES,
 		NES2
@@ -189,14 +196,16 @@ protected:
 	int prg_map[4];
 	int chr_map[8];
 
-	static Format getFormat(Byte* data);
-	static bool verifyHeader(Byte* data);
-	static int getMapperNumber(Byte* data);
+	static Format getFormat( Byte* data );
+	static bool verifyHeader( Byte* data );
+	static int getMapperNumber( Byte* data );
 
-	void setPRGBank(int slot, int bank, int bank_size);
-	void setCHRBank(int slot, int bank, int bank_size);
+	void setPRGBank( int slot, int bank, int bank_size );
+	void setCHRBank( int slot, int bank, int bank_size );
 };
 
-extern Cartridge* cartridge;
+}
+
+extern nes::Cartridge* cartridge;
 
 #endif

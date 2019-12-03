@@ -1,8 +1,8 @@
 
 #include "movie.hpp"
 
-#include "assert.hpp"
 #include "debug.hpp"
+#include "globals.hpp"
 #include "menu_bar.hpp"
 
 #include <fstream>
@@ -16,7 +16,7 @@ namespace Movie
 	{
 		int frame;
 		int joypad;
-		Joypad::Button button;
+		nes::Joypad::Button button;
 		bool pressed;
 	};
 
@@ -28,6 +28,7 @@ namespace Movie
 	{
 		return button_presses.empty();
 	}
+
 	void clear()
 	{
 		button_presses.clear();
@@ -128,9 +129,9 @@ namespace Movie
 		return state == RECORDING;
 	}
 
-	void recordButtonState( int frame, int joypad, Joypad::Button button, bool pressed )
+	void recordButtonState( int frame, int joypad, nes::Joypad::Button button, bool pressed )
 	{
-		assert( state == RECORDING, "cannot record button presses while not recording" );
+		dbAssertMessage( state == RECORDING, "cannot record button presses while not recording" );
 		button_presses.push_back( { frame, joypad, button, pressed } );
 	}
 

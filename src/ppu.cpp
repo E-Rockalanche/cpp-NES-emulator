@@ -1,296 +1,41 @@
-
-
 #include "ppu.hpp"
 
-#include "common.hpp"
+#include "cartridge.hpp"
 #include "cpu.hpp"
-#include "debug.hpp"
 
-#include <cstdlib>
+using namespace nes;
 
-namespace PPU
+namespace
 {
-	int frame = 0;
-
-	enum Scanline
-	{
-		VISIBLE,
-		POSTRENDER,
-		PRERENDER,
-		VBLANK_LINE
-	};
-	template <Scanline s>
-	void scanlineCycle();
-
-	void setStatusFlag( int flag, bool value = true );
-
-	int spriteHeight();
-
-	void clearOAM();
-
-	void incrementYComponent();
-	void incrementXComponent();
-	void incrementVRAMAddress();
-	void updateVRAMX();
-	void updateVRAMY();
-
-	Word nametableAddress();
-	Word attributeAddress();
-	Word backgroundAddress();
-
-	void writeToControl( Byte value );
-	void writeToScroll( Byte value );
-	void writeToAddress( Byte value );
-	void renderPixel();
-
-	void setVBlank();
-	void clearVBlank();
-
-	Word nametableMirror( Word address );
-	Byte read( Word address );
-	void write( Word address, Byte value );
-
-	void loadShiftRegisters();
-	void loadSpritesOnScanline();
-	void loadSpriteRegisters();
-
-	const int PRERENDER_SCANLINE = 261;
-	const int NUM_SCANLINES = 262;
+	constexpr int PRERENDER_SCANLINE = 261;
+	constexpr int NUM_SCANLINES = 262;
 	/*
 	dummy scanline
 	purpose is to fill shift registers with the data for the first two tiles to be rendered
 	no pixels are rendered but the PPU still makes the same memory accesses it would for a regular scanline
 	*/
-	const int POSTRENDER_SCANLINE = 240;
+	constexpr int POSTRENDER_SCANLINE = 240;
 	/*
 	The PPU idles during this scanline.
 	Accessing PPU memory is safe here but VBLANK is set next scanline
 	*/
-	const int VBLANK_SCANLINE = 241;
+	constexpr int VBLANK_SCANLINE = 241;
 	/*
 	VBLANK flag set on second tick of this scanline (and the NMI occurs)
 	The PPU makes no memory accesses during the VBLANK scanlines, so the PPU memory can be freely accessed by the program
 	*/
-	const int NUM_CYCLES = 341;
+	constexpr int NUM_CYCLES = 341;
 
-	const int CHR_START = 0;
-	const int CHR_END = 0x1fff;
+	constexpr int CHR_START = 0;
+	constexpr int CHR_END = 0x1fff;
 
-	const int NAMETABLE_START = 0x2000;
-	const int NAMETABLE_END = 0x3eff;
-	const int NAMETABLE_SIZE = 0x800;
+	constexpr int NAMETABLE_START = 0x2000;
+	constexpr int NAMETABLE_END = 0x3eff;
 
-	const int PALETTE_START = 0x3f00;
-	const int PALETTE_END = 0x3fff;
-	const int PALETTE_SIZE = 0x20;
+	constexpr int PALETTE_START = 0x3f00;
+	constexpr int PALETTE_END = 0x3fff;
 
-	enum Object
-	{
-		Y_POS,
-		TILE_INDEX,
-		ATTRIBUTES,
-		X_POS,
-
-		OBJECT_SIZE
-	};
-
-	enum ObjectAttribute
-	{
-		SPR_PALETTE = 0x03, // 4 to 7
-		PRIORITY = BL( 5 ), // 0: front, 1: back
-		FLIP_HOR = BL( 6 ),
-		FLIP_VER = BL( 7 )
-	};
-
-	const int PRIMARY_OAM_SIZE = 64;
-	const int SECONDARY_OAM_SIZE = 8;
-
-	Byte nametable[NAMETABLE_SIZE];
-	Byte palette[PALETTE_SIZE];
-	Byte primary_oam[PRIMARY_OAM_SIZE * OBJECT_SIZE];
-	Byte secondary_oam[PRIMARY_OAM_SIZE * OBJECT_SIZE]; // uses secondary size if sprite flickering is on
-
-	// lets main know when the screen can be drawn
-	bool can_draw;
-
-	// remove sprite flickering when there are more than 8 on a scanline
-	bool sprite_flickering = true;
-
-	Byte open_bus = 0;
-	Byte read_buffer = 0;
-	Word render_address = 0;
-
-	bool write_toggle; // used to set x_scroll/y_scroll and vram_address
-	Byte control;
-	Byte mask;
-	Byte status;
-	Byte oam_address;
-	Word vram_address; // 15 bits: -yyyNNYYYYYXXXXX (fine y scroll, nametable select, coarse Y scroll, coarse X scroll)
-	Word temp_vram_address; // 15 bits
-	Byte fine_x_scroll; // 3 bits
-
-	bool suppress_vblank;
-
-	Byte bg_latch_low;
-	Byte bg_latch_high;
-	// VVV
-	Word bg_shift_low;
-	Word bg_shift_high;
-
-	Byte attribute_latch; // 2 bit latch
-	// VVV
-	bool attribute_latch_low;
-	bool attribute_latch_high;
-	// VVV
-	Byte attribute_shift_low;
-	Byte attribute_shift_high;
-
-	Byte nametable_latch;
-
-	// uses secondary oam size if sprite flickering
-	Byte sprite_shift_low[PRIMARY_OAM_SIZE];
-	Byte sprite_shift_high[PRIMARY_OAM_SIZE];
-	Byte sprite_x_counter[PRIMARY_OAM_SIZE];
-	Byte sprite_attribute_latch[PRIMARY_OAM_SIZE];
-
-	bool sprite_zero_next_scanline;
-	bool sprite_zero_this_scanline;
-	bool sprite_zero_hit;
-
-	int cycle;
-	int scanline;
-	bool odd_frame;
-
-	struct SaveState
-	{
-		bool can_draw;
-		bool sprite_flickering;
-		Byte open_bus;
-		Byte read_buffer;
-		Word render_address;
-		bool write_toggle;
-		Byte control;
-		Byte mask;
-		Byte status;
-		Byte oam_address;
-		Word vram_address;
-		Word temp_vram_address;
-		Byte fine_x_scroll;
-		bool suppress_vblank;
-		Byte bg_latch_low;
-		Byte bg_latch_high;
-		Word bg_shift_low;
-		Word bg_shift_high;
-		Byte attribute_latch;
-		bool attribute_latch_low;
-		bool attribute_latch_high;
-		Byte attribute_shift_low;
-		Byte attribute_shift_high;
-		Byte nametable_latch;
-		bool sprite_zero_next_scanline;
-		bool sprite_zero_this_scanline;
-		bool sprite_zero_hit;
-		int cycle;
-		int scanline;
-		bool odd_frame;
-	};
-
-	void saveState( std::ostream& out )
-	{
-		SaveState ss;
-		ss.can_draw = can_draw;
-		ss.sprite_flickering = sprite_flickering;
-		ss.open_bus = open_bus;
-		ss.read_buffer = read_buffer;
-		ss.render_address = render_address;
-		ss.write_toggle = write_toggle;
-		ss.control = control;
-		ss.mask = mask;
-		ss.status = status;
-		ss.oam_address = oam_address;
-		ss.vram_address = vram_address;
-		ss.temp_vram_address = temp_vram_address;
-		ss.fine_x_scroll = fine_x_scroll;
-		ss.suppress_vblank = suppress_vblank;
-		ss.bg_latch_low = bg_latch_low;
-		ss.bg_latch_high = bg_latch_high;
-		ss.bg_shift_low = bg_shift_low;
-		ss.bg_shift_high = bg_shift_high;
-		ss.attribute_latch = attribute_latch;
-		ss.attribute_latch_low = attribute_latch_low;
-		ss.attribute_latch_high = attribute_latch_high;
-		ss.attribute_shift_low = attribute_shift_low;
-		ss.attribute_shift_high = attribute_shift_high;
-		ss.nametable_latch = nametable_latch;
-		ss.sprite_zero_next_scanline = sprite_zero_next_scanline;
-		ss.sprite_zero_this_scanline = sprite_zero_this_scanline;
-		ss.sprite_zero_hit = sprite_zero_hit;
-		ss.cycle = cycle;
-		ss.scanline = scanline;
-		ss.odd_frame = odd_frame;
-
-		out.write( ( const char* )nametable, NAMETABLE_SIZE );
-		out.write( ( const char* )palette, PALETTE_SIZE );
-		out.write( ( const char* )primary_oam, PRIMARY_OAM_SIZE * OBJECT_SIZE );
-		out.write( ( const char* )secondary_oam, PRIMARY_OAM_SIZE * OBJECT_SIZE );
-
-		out.write( ( const char* )sprite_shift_low, PRIMARY_OAM_SIZE );
-		out.write( ( const char* )sprite_shift_high, PRIMARY_OAM_SIZE );
-		out.write( ( const char* )sprite_x_counter, PRIMARY_OAM_SIZE );
-		out.write( ( const char* )sprite_attribute_latch, PRIMARY_OAM_SIZE );
-
-		out.write( ( const char* )&ss, sizeof( SaveState ) );
-	}
-
-	void loadState( std::istream& in )
-	{
-		SaveState ss;
-
-		in.read( ( char* )nametable, NAMETABLE_SIZE );
-		in.read( ( char* )palette, PALETTE_SIZE );
-		in.read( ( char* )primary_oam, PRIMARY_OAM_SIZE * OBJECT_SIZE );
-		in.read( ( char* )secondary_oam, PRIMARY_OAM_SIZE * OBJECT_SIZE );
-
-		in.read( ( char* )sprite_shift_low, PRIMARY_OAM_SIZE );
-		in.read( ( char* )sprite_shift_high, PRIMARY_OAM_SIZE );
-		in.read( ( char* )sprite_x_counter, PRIMARY_OAM_SIZE );
-		in.read( ( char* )sprite_attribute_latch, PRIMARY_OAM_SIZE );
-
-		in.read( ( char* )&ss, sizeof( SaveState ) );
-
-		can_draw = ss.can_draw;
-		sprite_flickering = ss.sprite_flickering;
-		open_bus = ss.open_bus;
-		read_buffer = ss.read_buffer;
-		render_address = ss.render_address;
-		write_toggle = ss.write_toggle;
-		control = ss.control;
-		mask = ss.mask;
-		status = ss.status;
-		oam_address = ss.oam_address;
-		vram_address = ss.vram_address;
-		temp_vram_address = ss.temp_vram_address;
-		fine_x_scroll = ss.fine_x_scroll;
-		suppress_vblank = ss.suppress_vblank;
-		bg_latch_low = ss.bg_latch_low;
-		bg_latch_high = ss.bg_latch_high;
-		bg_shift_low = ss.bg_shift_low;
-		bg_shift_high = ss.bg_shift_high;
-		attribute_latch = ss.attribute_latch;
-		attribute_latch_low = ss.attribute_latch_low;
-		attribute_latch_high = ss.attribute_latch_high;
-		attribute_shift_low = ss.attribute_shift_low;
-		attribute_shift_high = ss.attribute_shift_high;
-		nametable_latch = ss.nametable_latch;
-		sprite_zero_next_scanline = ss.sprite_zero_next_scanline;
-		sprite_zero_this_scanline = ss.sprite_zero_this_scanline;
-		sprite_zero_hit = ss.sprite_zero_hit;
-		cycle = ss.cycle;
-		scanline = ss.scanline;
-		odd_frame = ss.odd_frame;
-	}
-
-	const int nes_palette[] =
+	const Pixel s_nesColourPalette[] =
 	{
 		0x7C7C7C, 0x0000FC, 0x0000BC, 0x4428BC, 0x940084, 0xA80020, 0xA81000, 0x881400,
 		0x503000, 0x007800, 0x006800, 0x005800, 0x004058, 0x000000, 0x000000, 0x000000,
@@ -302,852 +47,965 @@ namespace PPU
 		0xF8D878, 0xD8F878, 0xB8F8B8, 0xB8F8D8, 0x00FCFC, 0xF8D8F8, 0x000000, 0x000000
 	};
 
-	const char* register_names[] =
+	template<typename MASK>
+	inline bool testFlag( MASK mask, size_t bit )
 	{
-		"PPU CONTROL",
-		"PPU MASK",
-		"PPU STATUS",
-		"OAM ADDRESS",
-		"OAM DATA",
-		"PPU SCROLL",
-		"PPU ADDRESS",
-		"PPU DATA"
-	};
-
-	void power()
-	{
-		cycle = 0;
-		scanline = 0;
-		odd_frame = false;
-
-		control = 0;
-		mask = 0;
-		status = 0xc0;
-		oam_address = 0;
-		vram_address = 0;
-		temp_vram_address = 0;
-		fine_x_scroll = 0;
-
-		suppress_vblank = false;
-
-		write_toggle = false;
-		open_bus = 0;
-
-		can_draw = false;
-
-		sprite_zero_next_scanline = false;
-		sprite_zero_this_scanline = false;
-
-		for ( int n = 0; n < PRIMARY_OAM_SIZE * OBJECT_SIZE; n++ )
-		{
-			primary_oam[n] = 0xff;
-		}
-
-		for ( int x = 0; x < SCREEN_WIDTH; x++ )
-		{
-			for ( int y = 0; y < SCREEN_HEIGHT; y++ )
-			{
-				screen[x + y * SCREEN_WIDTH] = Pixel( 0 );
-			}
-		}
-
-		// clock can start in one of 4 different cpu synchronization alignments
-		for ( int i = rand() % 4; i < 3; i++ ) clockTick();
+		return mask & ( 1 << bit );
 	}
+}
 
-	void reset()
-	{
-		cycle = 0;
-		scanline = 0;
-		odd_frame = false;
+inline void Ppu::setStatusFlag( Byte flag )
+{
+	m_status |= flag;
+}
 
-		control = 0;
-		mask = 0;
+inline void Ppu::clearStatusFlag( Byte flag )
+{
+	m_status &= ~flag;
+}
 
-		suppress_vblank = false;
+inline void Ppu::setStatusFlag( Byte flag, bool value )
+{
+	if ( value )
+		setStatusFlag( flag );
+	else
+		clearStatusFlag( flag );
+}
 
-		write_toggle = false;
+inline Byte Ppu::getSpriteHeight()
+{
+	return ( m_control & SpriteHeight ) ? 16 : 8;
+}
 
-		can_draw = false;
+inline void Ppu::clearVBlank()
+{
+	clearStatusFlag( VBlank );
+}
 
-		sprite_zero_next_scanline = false;
-		sprite_zero_this_scanline = false;
+inline size_t Ppu::getSecondaryOamSize()
+{
+	return m_spriteFlickering ? SECONDARY_OAM_SIZE : PRIMARY_OAM_SIZE;
+}
 
-		for ( int x = 0; x < SCREEN_WIDTH; x++ )
-		{
-			for ( int y = 0; y < SCREEN_HEIGHT; y++ )
-			{
-				screen[x + y * SCREEN_WIDTH] = Pixel( 0 );
-			}
-		}
+inline Word Ppu::getNametableAddress()
+{
+	return 0x2000 | ( m_vramAddress & 0x0fff );
+}
 
-		// clock can start in one of 4 different cpu synchronization alignments
-		for ( int i = rand() % 4; i < 3; i++ ) clockTick();
-	}
+inline Word Ppu::getAttributeAddress()
+{
+	return 0x230
+		| ( m_vramAddress & 0x0c00 )
+		| ( ( m_vramAddress >> 4 ) & 0x38 )
+		| ( ( m_vramAddress >> 2 ) & 0x07 );
+}
 
-	bool readyToDraw()
-	{
-		if ( can_draw )
-		{
-			can_draw = false;
-			return true;
-		}
+inline Word Ppu::getBackgroundAddress()
+{
+	return ( ( m_control & BackgroundTileSelect ) ? 0x1000 : 0 )
+		+ ( m_nametableLatch * 16 )
+		+ ( ( m_vramAddress >> 12 ) & 0x07 );
+}
+
+void Ppu::clearScreen()
+{
+	for( auto& pixel : m_pixels )
+		pixel = Pixel( 0, 0, 0 );
+}
+
+void Ppu::randomizeClockSync()
+{
+	// clock can start in one of 4 different cpu synchronization alignments
+	for( int i = 0, end = rand() % 4; i < end; ++i )
+		tick();
+}
+
+void Ppu::power()
+{
+	m_cycle = 0;
+	m_scanline = 0;
+	m_oddFrame = 0;
+	m_control = 0;
+	m_mask = 0;
+	m_status = 0xc0;
+	m_oamAddress = 0;
+	m_vramAddress = 0;
+	m_tempVRAMAddress = 0;
+	m_fineXScroll = 0;
+	m_supressVBlank = false;
+	m_writeToggle = false;
+	m_openBus = 0;
+	m_canDraw = 0;
+	m_spriteZeroNextScanline = false;
+	m_spriteZeroThisScanline = false;
+
+	for( auto& value : m_primaryOAM )
+		value = 0xff;
+
+	clearScreen();
+	randomizeClockSync();
+}
+
+void Ppu::reset()
+{
+	m_cycle = 0;
+	m_scanline = 0;
+	m_oddFrame = false;
+	m_control = 0;
+	m_mask = 0;
+	m_supressVBlank = false;
+	m_writeToggle = false;
+	m_canDraw = false;
+	m_spriteZeroNextScanline = false;
+	m_spriteZeroThisScanline = false;
+
+	clearScreen();
+	randomizeClockSync();
+}
+
+bool Ppu::readyToDraw()
+{
+	if ( !m_canDraw )
 		return false;
-	}
 
-	void writeByte( Word address, Byte value )
+	m_canDraw = false;
+	return true;
+}
+
+Byte Ppu::readRegister( size_t reg )
+{
+	switch( static_cast<PpuRegister>( reg ) )
 	{
-		open_bus = value;
-		switch ( address )
+		case PpuRegister::Status:
 		{
-			case PPU_CONTROL:
-				writeToControl( value );
-				break;
+			m_openBus = ( m_openBus & 0x1f ) | m_status;
+			clearVBlank();
+			m_writeToggle = false;
 
-			case PPU_MASK:
-				mask = value;
-				break;
-
-			case OAM_ADDRESS:
-				oam_address = value;
-				break;
-
-			case OAM_DATA:
-				primary_oam[oam_address++] = value;
-				break;
-
-			case PPU_SCROLL:
-				writeToScroll( value );
-				break;
-
-			case PPU_ADDRESS:
-				writeToAddress( value );
-				break;
-
-			case PPU_DATA:
-				write( vram_address, value );
-				incrementVRAMAddress();
-				break;
-
-			default:
-				dbLogError( "PPU writing to %s", register_names[ address ] );
-		}
-	}
-
-	Byte readByte( Word address )
-	{
-		switch ( address )
-		{
-			case PPU_STATUS:
-				open_bus = ( open_bus & 0x1f ) | status;
-				clearVBlank();
-				write_toggle = false;
-
-				if ( scanline == VBLANK_SCANLINE )
+			if ( m_scanline == VBLANK_SCANLINE )
+			{
+				switch( m_cycle )
 				{
-					if ( cycle == 0 )
-					{
-						suppress_vblank = true;
-					}
-					else if ( cycle == 1 || cycle == 2 )
-					{
-						nes::cpu.setNMI( false );
-					}
-				}
-				break;
+					case 0:
+						m_supressVBlank = true;
+						break;
 
-			case OAM_DATA:
-				open_bus = primary_oam[oam_address];
-				break;
+					case 1 ... 2:
+						m_cpu->setNMI( false );
+						break;
 
-			case PPU_DATA:
-				if ( vram_address >= PALETTE_START )
-				{
-					// no buffering for palette ram
-					read_buffer = read( vram_address );
-					open_bus = read_buffer;
+					default:
+						break;
 				}
-				else
-				{
-					open_bus = read_buffer;
-					read_buffer = read( vram_address );
-				}
-				incrementVRAMAddress();
-				break;
-
-			default:
-				break;
+			}
+			break;
 		}
 
-		return open_bus;
+		case PpuRegister::OamData:
+			m_openBus = m_primaryOAM[ m_oamAddress ];
+			break;
+
+		case PpuRegister::Data:
+		{
+			if ( m_vramAddress >= PALETTE_START )
+			{
+				m_readBuffer = read( m_vramAddress );
+				m_openBus = m_readBuffer;
+			}
+			else
+			{
+				m_openBus = m_readBuffer;
+				m_readBuffer = read( m_vramAddress );
+			}
+			incrementVRAMAddress();
+			break;
+		}
+
+		default:
+			break;
 	}
 
-	void writeToControl( Byte value )
+	return m_openBus;
+}
+
+void Ppu::writeRegister( size_t reg, Byte value )
+{
+	m_openBus = value;
+	switch( static_cast<PpuRegister>( reg ) )
+	{
+		case PpuRegister::Control:
+			writeToControl( value );
+			break;
+
+		case PpuRegister::Mask:
+			m_mask = value;
+			break;
+
+		case PpuRegister::OamAddress:
+			m_oamAddress = value;
+			break;
+
+		case PpuRegister::OamData:
+			m_primaryOAM[ m_oamAddress++ ] = value;
+			break;
+
+		case PpuRegister::Scroll:
+			writeToScroll( value );
+			break;
+
+		case PpuRegister::Address:
+			writeToAddress( value );
+			break;
+
+		case PpuRegister::Data:
+			write( m_vramAddress, value );
+			incrementVRAMAddress();
+			break;
+
+		default:
+			break;
+	}
+}
+
+void Ppu::writeToControl( Byte value )
+{
+	if ( !testFlag( m_control, NmiEnable )
+		&& testFlag( value, NmiEnable )
+		&& testFlag( m_status, VBlank )
+		&& ( m_scanline != PRERENDER_SCANLINE ) )
 	{
 		// manual NMI trigger during vblank
-		if ( !testFlag( control, NMI_ENABLE )
-			 && testFlag( value, NMI_ENABLE )
-			 && testFlag( status, VBLANK )
-			 && ( scanline != PRERENDER_SCANLINE ) )
-		{
-			nes::cpu.setNMI();
-
-			// NMI suppression near vblank
-		}
-		else if ( testFlag( control, NMI_ENABLE )
-				  && !testFlag( value, NMI_ENABLE )
-				  && ( scanline == VBLANK_SCANLINE )
-				  && ( cycle <= 2 ) )
-		{
-			nes::cpu.setNMI( false );
-		}
-
-		control = value;
-
-		temp_vram_address = ( temp_vram_address & 0x73ff )
-							| ( ( value & 0x3 ) << 10 ); // set name tables bits
+		m_cpu->setNMI( true );
+	}
+	else if ( testFlag( m_control, NmiEnable )
+		&& !testFlag( value, NmiEnable )
+		&& ( m_scanline == VBLANK_SCANLINE )
+		&& ( m_cycle <= 2 ) )
+	{
+		// supress NMI near vblank
+		m_cpu->setNMI( false );
 	}
 
-	void writeToScroll( Byte value )
+	m_control = value;
+
+	// set name tables bits
+	m_tempVRAMAddress = ( m_tempVRAMAddress & 0x73ff )
+		| ( ( value & 0x03 ) << 10 );
+}
+
+void Ppu::writeToScroll( Byte value )
+{
+	if ( !m_writeToggle )
 	{
-		if ( !write_toggle )
+		// first write
+
+		m_fineXScroll = value & 0x07;
+
+		// set coarse x
+		m_tempVRAMAddress = ( m_tempVRAMAddress & 0x7fe0 )
+			| ( value >> 3 );
+	}
+	else
+	{
+		// second write
+		Byte fineY = value & 0x07;
+		Byte coarseY = value >> 3;
+		m_tempVRAMAddress = ( m_tempVRAMAddress & 0x0c1f )
+			| ( fineY << 12 )
+			| ( coarseY << 5 );
+	}
+	m_writeToggle = !m_writeToggle;
+}
+
+void Ppu::writeToAddress( Byte value )
+{
+	if ( !m_writeToggle )
+	{
+		// first write
+		// set address high
+		m_tempVRAMAddress = ( m_tempVRAMAddress & 0x00ff )
+			| ( ( value & 0x3f ) << 8 );
+	}
+	else
+	{
+		// second write
+		// set address low
+		m_tempVRAMAddress = ( m_tempVRAMAddress & 0x7f00 ) | value;
+		m_vramAddress = m_tempVRAMAddress;
+	}
+	m_writeToggle = !m_writeToggle;
+}
+
+Byte Ppu::read( Word address )
+{
+	switch( address )
+	{
+		case CHR_START ... CHR_END:
+			dbAssert( m_cartridge );
+			return m_cartridge->readCHR( address );
+
+		case NAMETABLE_START ... NAMETABLE_END:
 		{
-			// first write
-			fine_x_scroll = value & 0x7; // fine x
-			// coarse x
-			temp_vram_address = ( temp_vram_address & 0x7fe0 ) | ( value >> 3 );
+			Word ntIndex = nametableMirror( address );
+			dbAssert( ntIndex < NAMETABLE_SIZE );
+			return m_nametable[ ntIndex ];
 		}
-		else
+
+		case PALETTE_START ... PALETTE_END:
 		{
-			// second write
-			int fine_y = value & 0x7;
-			int coarse_y = value >> 3;
-			temp_vram_address = ( temp_vram_address & 0x0c1f )
-								| ( fine_y << 12 ) | ( coarse_y << 5 );
+			if ( ( address & 0x13 ) == 0x10 )
+				address &= ~0x10;
+
+			return m_palette[ address ]
+				& ( testFlag( m_mask, GreyScale ) ? 0x30 : 0xff );
 		}
-		write_toggle = !write_toggle;
 	}
 
-	void writeToAddress( Byte value )
+	dbBreak();
+	return 0;
+}
+
+void Ppu::write( Word address, Byte value )
+{
+	switch( address )
 	{
-		if ( !write_toggle )
+		case CHR_START ... CHR_END:
+			dbAssert( m_cartridge );
+			m_cartridge->writeCHR( address, value );
+			break;
+
+		case NAMETABLE_START ... NAMETABLE_END:
 		{
-			// first write
-			temp_vram_address = ( temp_vram_address & 0x00ff )
-								| ( ( value & 0x3f ) << 8 ); // set address high
+			Word ntIndex = nametableMirror( address );
+			dbAssert( ntIndex < NAMETABLE_SIZE );
+			m_nametable[ ntIndex ] = value;
+			break;
 		}
-		else
+
+		case PALETTE_START ... PALETTE_END:
 		{
-			// second write
-			temp_vram_address = ( temp_vram_address & 0x7f00 )
-								| ( value & 0xff ); // set address low
-			vram_address = temp_vram_address;
+			if ( ( address & 0x13 ) == 0x10 )
+				address &= ~0x10;
+
+			m_palette[ address ] = value;
+			break;
 		}
-		write_toggle = !write_toggle;
+	}
+}
+
+void Ppu::setVBlank()
+{
+	if ( m_supressVBlank )
+	{
+		m_supressVBlank = false;
+		return;
 	}
 
-	void setStatusFlag( int flag, bool value )
+	setStatusFlag( VBlank );
+	if ( testFlag( m_control, NmiEnable ) )
+		m_cpu->setNMI();
+}
+
+void Ppu::clearOAM()
+{
+	auto it = &m_secondaryOAM;
+	auto end = it + getSecondaryOamSize();
+	for( ; it != end; ++it )
 	{
-		if ( value )
+		*it = 0xff;
+	}
+}
+
+void Ppu::tick()
+{
+	m_cycle = ( m_cycle + 1 ) % 341;
+	if ( ( m_cycle == 340 )
+		&& ( m_scanline == PRERENDER_SCANLINE )
+		&& m_oddFrame
+		&& renderingEnabled() )
+	{
+		m_cycle = 0;
+	}
+
+	if ( m_cycle == 0 )
+	{
+		m_scanline = ( m_scanline + 1 ) % 262;
+		if ( m_scanline == 0 )
 		{
-			status |= flag;
+			m_oddFrame = !m_oddFrame;
+			++m_frame;
 		}
-		else
+	}
+
+	constexpr auto LastVisible = ScreenHeight - 1;
+	switch( m_scanline )
+	{
+		case 0 ... LastVisible:
+			scanlineCycle<Scanline::Visible>();
+			break;
+
+		case POSTRENDER_SCANLINE:
+			scanlineCycle<Scanline::PostRender>();
+			break;
+
+		case VBLANK_SCANLINE:
+			scanlineCycle<Scanline::VBlankLine>();
+			break;
+
+		case PRERENDER_SCANLINE:
+			scanlineCycle<Scanline::PreRender>();
+			break;
+
+		default:
+			break;
+	}
+}
+
+template <Ppu::Scanline s>
+void Ppu::scanlineCycle()
+{
+	if ( ( s == Scanline::VBlankLine ) && ( m_cycle == 1 ) )
+	{
+		setVBlank();
+	}
+	else if ( ( s == Scanline::PostRender ) && ( m_cycle == 0 ) )
+	{
+		m_canDraw = true;
+	}
+	else if constexpr ( ( s == Scanline::Visible ) || ( s == Scanline::PreRender ) )
+	{
+		// sprites:
+		switch( m_cycle )
 		{
-			status &= ~flag;
-		}
-	}
-
-	bool renderingEnabled()
-	{
-		return mask & ( SHOW_BACKGROUND | SHOW_SPRITES );
-	}
-
-	int spriteHeight()
-	{
-		return testFlag( control, SPRITE_HEIGHT ) ? 16 : 8;
-	}
-
-	void setVBlank()
-	{
-		if ( !suppress_vblank )
-		{
-			setStatusFlag( VBLANK, true );
-			if ( testFlag( control, NMI_ENABLE ) )
+			case 1:
 			{
-				nes::cpu.setNMI();
+				clearOAM();
+				if constexpr ( s == Scanline::PreRender )
+				{
+					clearStatusFlag( SpriteOverflow );
+					clearStatusFlag( Sprite0Hit );
+					clearVBlank();
+				}
+				break;
 			}
+
+			case 257:
+				loadSpritesOnScanline();
+				break;
+
+			case 321:
+				loadSpriteRegisters();
+				break;
 		}
-		suppress_vblank = false;
-	}
 
-	void clearVBlank()
-	{
-		setStatusFlag( VBLANK, false );
-	}
-
-	int secondaryOamSize()
-	{
-		return sprite_flickering ? SECONDARY_OAM_SIZE : PRIMARY_OAM_SIZE;
-	}
-
-	void clearOAM()
-	{
-		int size = secondaryOamSize() * OBJECT_SIZE;
-		for ( int i = 0; i < size; i++ )
+		// background:
+		switch( m_cycle )
 		{
-			secondary_oam[i] = 0xff;
-		}
-	}
-
-	void clockTick()
-	{
-		cycle = ( cycle + 1 ) % 341;
-		if ( odd_frame
-			 && ( scanline == PRERENDER_SCANLINE )
-			 && renderingEnabled()
-			 && ( cycle == 340 ) )
-		{
-			cycle = 0;
-		}
-		if ( cycle == 0 )
-		{
-			scanline = ( scanline + 1 ) % 262;
-			if ( scanline == 0 )
+			case 2 ... 255:
+			case 322 ... 337:
 			{
-				odd_frame = !odd_frame;
-				frame++;
-			}
-		}
-
-		switch ( scanline )
-		{
-			case 0 ... 239:
-				scanlineCycle<VISIBLE>();
-				break;
-			case 240:
-				scanlineCycle<POSTRENDER>();
-				break;
-			case 241:
-				scanlineCycle<VBLANK_LINE>();
-				break;
-			case 261:
-				scanlineCycle<PRERENDER>();
-				break;
-			default:
-				break;
-		}
-	}
-
-	// <Scanline> 24.34% of runtime according to gprof
-	template <Scanline s>
-	void scanlineCycle()
-	{
-		if ( s == VBLANK_LINE && cycle == 1 )
-		{
-			setVBlank();
-		}
-		else if ( s == POSTRENDER && cycle == 0 )
-		{
-			can_draw = true;
-		}
-		else if ( s == VISIBLE || s == PRERENDER )
-		{
-			// sprites
-			switch ( cycle )
-			{
-				case 1:
-					clearOAM();
-					if ( s == PRERENDER )
+				renderPixel();
+				switch( m_cycle % 8 )
+				{
+					// nametable:
+					case 1:
 					{
-						setStatusFlag( SPRITE_OVERFLOW, false );
-						setStatusFlag( SPRITE_0_HIT, false );
-						clearVBlank();
+						m_renderAddress = getNametableAddress();
+						loadShiftRegisters();
+						break;
 					}
-					break;
 
-				case 257:
-					loadSpritesOnScanline();
-					break;
+					case 2:
+						m_nametableLatch = read( m_renderAddress );
+						break;
 
-				case 321:
-					loadSpriteRegisters();
-					break;
-			}
+					// attribute:
+					case 3:
+						m_renderAddress = getAttributeAddress();
+						break;
 
-			// background
-			switch ( cycle )
-			{
-				case 2 ... 255:
-				case 322 ... 337:
-					renderPixel();
-					switch ( cycle % 8 )
+					case 4:
 					{
-						// nametable:
-						case 1:
-							render_address = nametableAddress();
-							loadShiftRegisters();
-							break;
-						case 2:
-							nametable_latch = read( render_address );
-							break;
+						m_attributeLatch = read( m_renderAddress );
+						switch( m_vramAddress & 0x0042 )
+						{
+							case 0x0002:
+								m_attributeLatch >>= 2;
+								break;
 
-						// attribute:
-						case 3:
-							render_address = attributeAddress();
-							break;
-						case 4:
-							attribute_latch = read( render_address );
-							if ( testFlag( vram_address, 0x40 ) )
-								attribute_latch >>= 4;
-							if ( testFlag( vram_address, 0x02 ) )
-								attribute_latch >>= 2;
-							break;
+							case 0x0040:
+								m_attributeLatch >>= 4;
+								break;
 
-						// background
-						case 5:
-							render_address = backgroundAddress();
-							break;
-						case 6:
-							bg_latch_low = read( render_address );
-							break;
-						case 7:
-							render_address += 8;
-							break;
-						case 0:
-							bg_latch_high = read( render_address );
-							incrementXComponent();
-							break;
+							case 0x0042:
+								m_attributeLatch >>= 6;
+								break;
+						}
+						break;
 					}
-					break;
 
-				case 256:
-					renderPixel();
-					bg_latch_high = read( render_address );
-					incrementYComponent();
-					break;
+					// background
+					case 5:
+						m_renderAddress = getBackgroundAddress();
+						break;
 
-				case 257:
-					renderPixel();
-					loadShiftRegisters();
-					updateVRAMX();
-					break;
+					case 6:
+						m_bgLatchLow = read( m_renderAddress );
+						break;
 
-				case 280 ... 304:
-					if ( s == PRERENDER )
+					case 7:
+						m_renderAddress += 8;
+						break;
+
+					case 0:
 					{
-						updateVRAMY();
+						m_bgLatchHigh = read( m_renderAddress );
+						incrementXComponent();
+						break;
 					}
-					break;
-
-				// no shift loading
-				case 1:
-					render_address = nametableAddress();
-					if ( s == PRERENDER )
-					{
-						clearVBlank();
-					}
-					break;
-				case 321:
-				case 339:
-					render_address = nametableAddress();
-					break;
-
-				// nametable fetch instead of attribute
-				case 338:
-					nametable_latch = read( render_address );
-					break;
-				case 340:
-					nametable_latch = read( render_address );
+				}
+				break;
 			}
 
-			// signal scanline to MMC3
-			if ( renderingEnabled()
-				 && ( ( control & 0x10 )
-					  ? ( cycle == 324 || cycle == 4 )
-					  : ( cycle == 260 ) ) )
+			case 256:
 			{
-				cartridge->signalScanline();
+				renderPixel();
+				m_bgLatchHigh = read( m_renderAddress );
+				incrementYComponent();
+				break;
 			}
-		}
-	}
 
-	void incrementXComponent()
-	{
-		if ( !renderingEnabled() ) return;
-
-		if ( ( vram_address & 0x001f ) == 31 ) // if coarse X == 31
-		{
-			vram_address ^= 0x041f;
-			/*
-			vram_address &= ~0x001f; // coarse X = 0
-			vram_address ^= 0x0400; // switch horizontal nametable
-			*/
-		}
-		else
-		{
-			vram_address++;
-		}
-	}
-
-	void incrementYComponent()
-	{
-		if ( !renderingEnabled() ) return;
-
-		if ( ( vram_address & 0x7000 ) != 0x7000 ) // if fine Y < 7
-		{
-			vram_address += 0x1000; // increment fine Y
-		}
-		else
-		{
-			vram_address &= ~0x7000; // fine Y = 0
-			int y = ( vram_address >> 5 ) & 0x1f; // let y = coarse Y
-			if ( y == 29 )
+			case 257:
 			{
-				y = 0; // coarse Y = 0
-				vram_address ^= 0x0800; // switch vertical nametable
+				renderPixel();
+				loadShiftRegisters();
+				updateVRAMX();
+				break;
 			}
-			else if ( y == 31 )
+
+			case 280 ... 304:
 			{
-				y = 0; // coarse Y = 0, nametable not switched
+				if constexpr ( s == Scanline::PreRender )
+					updateVRAMY();
+				break;
 			}
-			else
+
+			// no shift loading:
+			case 1:
 			{
-				y += 1; // increment coarse Y
+				m_renderAddress = getNametableAddress();
+				if constexpr ( s == Scanline::PreRender )
+					clearVBlank();
+				break;
 			}
-			vram_address = ( vram_address & ~0x03e0 ) | ( y << 5 ); // put coarse Y back into v
-		}
-	}
 
-	void updateVRAMX()
-	{
-		if ( !renderingEnabled() ) return;
-		static const int X_COMPONENT = 0x041f;
-		vram_address = ( vram_address & ~X_COMPONENT ) | ( temp_vram_address & X_COMPONENT );
-	}
-
-	void updateVRAMY()
-	{
-		if ( !renderingEnabled() ) return;
-		static const int Y_COMPONENT = 0x7be0;
-		vram_address = ( vram_address & ~Y_COMPONENT ) | ( temp_vram_address & Y_COMPONENT );
-	}
-
-	Word nametableAddress()
-	{
-		return 0x2000 | ( vram_address & 0x0fff );
-	}
-
-	Word attributeAddress()
-	{
-		return 0x23c0
-			   | ( vram_address & 0x0c00 )
-			   | ( ( vram_address >> 4 ) & 0x38 )
-			   | ( ( vram_address >> 2 ) & 0x07 );
-	}
-
-	Word backgroundAddress()
-	{
-		return ( testFlag( control, BACKGROUND_TILE_SELECT ) * 0x1000 )
-			   + ( nametable_latch * 16 )
-			   + ( ( vram_address >> 12 ) & 0x07 );
-	}
-
-	void incrementVRAMAddress()
-	{
-		if ( ( ( scanline < 240 ) || ( scanline == PRERENDER_SCANLINE ) ) && renderingEnabled() )
-		{
-			// this will happen if PPU_DATA read/writes occur during rendering
-			incrementXComponent();
-			incrementYComponent();
-		}
-		else
-		{
-			vram_address += testFlag( control, INCREMENT_MODE ) ? 32 : 1;
-		}
-	}
-
-	void writeToOAM( Byte value )
-	{
-		primary_oam[oam_address++] = value;
-	}
-
-	Word nametableMirror( Word address )
-	{
-		Word new_address;
-		switch ( cartridge->nameTableMirroring() )
-		{
-			case Cartridge::HORIZONTAL:
-				new_address = ( ( address / 2 ) & 0x400 ) + ( address % 0x400 );
+			case 321:
+			case 339:
+				m_renderAddress = getNametableAddress();
 				break;
 
-			case Cartridge::VERTICAL:
-				new_address = address % 0x800;
+			// nametable fetach instead of attribute
+			case 338:
+			case 340:
+				m_nametableLatch = read( m_renderAddress );
+				break;
+		}
+
+		// signal scanline to MMC3 cartridge
+		if ( renderingEnabled()
+			&& ( ( m_control & 0x10 )
+				? ( m_cycle == 324 || m_cycle == 4 )
+				: ( m_cycle == 260 ) ) )
+		{
+			dbAssert( m_cartridge );
+			m_cartridge->signalScanline();
+		}
+	}
+}
+
+void Ppu::incrementXComponent()
+{
+	if ( !renderingEnabled() )
+		return;
+
+	if ( ( m_vramAddress & 0x001f ) == 0x001f ) // if coarse x == 31
+	{
+		// set coarse x to 0
+		// switch horizontal nametable
+		m_vramAddress ^= 0x041f;
+	}
+	else
+	{
+		++m_vramAddress;
+	}
+}
+
+void Ppu::incrementYComponent()
+{
+	if ( !renderingEnabled() )
+		return;
+
+	if ( ( m_vramAddress & 0x7000 ) != 0x7000 ) // if fine Y != 7
+	{
+		// increment fine Y
+		m_vramAddress += 0x1000;
+	}
+	else
+	{
+		m_vramAddress &= ~0x7000; // set fine Y to 0
+
+		auto y = ( m_vramAddress >> 5 ) & 0x1f; // let y = coarse Y
+		switch( y )
+		{
+			case 29:
+			{
+				y = 0;
+				m_vramAddress ^= 0x0800; // switch vertical nametable
+				break;
+			}
+
+			case 31:
+				y = 0;
 				break;
 
 			default:
-				assert( false, "invalid nametable mirroring" );
+				++y;
 				break;
 		}
-		return new_address;
+
+		// set coarse Y
+		m_vramAddress = ( m_vramAddress & ~0x03e0 ) | ( y << 5 );
+	}
+}
+
+void Ppu::updateVRAMX()
+{
+	constexpr Word XComponent = 0x041f;
+
+	if ( renderingEnabled() )
+	{
+		m_vramAddress = ( m_vramAddress & ~XComponent )
+			| ( m_tempVRAMAddress & XComponent );
+	}
+}
+
+void Ppu::updateVRAMY()
+{
+	constexpr Word YComponent = 0x7be0;
+
+	if ( renderingEnabled() )
+	{
+		m_vramAddress = ( m_vramAddress & ~YComponent )
+			| ( m_tempVRAMAddress & YComponent );
+	}
+}
+
+void Ppu::incrementVRAMAddress()
+{
+	if ( ( ( m_scanline < (int)ScreenHeight ) || ( m_scanline == PRERENDER_SCANLINE ) )
+		&& renderingEnabled() )
+	{
+		incrementXComponent();
+		incrementYComponent();
+	}
+	else
+	{
+		m_vramAddress += testFlag( m_control, IncrementMode ) ? 32 : 1;
+	}
+}
+
+Word Ppu::nametableMirror( Word address )
+{
+	dbAssert( m_cartridge );
+	switch( m_cartridge->nameTableMirroring() )
+	{
+		case Cartridge::NameTableMirroring::Horizontal:
+			return ( ( address / 2 ) & 0x400 )
+				+ ( address % 0x400 );
+
+		case Cartridge::NameTableMirroring::Vertical:
+			return address % 0x800;
 	}
 
-	// PPU read from cartridge / ram
-	Byte read( Word address )
+	dbBreak();
+	return 0;
+}
+
+void Ppu::loadShiftRegisters()
+{
+	m_bgShiftLow = ( m_bgShiftLow & 0xff00 ) | m_bgLatchLow;
+	m_bgShiftHigh = ( m_bgShiftHigh & 0xff00 ) | m_bgLatchHigh;
+
+	m_attributeLatchLow = m_attributeLatch & 0x01;
+	m_attributeLatchHigh = m_attributeLatch & 0x02;
+}
+
+void Ppu::loadSpritesOnScanline()
+{
+	m_spriteZeroNextScanline = false;
+
+	size_t j = 0;
+	auto secondaryOamSize = getSecondaryOamSize();
+
+	int scanlineY = ( m_scanline == 261 ) ? -1 : m_scanline;
+
+	Byte* objectSrc = m_primaryOAM.data();
+	Byte* objectsEnd = objectSrc + PRIMARY_OAM_SIZE * OBJECT_SIZE;
+	Byte* objectDest = m_secondaryOAM.data();
+	for( ; objectSrc != objectsEnd; objectSrc += OBJECT_SIZE )
 	{
-		Byte value;
-		switch ( address )
+		int y = scanlineY - objectSrc[ ObjectVariable::YPos ];
+
+		if ( ( y < 0 ) || ( y >= getSpriteHeight() ) )
+			continue;
+
+		if ( objectSrc == m_primaryOAM.data() )
+			m_spriteZeroNextScanline = true;
+
+		if ( j < secondaryOamSize )
 		{
-			case CHR_START ... CHR_END:
-				value = cartridge->readCHR( address );
-				break;
-
-			case NAMETABLE_START ... NAMETABLE_END:
+			Byte* src = objectSrc;
+			Byte* dest = objectDest;
+			Byte* end = objectSrc + OBJECT_SIZE;
+			for( ; src != end; ++src, ++dest )
 			{
-				Word nt_index = nametableMirror( address );
-				assert( nt_index < NAMETABLE_SIZE, "read nametable index out of bounds" );
-				value = nametable[nt_index];
-				break;
-			}
-
-			case PALETTE_START ... PALETTE_END:
-				if ( ( address & 0x13 ) == 0x10 ) address &= ~0x10;
-				value = palette[address % PALETTE_SIZE]
-						& ( testFlag( mask, GREYSCALE ) ? 0x30 : 0xff );
-				break;
-
-			default:
-				value = 0;
-				break;
-		}
-		return value;
-	}
-
-	// PPU write to cartridge / ram
-	void write( Word address, Byte value )
-	{
-		switch ( address )
-		{
-			case CHR_START ... CHR_END:
-				cartridge->writeCHR( address, value );
-				break;
-
-			case NAMETABLE_START ... NAMETABLE_END:
-			{
-				Word nt_index = nametableMirror( address );
-				assert( nt_index < NAMETABLE_SIZE, "write nametable index out of bounds" );
-				nametable[nt_index] = value;
-				break;
-			}
-
-			case PALETTE_START ... PALETTE_END:
-				if ( ( address & 0x13 ) == 0x10 ) address &= ~0x10;
-				palette[address % PALETTE_SIZE] = value;
-				break;
-		}
-	}
-
-	void loadShiftRegisters()
-	{
-		bg_shift_low = ( bg_shift_low & 0xff00 ) | bg_latch_low;
-		bg_shift_high = ( bg_shift_high & 0xff00 ) | bg_latch_high;
-
-		attribute_latch_low = attribute_latch & 1;
-		attribute_latch_high = attribute_latch & 2;
-	}
-
-	// load secondary oam for sprites in next scanline
-	void loadSpritesOnScanline()
-	{
-		sprite_zero_next_scanline = false;
-		int j = 0;
-		int sec_size = secondaryOamSize();
-		for ( int i = 0; i < PRIMARY_OAM_SIZE; i++ )
-		{
-			Byte* object = primary_oam + i * OBJECT_SIZE;
-			int line = ( ( scanline == 261 ) ? -1 : scanline )
-					   - object[Y_POS];
-
-			if ( ( line >= 0 ) && ( line < spriteHeight() ) )
-			{
-				// sprite on scanline
-				if ( i == 0 )
-				{
-					sprite_zero_next_scanline = true;
-				}
-
-				if ( j < sec_size )
-				{
-					Byte* secondary_object = secondary_oam + j * OBJECT_SIZE;
-
-					// copy sprite data
-					for ( int a = 0; a < OBJECT_SIZE; a++ )
-					{
-						secondary_object[a] = object[a];
-					}
-				}
-
-				// increment secondary OAM index
-				if ( ++j == ( SECONDARY_OAM_SIZE + 1 ) )
-				{
-					if ( renderingEnabled() )
-					{
-						setStatusFlag( SPRITE_OVERFLOW );
-					}
-					if ( sprite_flickering ) break;
-				}
+				*dest = *src;
 			}
 		}
-	}
 
-	void loadSpriteRegisters()
+		if ( j++ == SECONDARY_OAM_SIZE )
+		{
+			if ( renderingEnabled() )
+				setStatusFlag( SpriteOverflow );
+
+			if ( m_spriteFlickering )
+				break;
+		}
+	}
+}
+
+void Ppu::loadSpriteRegisters()
+{
+	m_spriteZeroThisScanline = m_spriteZeroNextScanline;
+
+	const auto spriteHeight = getSpriteHeight();
+	const bool tallSprites = ( spriteHeight == 16 );
+
+	const auto size = getSecondaryOamSize();
+	for( size_t i = 0; i < size; ++i )
 	{
+		Byte* object = m_secondaryOAM.data() + i * OBJECT_SIZE;
+		const Byte tile = object[ ObjectVariable::TileIndex ];
+
 		Word address;
-		sprite_zero_this_scanline = sprite_zero_next_scanline;
 
-		int size = secondaryOamSize();
-		for ( int i = 0; i < size; i++ )
+		if ( tallSprites )
 		{
-			Byte* object = secondary_oam + ( i * OBJECT_SIZE );
-			Byte tile = object[TILE_INDEX];
+			address = ( ( tile & 1 ) * 0x1000 )
+				+ ( ( tile & ~1 ) * 16 );
+		}
+		else // sprite height == 8
+		{
+			address = ( testFlag( m_control, SpriteTileSelect ) * 0x1000 )
+				+ ( tile * 16 );
+		}
 
-			if ( spriteHeight() == 16 )
-			{
-				address = ( ( tile & 1 ) * 0x1000 ) + ( ( tile & ~1 ) * 16 );
-			}
-			else
-			{
-				address = ( testFlag( control, SPRITE_TILE_SELECT ) * 0x1000 )
-						  + ( tile * 16 );
-			}
+		size_t spriteY = ( m_scanline - object[ ObjectVariable::YPos ] )
+			% spriteHeight;
 
-			// line inside sprite
-			unsigned int sprite_y = ( scanline - object[Y_POS] ) % spriteHeight();
+		if ( object[ ObjectVariable::Attributes ] & FlipVertically )
+		{
+			spriteY ^= spriteHeight - 1;
+		}
 
-			// flip vertically
-			if ( testFlag( object[ATTRIBUTES], FLIP_VER ) )
-			{
-				sprite_y ^= ( spriteHeight() - 1 );
-			}
+		// select seconds tile if on 8x16
+		address += spriteY + ( spriteY & 0x08 );
 
-			address += sprite_y + ( sprite_y & 8 ); // select second tile if on 8x16
+		// load registers
+		m_spriteShiftLow[ i ] = read( address );
+		m_spriteShiftHigh[ i ] = read( address + 8 );
+		m_spriteXCounter[ i ] = object[ ObjectVariable::XPos ];
+		m_spriteAttributeLatch[ i ] = object[ ObjectVariable::Attributes ];
+	}
+}
 
-			// load registers
-			sprite_shift_low[i] = read( address );
-			sprite_shift_high[i] = read( address + 8 );
-			sprite_x_counter[i] = object[X_POS];
-			sprite_attribute_latch[i] = object[ATTRIBUTES];
+void Ppu::renderPixel()
+{
+	renderPixelInternal();
+
+	m_bgShiftLow <<= 1;
+	m_bgShiftHigh <<= 1;
+
+	m_attributeShiftLow = ( m_attributeShiftLow << 1 ) | m_attributeLatchLow;
+	m_attributeShiftHigh = ( m_attributeShiftHigh << 1 ) | m_attributeLatchHigh;
+}
+
+void Ppu::renderPixelInternal()
+{
+	if ( !renderingEnabled() )
+		return;
+
+	int x = m_cycle - 2;
+	if ( m_scanline >= (int)ScreenHeight || x < 0 || x >= (int)ScreenWidth )
+		return;
+
+	Byte palette = 0;
+	Byte objectPalette = 0;
+	bool objectPriority = false;
+
+	size_t sevenMinusX = 7 - m_fineXScroll;
+
+	const bool showBackground = testFlag( m_mask, ShowBackground );
+	if ( showBackground
+		&& ( testFlag( m_mask, ShowBackgroundLeft8 ) || ( x >= 8 ) ) )
+	{
+		size_t bgBit = 15 - m_fineXScroll;
+		palette = ( testFlag( m_bgShiftHigh, bgBit ) << 1 )
+			| testFlag( m_bgShiftLow, bgBit );
+
+		if ( palette != 0 )
+		{
+			palette |= ( testFlag( m_attributeShiftHigh, sevenMinusX ) << 3 )
+				| ( testFlag( m_attributeShiftLow, sevenMinusX ) << 2 );
 		}
 	}
 
-#define bit(value, n) (((value) >> (n)) & 1)
-
-	// 31.85% of runtime according to gprof
-	void renderPixel()
+	const bool showSprites = testFlag( m_mask, ShowSprite );
+	if ( showSprites
+		&& ( testFlag( m_mask, ShowSpriteLeft8 ) || ( x >= 8 ) )
+		&& ( x < 255 ) )
 	{
-		if ( renderingEnabled() )
+		auto size = getSecondaryOamSize();
+		for( size_t i = 0; i < size; ++i )
 		{
-			Byte palette = 0;
-			Byte obj_palette = 0;
-			bool obj_priority = 0;
-			int x = cycle - 2;
+			Byte attributes = m_spriteAttributeLatch[ i ];
 
-			if ( scanline < 240 && x >= 0 && x < 256 )
+			int spriteX = x - m_spriteXCounter[ i ];
+			if ( spriteX < 0 || spriteX >= 8 )
+				continue;
+
+			if ( testFlag( attributes, FlipHorizontally ) )
 			{
-
-				// background
-				bool show_background = testFlag( mask, SHOW_BACKGROUND );
-				if ( show_background && ( testFlag( mask, SHOW_BKG_LEFT_8 ) || ( x >= 8 ) ) )
-				{
-					palette = ( bit( bg_shift_high, 15 - fine_x_scroll ) << 1 )
-							  | bit( bg_shift_low, 15 - fine_x_scroll );
-					if ( palette )
-					{
-						palette |= ( ( bit( attribute_shift_high, 7 - fine_x_scroll ) << 1 )
-									 | bit( attribute_shift_low, 7 - fine_x_scroll ) ) << 2;
-					}
-				}
-
-				//sprites
-				bool show_sprites = testFlag( mask, SHOW_SPRITES );
-				if ( show_sprites && ( testFlag( mask, SHOW_SPR_LEFT_8 ) || ( x >= 8 ) ) )
-				{
-					int size = secondaryOamSize();
-					for ( int i = size - 1; i >= 0; i-- )
-					{
-						Byte attributes = sprite_attribute_latch[i];
-
-						/*
-						if (attributes == 0xff && sprite_x_counter[i] == 0xff) {
-						    continue; // empty entry
-						}
-						*/
-
-						int sprite_x = x - sprite_x_counter[i];
-						if ( sprite_x < 0 || sprite_x >= 8 || x >= 255 ) continue; // not in range
-
-						if ( testFlag( attributes, FLIP_HOR ) )
-						{
-							sprite_x ^= 0x07;
-						}
-
-						Byte spr_palette = ( bit( sprite_shift_high[i], 7 - sprite_x ) << 1 )
-										   | bit( sprite_shift_low[i], 7 - sprite_x );
-
-						if ( ( spr_palette & 0x3 ) == 0 ) continue; // transparent
-
-						if ( sprite_zero_this_scanline && ( i == 0 ) // hit sprite 0
-							 && show_background && palette // background not transparent
-							 && ( x < 255 ) ) // doesn't check at x=255
-						{
-							sprite_zero_this_scanline = false;
-							setStatusFlag( SPRITE_0_HIT );
-						}
-
-						spr_palette |= ( attributes & SPR_PALETTE ) << 2;
-						obj_palette = spr_palette + 16;
-						obj_priority = testFlag( attributes, PRIORITY );
-					}
-				}
-
-				if ( obj_palette && ( palette == 0 || obj_priority == 0 ) )
-				{
-					palette = obj_palette;
-				}
-
-				int palette_index = read( PALETTE_START + ( renderingEnabled() ? palette : 0 ) );
-
-				screen[scanline * SCREEN_WIDTH + x] = Pixel( nes_palette[palette_index] );
+				spriteX ^= 0x07;
 			}
+
+			Byte spritePalette = ( testFlag( m_spriteShiftHigh[ i ], sevenMinusX ) << 1 )
+				| testFlag( m_spriteShiftLow[ i ], sevenMinusX );
+
+			// continue if transparent
+			if ( spritePalette == 0 )
+				continue;
+
+			if ( m_spriteZeroThisScanline
+				&& ( i == 0 )
+				&& showBackground
+				&& ( palette != 0 ) )
+			{
+				m_spriteZeroThisScanline = false;
+				setStatusFlag( Sprite0Hit );
+			}
+
+			spritePalette |= ( attributes & ObjectAttribute::SpritePalette ) << 2;
+			objectPalette = spritePalette + 16;
+			objectPriority = testFlag( attributes, ObjectAttribute::Priority );
 		}
-
-		// background_shifts
-
-		bg_shift_low <<= 1;
-		bg_shift_high <<= 1;
-
-		attribute_shift_low = ( attribute_shift_low << 1 ) | attribute_latch_low;
-		attribute_shift_high = ( attribute_shift_high << 1 ) | attribute_latch_high;
 	}
 
-	void dump()
+	if ( ( objectPalette != 0 ) && ( palette == 0 || !objectPriority ) )
 	{
-		std::cout << "====== PPU ======\n";
-		std::cout << "         NmHBSInn\n";
-		std::cout << "control: " << toByte( control ) << '\n';
-		std::cout << "         bgrSBsbG\n";
-		std::cout << "mask:    " << toByte( control ) << '\n';
-		std::cout << "         VHO-----\n";
-		std::cout << "status:  " << toByte( control ) << "\n\n";
-
-		std::cout << "scanline: " << scanline << '\n';
-		std::cout << "cycle: " << cycle << '\n';
-		std::cout << "=================\n";
+		palette = objectPalette;
 	}
 
-	bool nmiEnabled()
-	{
-		return testFlag( control, NMI_ENABLE );
-	}
+	size_t paletteIndex = read( PALETTE_START + palette );
+	m_pixels[ m_scanline * ScreenWidth + x ] = s_nesColourPalette[ paletteIndex ];
+}
 
-} // end namespace
+#define writeBytes( var ) out.write( (const char*)&var, sizeof( var ) );
+#define readBytes( var ) in.read( (char*)&var, sizeof( var ) );
+
+void Ppu::saveState( std::ostream& out )
+{
+	writeBytes( m_nametable )
+	writeBytes( m_palette )
+	writeBytes( m_primaryOAM )
+	writeBytes( m_secondaryOAM )
+	writeBytes( m_spriteShiftLow )
+	writeBytes( m_spriteShiftHigh )
+	writeBytes( m_spriteXCounter )
+	writeBytes( m_spriteAttributeLatch );
+
+	writeBytes( m_canDraw )
+	writeBytes( m_openBus )
+	writeBytes( m_readBuffer )
+	writeBytes( m_renderAddress )
+	writeBytes( m_writeToggle )
+	writeBytes( m_control )
+	writeBytes( m_mask )
+	writeBytes( m_status )
+	writeBytes( m_oamAddress )
+	writeBytes( m_vramAddress )
+	writeBytes( m_tempVRAMAddress )
+	writeBytes( m_fineXScroll )
+	writeBytes( m_supressVBlank )
+	writeBytes( m_bgLatchLow )
+	writeBytes( m_bgLatchHigh )
+	writeBytes( m_bgShiftLow )
+	writeBytes( m_bgShiftHigh )
+	writeBytes( m_attributeLatch )
+	writeBytes( m_attributeLatchLow )
+	writeBytes( m_attributeLatchHigh )
+	writeBytes( m_attributeShiftLow )
+	writeBytes( m_attributeShiftHigh )
+	writeBytes( m_nametableLatch )
+	writeBytes( m_spriteZeroNextScanline )
+	writeBytes( m_spriteZeroThisScanline )
+	writeBytes( m_spriteZeroHit )
+	writeBytes( m_cycle )
+	writeBytes( m_scanline )
+	writeBytes( m_oddFrame )
+}
+
+void Ppu::loadState( std::istream& in )
+{
+	readBytes( m_nametable )
+	readBytes( m_palette )
+	readBytes( m_primaryOAM )
+	readBytes( m_secondaryOAM )
+	readBytes( m_spriteShiftLow )
+	readBytes( m_spriteShiftHigh )
+	readBytes( m_spriteXCounter )
+	readBytes( m_spriteAttributeLatch );
+	
+	readBytes( m_canDraw )
+	readBytes( m_openBus )
+	readBytes( m_readBuffer )
+	readBytes( m_renderAddress )
+	readBytes( m_writeToggle )
+	readBytes( m_control )
+	readBytes( m_mask )
+	readBytes( m_status )
+	readBytes( m_oamAddress )
+	readBytes( m_vramAddress )
+	readBytes( m_tempVRAMAddress )
+	readBytes( m_fineXScroll )
+	readBytes( m_supressVBlank )
+	readBytes( m_bgLatchLow )
+	readBytes( m_bgLatchHigh )
+	readBytes( m_bgShiftLow )
+	readBytes( m_bgShiftHigh )
+	readBytes( m_attributeLatch )
+	readBytes( m_attributeLatchLow )
+	readBytes( m_attributeLatchHigh )
+	readBytes( m_attributeShiftLow )
+	readBytes( m_attributeShiftHigh )
+	readBytes( m_nametableLatch )
+	readBytes( m_spriteZeroNextScanline )
+	readBytes( m_spriteZeroThisScanline )
+	readBytes( m_spriteZeroHit )
+	readBytes( m_cycle )
+	readBytes( m_scanline )
+	readBytes( m_oddFrame )
+}
+
+#undef writeBytes
+#undef readBytes

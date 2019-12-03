@@ -1,6 +1,4 @@
 
-#include "json.hpp"
-using nlohmann::json;
 
 #include "debug.hpp"
 #include "globals.hpp"
@@ -8,10 +6,13 @@ using nlohmann::json;
 #include "keyboard.hpp"
 #include "api.hpp"
 #include "ppu.hpp"
-#include "assert.hpp"
+
+#include "json.hpp"
 
 #include <fstream>
 #include <iomanip>
+
+using nlohmann::json;
 
 json config;
 
@@ -82,7 +83,7 @@ const char* DEFAULT_CONFIG = R"(
 void saveConfig( const json& config )
 {
 	std::ofstream fout( CONFIG_FILE );
-	assert( ( fout.is_open() ), "Cannot save config" );
+	dbAssertMessage( ( fout.is_open() ), "Cannot save config" );
 	fout << std::setw( 4 ) << config;
 	fout.close();
 }
@@ -120,16 +121,16 @@ void loadConfig()
 	try
 	{
 		const json& general = config["general"];
-		PPU::sprite_flickering = general["sprite flickering"].get<bool>();
+		// s_nes.setSpriteFlickering( general["sprite flickering"].get<bool>() );
 		fullscreen = general["fullscreen"].get<bool>();
 		render_scale = general["scale"].get<float>();
 		crop_area.x = general["crop x"].get<int>();
 		crop_area.y = general["crop y"].get<int>();
 
-		crop_area.x = CLAMP( crop_area.x, 0, MAX_CROP );
-		crop_area.y = CLAMP( crop_area.y, 0, MAX_CROP );
-		crop_area.w = SCREEN_WIDTH - 2 * crop_area.x;
-		crop_area.h = SCREEN_HEIGHT - 2 * crop_area.y;
+		crop_area.x = CLAMP( crop_area.x, 0, MaxCrop );
+		crop_area.y = CLAMP( crop_area.y, 0, MaxCrop );
+		crop_area.w = nes::Ppu::ScreenWidth - 2 * crop_area.x;
+		crop_area.h = nes::Ppu::ScreenHeight - 2 * crop_area.y;
 		window_width = render_scale * crop_area.w;
 		window_height = render_scale * crop_area.h;
 
@@ -154,13 +155,13 @@ void loadConfig()
 		// joypads
 		for ( int j = 0; j < 4; j++ )
 		{
-			const json& keys = config["controls"][j];
-			for ( int b = 0; b < Joypad::NUM_BUTTONS; b++ )
+			const json& keys = config[ "controls" ][ j ];
+			for ( int b = 0; b < nes::Joypad::NUM_BUTTONS; b++ )
 			{
-				const char* button_name = Joypad::getButtonName( ( Joypad::Button )b );
+				const char* button_name = nes::Joypad::getButtonName( ( nes::Joypad::Button )b );
 				std::string key_name = keys[button_name].get<std::string>();
 				SDL_Keycode keycode = getKeycode( key_name );
-				joypad[j].mapButton( ( Joypad::Button )b, keycode );
+				joypad[j].mapButton( ( nes::Joypad::Button )b, keycode );
 			}
 		}
 	}

@@ -3,7 +3,11 @@
 
 #include "cartridge.hpp"
 
-class Mapper1 : public Cartridge {
+namespace nes
+{
+
+class Mapper1 : public Cartridge
+{
 public:
 	Mapper1(Byte* data);
 	~Mapper1() {}
@@ -16,7 +20,8 @@ public:
 	void loadState(std::istream& in);
 
 protected:
-	enum Register {
+	enum Register
+	{
 		CONTROL,
 		CHR_BANK_0,
 		CHR_BANK_1,
@@ -36,5 +41,7 @@ protected:
 	bool chrBankMode();
 	bool ramEnable();
 };
+
+}
 
 #endif

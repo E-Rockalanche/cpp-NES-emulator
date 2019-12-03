@@ -16,7 +16,7 @@
 	#include <cstdio>
 	#include <cstdlib>
 
-	#define dbAbort() std::abort();
+	#define dbAbort() { *(int*)nullptr = 0; }
 
 	#define dbPrintFileLine()	\
 		std::printf( "\tin %s at line %i", __FILE__, __LINE__ );

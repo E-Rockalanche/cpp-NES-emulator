@@ -54,6 +54,9 @@ namespace nes
 				b = value;
 		}
 
+		Byte* operator&() { return data(); }
+		const Byte* operator&() const { return data(); }
+
 	private:
 
 		Byte m_data[ Size ];
