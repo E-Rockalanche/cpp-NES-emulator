@@ -104,8 +104,8 @@ namespace nes
 		void dump()
 		{
 			cpu.dumpState();
-			cpu.dumpStack();
-			cpu.dump( cpu.getProgramCounter() - 128 );
+			// cpu.dumpStack();
+			cpu.dump( cpu.getProgramCounter() );
 		}
 
 		Cpu cpu;

@@ -3,7 +3,7 @@
 #include "apu.hpp"
 #include "cartridge.hpp"
 #include "controller.hpp"
-#include "Instruction.hpp"
+#include "Instructions.hpp"
 #include "ppu.hpp"
 
 #include "common.hpp"
@@ -69,9 +69,18 @@ namespace
 		return result & 0x100;
 	}
 
-	using VoidCpuMemberFunction = void( Cpu::* )( void );
+	using CpuInstruction = void( Cpu::* )( void );
+	// CpuInstruction s_cpuOperations[ 0x100 ];
 
-	VoidCpuMemberFunction s_cpuOperations[ 0x100 ];
+	struct Operation
+	{
+		CpuInstruction func = nullptr;
+		Instruction instr = Instruction::illegalOpcode;
+		const char* instructionName = nullptr;
+		const char* addressModeName = nullptr;
+	};
+
+	Operation s_cpuOperations[ 0x100 ];
 }
 
 enum class Cpu::AddressMode
@@ -235,9 +244,11 @@ void Cpu::executeInstruction()
 			return;
 		}
 
+		auto pc = m_programCounter;
 		Byte opcode = readByteTick( m_programCounter++ );
 		auto operation = s_cpuOperations[ opcode ];
-		( this->*operation )();
+		// s_history.add( "[0x%04x] 0x%02x %s (%s)", (int)pc, (int)opcode, operation.instructionName, operation.addressModeName );
+		( this->*operation.func )();
 	}
 }
 
@@ -672,6 +683,7 @@ template <Cpu::AddressMode Mode>
 void Cpu::exclusiveOr()
 {
 	m_accumulator ^= readByteTick( getAddress<Mode>() );
+	setArithmeticFlags( m_accumulator );
 	tick();
 }
 
@@ -870,7 +882,7 @@ void Cpu::returnFromSubroutine()
 template <Cpu::AddressMode Mode>
 void Cpu::subtractFromAcc()
 {
-	addToAccumulator( -readByteTick( getAddress<Mode>() ) );
+	addToAccumulator( ~readByteTick( getAddress<Mode>() ) );
 }
 
 void Cpu::setCarryFlag()
@@ -952,16 +964,20 @@ void Cpu::transferYToAcc()
 
 void Cpu::illegalOpcode()
 {
+	// s_history.print();
 	halt();
 }
 
-#define SET_ADDRMODE_OP( opcode, instr, addrmode ) dbAssert( s_cpuOperations[ opcode ] == &Cpu::illegalOpcode ); s_cpuOperations[ opcode ] = &Cpu::instr< Cpu::AddressMode::addrmode >;
-#define SET_OP( opcode, instr ) dbAssert( s_cpuOperations[ opcode ] == &Cpu::illegalOpcode ); s_cpuOperations[ opcode ] = &Cpu::instr;
+#define SET_ADDRMODE_OP( opcode, instr, addrmode ) s_cpuOperations[ opcode ] = { &Cpu::instr< Cpu::AddressMode::addrmode >, Instruction::instr, #instr, #addrmode };
+#define SET_OP( opcode, instr ) s_cpuOperations[ opcode ] = { &Cpu::instr, Instruction::instr, #instr, "Implied" };
+#define SET_BRANCH( opcode, instr ) s_cpuOperations[ opcode ] = { &Cpu::instr, Instruction::instr, #instr, "Relative" };
 
 void Cpu::initialize()
 {
-	for ( auto& ptr : s_cpuOperations )
-		ptr = &Cpu::illegalOpcode;
+	for ( size_t i = 0; i < 0x100; ++i )
+	{
+		SET_OP( i, illegalOpcode )
+	}
 
 	SET_ADDRMODE_OP( 0x69, addWithCarry, Immediate )
 	SET_ADDRMODE_OP( 0x65, addWithCarry, ZeroPage )
@@ -987,21 +1003,21 @@ void Cpu::initialize()
 	SET_ADDRMODE_OP( 0x0e, shiftLeft, Absolute )
 	SET_ADDRMODE_OP( 0x1e, shiftLeft, AbsoluteXStore )
 
-	SET_OP( 0x90, branchOnCarryClear )
-	SET_OP( 0xb0, branchOnCarrySet )
-	SET_OP( 0xf0, branchOnZero )
+	SET_BRANCH( 0x90, branchOnCarryClear )
+	SET_BRANCH( 0xb0, branchOnCarrySet )
+	SET_BRANCH( 0xf0, branchOnZero )
 
 	SET_ADDRMODE_OP( 0x24, testBits, ZeroPage )
 	SET_ADDRMODE_OP( 0x2c, testBits, Absolute )
 
-	SET_OP( 0x30, branchOnNegative )
-	SET_OP( 0xd0, branchOnNotZero )
-	SET_OP( 0x10, branchOnPositive )
+	SET_BRANCH( 0x30, branchOnNegative )
+	SET_BRANCH( 0xd0, branchOnNotZero )
+	SET_BRANCH( 0x10, branchOnPositive )
 
 	SET_OP( 0x00, forceBreak )
 
-	SET_OP( 0x50, branchOnOverflowClear )
-	SET_OP( 0x70, branchOnOverflowSet )
+	SET_BRANCH( 0x50, branchOnOverflowClear )
+	SET_BRANCH( 0x70, branchOnOverflowSet )
 
 	SET_OP( 0x18, clearCarryFlag )
 	SET_OP( 0xd8, clearDecimalFlag )
@@ -1199,7 +1215,15 @@ enum ByteInterpretation {
 	NUM_BYTE_INTERPRETATIONS
 };
 
-void Cpu::dump(Word address) {
+void Cpu::dump( Word address )
+{
+	std::cout << "DUMP OF " << toHex( address, 2 ) << '\n';
+
+	// center view of memory on address
+	if ( address >= 128 )
+		address -= 128;
+
+	// align memory for output
 	address &= 0xfff0;
 
 	std::cout << "      ";
@@ -1241,12 +1265,10 @@ void Cpu::dump(Word address) {
 
 					case OPCODE:
 					{
-						// Instruction instruction = operations[value].instruction;
-						// std::cout << ((instruction != ILL) ? instruction_names[instruction] : "   ");
-						if ( s_cpuOperations[ value ] == &Cpu::illegalOpcode )
-							std::cout << "ILL";
-						else
-							std::cout << " ? ";
+						auto operation = s_cpuOperations[ value ];
+						std::cout << ( ( operation.instr != Instruction::illegalOpcode )
+							? nes::getInstructionName( operation.instr )
+							: "   " );
 						break;
 					}
 

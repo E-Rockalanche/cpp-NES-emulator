@@ -29,6 +29,8 @@
 
 #include "SDL2/SDL.h"
 
+Logger logger;
+
 // SDL
 SDL_Window* window = nullptr;
 SDL_Renderer* renderer = nullptr;
@@ -249,6 +251,14 @@ void keyboardEvent( const SDL_Event& event )
 			case SDLK_KP_2:
 				cropScreen( 0, +1 );
 				break;
+
+			case SDLK_d:
+			{
+				std::string str;
+				std::cin >> str;
+				nes::Word addr = std::stoi( str, nullptr, 16 );
+				s_nes.cpu.dump( addr );
+			}
 		}
 
 		pressHotkey( key );
