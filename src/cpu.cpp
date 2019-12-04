@@ -8,6 +8,8 @@
 
 #include "common.hpp"
 
+// #include "History.hpp"
+
 using namespace nes;
 
 namespace
@@ -81,6 +83,8 @@ namespace
 	};
 
 	Operation s_cpuOperations[ 0x100 ];
+
+	// History s_history;
 }
 
 enum class Cpu::AddressMode
@@ -244,7 +248,7 @@ void Cpu::executeInstruction()
 			return;
 		}
 
-		auto pc = m_programCounter;
+		// auto pc = m_programCounter;
 		Byte opcode = readByteTick( m_programCounter++ );
 		auto operation = s_cpuOperations[ opcode ];
 		// s_history.add( "[0x%04x] 0x%02x %s (%s)", (int)pc, (int)opcode, operation.instructionName, operation.addressModeName );
@@ -964,19 +968,19 @@ void Cpu::transferYToAcc()
 
 void Cpu::illegalOpcode()
 {
-	// s_history.print();
 	halt();
+	// s_history.print();
 }
 
 #define SET_ADDRMODE_OP( opcode, instr, addrmode ) s_cpuOperations[ opcode ] = { &Cpu::instr< Cpu::AddressMode::addrmode >, Instruction::instr, #instr, #addrmode };
-#define SET_OP( opcode, instr ) s_cpuOperations[ opcode ] = { &Cpu::instr, Instruction::instr, #instr, "Implied" };
+#define SET_IMPLIED( opcode, instr ) s_cpuOperations[ opcode ] = { &Cpu::instr, Instruction::instr, #instr, "Implied" };
 #define SET_BRANCH( opcode, instr ) s_cpuOperations[ opcode ] = { &Cpu::instr, Instruction::instr, #instr, "Relative" };
 
 void Cpu::initialize()
 {
 	for ( size_t i = 0; i < 0x100; ++i )
 	{
-		SET_OP( i, illegalOpcode )
+		SET_IMPLIED( i, illegalOpcode )
 	}
 
 	SET_ADDRMODE_OP( 0x69, addWithCarry, Immediate )
@@ -1014,15 +1018,15 @@ void Cpu::initialize()
 	SET_BRANCH( 0xd0, branchOnNotZero )
 	SET_BRANCH( 0x10, branchOnPositive )
 
-	SET_OP( 0x00, forceBreak )
+	SET_IMPLIED( 0x00, forceBreak )
 
 	SET_BRANCH( 0x50, branchOnOverflowClear )
 	SET_BRANCH( 0x70, branchOnOverflowSet )
 
-	SET_OP( 0x18, clearCarryFlag )
-	SET_OP( 0xd8, clearDecimalFlag )
-	SET_OP( 0x58, clearInterruptDisableFlag )
-	SET_OP( 0xb8, clearOverflowFlag )
+	SET_IMPLIED( 0x18, clearCarryFlag )
+	SET_IMPLIED( 0xd8, clearDecimalFlag )
+	SET_IMPLIED( 0x58, clearInterruptDisableFlag )
+	SET_IMPLIED( 0xb8, clearOverflowFlag )
 
 	SET_ADDRMODE_OP( 0xc9, compareWithAcc, Immediate )
 	SET_ADDRMODE_OP( 0xc5, compareWithAcc, ZeroPage )
@@ -1046,8 +1050,8 @@ void Cpu::initialize()
 	SET_ADDRMODE_OP( 0xce, decrement, Absolute )
 	SET_ADDRMODE_OP( 0xde, decrement, AbsoluteXStore )
 
-	SET_OP( 0xca, decrementX )
-	SET_OP( 0x88, decrementY )
+	SET_IMPLIED( 0xca, decrementX )
+	SET_IMPLIED( 0x88, decrementY )
 
 	SET_ADDRMODE_OP( 0x49, exclusiveOr, Immediate )
 	SET_ADDRMODE_OP( 0x45, exclusiveOr, ZeroPage )
@@ -1063,8 +1067,8 @@ void Cpu::initialize()
 	SET_ADDRMODE_OP( 0xee, increment, Absolute )
 	SET_ADDRMODE_OP( 0xfe, increment, AbsoluteXStore )
 
-	SET_OP( 0xe8, incrementX )
-	SET_OP( 0xc8, incrementY )
+	SET_IMPLIED( 0xe8, incrementX )
+	SET_IMPLIED( 0xc8, incrementY )
 
 	SET_ADDRMODE_OP( 0x4c, jump, Absolute )
 	SET_ADDRMODE_OP( 0x6c, jump, Indirect )
@@ -1098,7 +1102,7 @@ void Cpu::initialize()
 	SET_ADDRMODE_OP( 0x4e, shiftRight, Absolute );
 	SET_ADDRMODE_OP( 0x5e, shiftRight, AbsoluteXStore );
 
-	SET_OP( 0xea, noOperation );
+	SET_IMPLIED( 0xea, noOperation );
 
 	SET_ADDRMODE_OP( 0x09, bitwiseOr, Immediate );
 	SET_ADDRMODE_OP( 0x05, bitwiseOr, ZeroPage );
@@ -1109,10 +1113,10 @@ void Cpu::initialize()
 	SET_ADDRMODE_OP( 0x01, bitwiseOr, IndirectX );
 	SET_ADDRMODE_OP( 0x11, bitwiseOr, IndirectY );
 
-	SET_OP( 0x48, pushAcc );
-	SET_OP( 0x08, pushStatus );
-	SET_OP( 0x68, popAcc );
-	SET_OP( 0x28, popStatus );
+	SET_IMPLIED( 0x48, pushAcc );
+	SET_IMPLIED( 0x08, pushStatus );
+	SET_IMPLIED( 0x68, popAcc );
+	SET_IMPLIED( 0x28, popStatus );
 
 	SET_ADDRMODE_OP( 0x2a, rotateLeft, Accumulator );
 	SET_ADDRMODE_OP( 0x26, rotateLeft, ZeroPage );
@@ -1126,9 +1130,9 @@ void Cpu::initialize()
 	SET_ADDRMODE_OP( 0x6e, rotateRight, Absolute );
 	SET_ADDRMODE_OP( 0x7e, rotateRight, AbsoluteXStore );
 
-	SET_OP( 0x40, returnFromInterrupt );
+	SET_IMPLIED( 0x40, returnFromInterrupt );
 
-	SET_OP( 0x60, returnFromSubroutine );
+	SET_IMPLIED( 0x60, returnFromSubroutine );
 
 	SET_ADDRMODE_OP( 0xe9, subtractFromAcc, Immediate );
 	SET_ADDRMODE_OP( 0xe5, subtractFromAcc, ZeroPage );
@@ -1139,9 +1143,9 @@ void Cpu::initialize()
 	SET_ADDRMODE_OP( 0xe1, subtractFromAcc, IndirectX );
 	SET_ADDRMODE_OP( 0xf1, subtractFromAcc, IndirectY );
 
-	SET_OP( 0x38, setCarryFlag );
-	SET_OP( 0xf8, setDecimalFlag );
-	SET_OP( 0x78, setInterruptDisableFlag );
+	SET_IMPLIED( 0x38, setCarryFlag );
+	SET_IMPLIED( 0xf8, setDecimalFlag );
+	SET_IMPLIED( 0x78, setInterruptDisableFlag );
 
 	SET_ADDRMODE_OP( 0x85, storeAcc, ZeroPage );
 	SET_ADDRMODE_OP( 0x95, storeAcc, ZeroPageX );
@@ -1159,16 +1163,26 @@ void Cpu::initialize()
 	SET_ADDRMODE_OP( 0x94, storeY, ZeroPageX );
 	SET_ADDRMODE_OP( 0x8c, storeY, Absolute );
 
-	SET_OP( 0xaa, transferAccToX );
-	SET_OP( 0xa8, transferAccToY );
-	SET_OP( 0xba, transferStackPointerToX );
-	SET_OP( 0x8a, transferXToAcc );
-	SET_OP( 0x9a, transferXToStackPointer );
-	SET_OP( 0x98, transferYToAcc );
+	SET_IMPLIED( 0xaa, transferAccToX );
+	SET_IMPLIED( 0xa8, transferAccToY );
+	SET_IMPLIED( 0xba, transferStackPointerToX );
+	SET_IMPLIED( 0x8a, transferXToAcc );
+	SET_IMPLIED( 0x9a, transferXToStackPointer );
+	SET_IMPLIED( 0x98, transferYToAcc );
+
+	// unofficial:
+
+	SET_IMPLIED( 0x1a, noOperation );
+	SET_IMPLIED( 0x3a, noOperation );
+	SET_IMPLIED( 0x5a, noOperation );
+	SET_IMPLIED( 0x7a, noOperation );
+	SET_IMPLIED( 0xda, noOperation );
+	SET_IMPLIED( 0xfa, noOperation );
 }
 
 #undef SET_ADDRMODE_OP
-#undef SET_OP
+#undef SET_IMPLIED
+#undef SET_BRANCH
 
 #define writeBytes( var ) out.write( ( const char* )&var, sizeof( var ) );
 #define readBytes( var ) in.read( ( char* )&var, sizeof( var ) );

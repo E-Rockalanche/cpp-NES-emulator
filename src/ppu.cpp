@@ -747,25 +747,24 @@ void Ppu::loadSpritesOnScanline()
 
 	auto spriteHeight = getSpriteHeight();
 
-	Byte* dest = m_secondaryOAM.begin();
-	Byte* destEnd = dest + getSecondaryOamSize();
+	size_t destIndex = 0;
+	size_t secondaryOamSize = getSecondaryOamSize();
 
-	Byte* overflowPoint = dest + SECONDARY_OAM_SIZE * OBJECT_SIZE;
-
-	for( auto src = m_primaryOAM.begin(), end = m_primaryOAM.end(); src != end; )
+	for( size_t i = 0; i < PRIMARY_OAM_SIZE; ++i )
 	{
-		int y = scanlineY - src[ ObjectVariable::YPos ];
+		Byte* srcObject = m_primaryOAM.data() + i * OBJECT_SIZE;
+
+		int y = scanlineY - srcObject[ ObjectVariable::YPos ];
 
 		if ( ( y < 0 ) || ( y >= spriteHeight ) )
 		{
-			src += OBJECT_SIZE;
 			continue;
 		}
 
-		if ( src == m_primaryOAM.begin() )
+		if ( i == 0 )
 			m_spriteZeroNextScanline = true;
 
-		if ( dest == overflowPoint )
+		if ( destIndex == SECONDARY_OAM_SIZE )
 		{
 			if ( renderingEnabled() )
 				setStatusFlag( SpriteOverflow );
@@ -774,18 +773,15 @@ void Ppu::loadSpritesOnScanline()
 				break;
 		}
 
-		if ( dest != destEnd )
+		if ( destIndex < secondaryOamSize )
 		{
 			// copy object from primary OAM to secondary OAM
-			Byte* nextSrc = src + OBJECT_SIZE;
-			for( ; src != nextSrc; ++src, ++dest )
+			Byte* destObject = m_secondaryOAM.data() + destIndex * OBJECT_SIZE;
+			for( size_t a = 0; a < OBJECT_SIZE; ++a )
 			{
-				*dest = *src;
+				destObject[ a ] = srcObject[ a ];
 			}
-		}
-		else
-		{
-			break;
+			++destIndex;
 		}
 	}
 }
@@ -859,8 +855,6 @@ void Ppu::renderPixelInternal()
 	Byte objectPalette = 0;
 	bool objectPriority = false;
 
-	size_t sevenMinusX = 7 - m_fineXScroll;
-
 	const bool showBackground = testFlag( m_mask, ShowBackground );
 	if ( showBackground
 		&& ( testFlag( m_mask, ShowBackgroundLeft8 ) || ( x >= 8 ) ) )
@@ -871,8 +865,8 @@ void Ppu::renderPixelInternal()
 
 		if ( palette != 0 )
 		{
-			palette |= ( getBit( m_attributeShiftHigh, sevenMinusX ) << 3 )
-				| ( getBit( m_attributeShiftLow, sevenMinusX ) << 2 );
+			palette |= ( getBit( m_attributeShiftHigh, 7 - m_fineXScroll ) << 3 )
+				| ( getBit( m_attributeShiftLow, 7 - m_fineXScroll ) << 2 );
 		}
 	}
 
@@ -882,7 +876,7 @@ void Ppu::renderPixelInternal()
 		&& ( x < 255 ) )
 	{
 		auto size = getSecondaryOamSize();
-		for( size_t i = 0; i < size; ++i )
+		for( size_t i = size-1; i --> 0; )
 		{
 			Byte attributes = m_spriteAttributeLatch[ i ];
 
@@ -895,8 +889,8 @@ void Ppu::renderPixelInternal()
 				spriteX ^= 0x07;
 			}
 
-			Byte spritePalette = ( getBit( m_spriteShiftHigh[ i ], sevenMinusX ) << 1 )
-				| getBit( m_spriteShiftLow[ i ], sevenMinusX );
+			Byte spritePalette = ( getBit( m_spriteShiftHigh[ i ], 7 - spriteX ) << 1 )
+				| getBit( m_spriteShiftLow[ i ], 7 - spriteX );
 
 			// continue if transparent
 			if ( spritePalette == 0 )
