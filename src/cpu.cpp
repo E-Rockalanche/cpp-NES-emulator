@@ -6,6 +6,8 @@
 #include "Instruction.hpp"
 #include "ppu.hpp"
 
+#include "common.hpp"
+
 using namespace nes;
 
 namespace
@@ -46,8 +48,6 @@ namespace
 	constexpr size_t NMI_VECTOR = 0xfffa;
 	constexpr size_t RESET_VECTOR = 0xfffc;
 	constexpr size_t IRQ_VECTOR = 0xfffe;
-
-	constexpr Word STACK_OFFSET = 0x0100;
 
 	constexpr Byte STACK_START = 0xfd;
 	constexpr Byte STATUS_START = 0x34;
@@ -1191,3 +1191,92 @@ void Cpu::loadState( std::istream& in )
 
 #undef writeBytes
 #undef readBytes
+
+enum ByteInterpretation {
+	RAW,
+	OPCODE,
+	ASCII,
+	NUM_BYTE_INTERPRETATIONS
+};
+
+void Cpu::dump(Word address) {
+	address &= 0xfff0;
+
+	std::cout << "      ";
+	for(int bi = 0; bi < NUM_BYTE_INTERPRETATIONS; bi++) {
+		std::cout << "| ";
+		for(unsigned int i = 0; i < 0x10; i++) {
+			std::cout << toHex(i, 0.5, "");
+			std::string spaces;
+			switch(bi) {
+				case RAW:
+					spaces = "  ";
+					break;
+				case OPCODE:
+					spaces = "   ";
+					break;
+				case ASCII:
+					spaces = " ";
+			}
+			std::cout << spaces;
+		}
+	}
+
+	std::cout << '\n';
+	for(int i = 0; i < 156; i++) std::cout << '-';
+	std::cout << '\n';
+
+	for(unsigned int high = 0; high < 0x10; high++) {
+		std::cout << toHex(address + (high << 4), 2) << ' ';
+		for(int bi = 0; bi < NUM_BYTE_INTERPRETATIONS; bi++) {
+			std::cout << "| ";
+			for(unsigned int low = 0; low < 0x10; low++) {
+				Byte value = read(address + ((high << 4) + low));
+				switch(bi) {
+					case RAW:
+					{
+						std::cout << toHex(value, 1, "");
+						break;
+					}
+
+					case OPCODE:
+					{
+						// Instruction instruction = operations[value].instruction;
+						// std::cout << ((instruction != ILL) ? instruction_names[instruction] : "   ");
+						if ( s_cpuOperations[ value ] == &Cpu::illegalOpcode )
+							std::cout << "ILL";
+						else
+							std::cout << " ? ";
+						break;
+					}
+
+					case ASCII:
+					{
+						std::cout << (isspace(value) ? ' ' : (char)value);
+						break;
+					}
+				}
+				std::cout << ' ';
+			}
+		}
+		std::cout << '\n';
+	}
+}
+
+void Cpu::dumpStack() {
+	std::cout << "Stack:\n";
+	for(int i = (StackOffset | m_stackPointer) + 1; i <= (StackOffset | STACK_START); i++) {
+		std::cout << ' ' << toHex(read(i), 1) << '\n';
+	}
+	std::cout << "-----\n";
+}
+
+void Cpu::dumpState() {
+	std::cout << "Accumulator: " << toHex(m_accumulator) << '\n';
+	std::cout << "X register: " << toHex(m_xRegister) << '\n';
+	std::cout << "Y register: " << toHex(m_yRegister) << '\n';
+	std::cout << "Program counter: " << toHex(m_programCounter) << '\n';
+	std::cout << "Stack pointer: " << toHex(m_stackPointer) << '\n';
+	std::cout << "Status: NV BDIZC\n";
+	std::cout << "        " << std::bitset<8>(m_status) << '\n';
+}

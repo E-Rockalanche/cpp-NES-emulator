@@ -442,7 +442,10 @@ int main( int argc, char** argv )
 
 			if ( s_nes.halted() )
 			{
-				showError( "Error", "The CPU encountered an illegal instruction" );
+				std::stringstream ss;
+				ss << "The CPU encountered an illegal instruction at address " << std::hex << ( s_nes.cpu.getProgramCounter() - 1 );
+				showError( "Error", ss.str() );
+				s_nes.dump();
 			}
 			else
 			{

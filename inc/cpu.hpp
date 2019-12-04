@@ -56,6 +56,11 @@ namespace nes
 		// public so APU can read DMC
 		Byte read( Word address );
 
+		void dump( Word address );
+		void dumpStack();
+		void dumpState();
+		Word getProgramCounter() const { return m_programCounter; }
+
 		static void initialize();
 
 	private:

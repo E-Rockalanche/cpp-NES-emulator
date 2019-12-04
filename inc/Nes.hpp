@@ -19,65 +19,65 @@ namespace nes
 
 		Nes()
 		{
-			m_cpu.setPPU( m_ppu );
-			m_ppu.setCPU( m_cpu );
+			cpu.setPPU( ppu );
+			ppu.setCPU( cpu );
 			APU::init();
-			APU::setDmcReader( [this]( void*, cpu_addr_t address ){ return (int)m_cpu.read( address ); } );
+			APU::setDmcReader( [this]( void*, cpu_addr_t address ){ return (int)cpu.read( address ); } );
 		}
 
 		void power()
 		{
-			m_cpu.power();
-			m_ppu.power();
+			cpu.power();
+			ppu.power();
 			APU::reset();
 		}
 
 		void reset()
 		{
-			m_cpu.reset();
-			m_ppu.reset();
+			cpu.reset();
+			ppu.reset();
 			APU::reset();
 		}
 
-		void setCartridge( Cartridge* cartridge )
+		void setCartridge( Cartridge* cartridge_ )
 		{
-			m_cartridge = cartridge;
+			cartridge = cartridge_;
 
-			m_cpu.setCartridge( cartridge );
-			m_ppu.setCartridge( cartridge );
+			cpu.setCartridge( cartridge );
+			ppu.setCartridge( cartridge );
 			
 			if ( cartridge )
-				cartridge->setCPU( m_cpu );
+				cartridge->setCPU( cpu );
 		}
 
 		void setController( Controller* controller, size_t port )
 		{
-			m_cpu.setController( controller, port );
+			cpu.setController( controller, port );
 		}
 
 		const Pixel* getPixelBuffer() const
 		{
-			return m_ppu.getPixelBuffer();
+			return ppu.getPixelBuffer();
 		}
 
 		void runFrame()
 		{
-			m_cpu.runFrame();
+			cpu.runFrame();
 		}
 
 		bool halted() const
 		{
-			return m_cpu.halted();
+			return cpu.halted();
 		}
 
 		bool getSpriteFlickering() const
 		{
-			return m_ppu.getSpriteFlickering();
+			return ppu.getSpriteFlickering();
 		}
 
 		void setSpriteFlickering( bool on )
 		{
-			m_ppu.setSpriteFlickering( on );
+			ppu.setSpriteFlickering( on );
 		}
 
 		void setMute( bool mute )
@@ -87,25 +87,30 @@ namespace nes
 
 		void saveState( std::ostream& out )
 		{
-			m_cpu.saveState( out );
-			m_ppu.saveState( out );
+			cpu.saveState( out );
+			ppu.saveState( out );
 			APU::saveState( out );
-			m_cartridge->saveState( out );
+			cartridge->saveState( out );
 		}
 
 		void loadState( std::istream& in )
 		{
-			m_cpu.loadState( in );
-			m_ppu.loadState( in );
+			cpu.loadState( in );
+			ppu.loadState( in );
 			APU::loadState( in );
-			m_cartridge->loadState( in );
+			cartridge->loadState( in );
 		}
 
-	private:
+		void dump()
+		{
+			cpu.dumpState();
+			cpu.dumpStack();
+			cpu.dump( cpu.getProgramCounter() - 128 );
+		}
 
-		Cpu m_cpu;
-		Ppu m_ppu;
-		Cartridge* m_cartridge = nullptr;
+		Cpu cpu;
+		Ppu ppu;
+		Cartridge* cartridge = nullptr;
 	};
 
 }
