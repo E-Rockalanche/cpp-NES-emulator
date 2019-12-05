@@ -409,7 +409,7 @@ void Ppu::setVBlank()
 void Ppu::clearOAM()
 {
 	auto it = m_secondaryOAM.data();
-	auto end = it + getSecondaryOamSize();
+	auto end = it + getSecondaryOamSize() * OBJECT_SIZE;
 	for( ; it != end; ++it )
 	{
 		*it = 0xff;

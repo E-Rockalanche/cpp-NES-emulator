@@ -121,7 +121,11 @@ SDL_Keycode getKeycode(std::string str) {
 		KEY(KP_8),
 		KEY(KP_9),
 		KEY(KP_0),
-		KEY(KP_PERIOD)
+		KEY(KP_PERIOD),
+		KEY(RSHIFT),
+		{ "RIGHTSHIFT", SDLK_RSHIFT },
+		KEY(LSHIFT),
+		{ "LEFTSHIFT", SDLK_LSHIFT },
 	};
 
 	if (str.size() == 1) {

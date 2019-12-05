@@ -26,7 +26,7 @@ namespace nes
 		};
 
 		Joypad();
-		~Joypad() {}
+		~Joypad() override = default;
 
 		Button setKeyState( int key, bool pressed );
 		Button pressKey( int key );
