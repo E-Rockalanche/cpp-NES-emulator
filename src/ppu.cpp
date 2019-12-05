@@ -47,6 +47,11 @@ namespace
 		0xF8D878, 0xD8F878, 0xB8F8B8, 0xB8F8D8, 0x00FCFC, 0xF8D8F8, 0x000000, 0x000000
 	};
 
+	const Byte s_paletteRamBootValues[] = {
+		0x09, 0x01, 0x00, 0x01, 0x00, 0x02, 0x02, 0x0D, 0x08, 0x10, 0x08, 0x24, 0x00, 0x00, 0x04, 0x2C,
+		0x09, 0x01, 0x34, 0x03, 0x00, 0x04, 0x00, 0x14, 0x08, 0x3A, 0x00, 0x02, 0x00, 0x20, 0x2C, 0x08
+	};
+
 	template<typename INT>
 	inline bool getBit( INT mask, size_t bit )
 	{
@@ -130,8 +135,8 @@ void Ppu::randomizeClockSync()
 
 void Ppu::power()
 {
-	m_cycle = 0;
-	m_scanline = 0;
+	m_cycle = NUM_CYCLES - 1;
+	m_scanline = PRERENDER_SCANLINE;
 	m_oddFrame = false;
 	m_control = 0;
 	m_mask = 0;
@@ -150,14 +155,18 @@ void Ppu::power()
 	for( auto& value : m_primaryOAM )
 		value = 0xff;
 
+	static_assert( PALETTE_SIZE == std::size( s_paletteRamBootValues ) );
+	for( size_t i = 0; i < m_palette.size(); ++i )
+		m_palette[ i ] = s_paletteRamBootValues[ i ];
+
 	clearScreen();
 	randomizeClockSync();
 }
 
 void Ppu::reset()
 {
-	m_cycle = 0;
-	m_scanline = 0;
+	m_cycle = NUM_CYCLES - 1;
+	m_scanline = PRERENDER_SCANLINE;
 	m_oddFrame = false;
 	m_control = 0;
 	m_mask = 0;
@@ -213,16 +222,19 @@ Byte Ppu::readRegister( size_t reg )
 
 		case PpuRegister::Data:
 		{
-			if ( m_vramAddress >= PALETTE_START )
+			Word address = m_vramAddress & 0x3fff;
+			if ( address >= PALETTE_START )
 			{
-				// no buffering for palette ram
-				m_readBuffer = read( m_vramAddress );
-				m_openBus = m_readBuffer;
+				// read buffer is set to mirrored nametable "underneath" palette
+				m_readBuffer = m_nametable[ nametableMirror( address ) ];
+
+				// no buffering
+				m_openBus = read( address );
 			}
 			else
 			{
 				m_openBus = m_readBuffer;
-				m_readBuffer = read( m_vramAddress );
+				m_readBuffer = read( address );
 			}
 			incrementVRAMAddress();
 			break;
@@ -245,6 +257,9 @@ void Ppu::writeRegister( size_t reg, Byte value )
 			break;
 
 		case PpuRegister::Mask:
+			if ( !testFlag( m_mask, ShowBackground) && testFlag( value, ShowBackground ) )
+				dbLog( "enable bg. s=%i, c=%i", m_scanline, m_cycle );
+
 			m_mask = value;
 			break;
 
@@ -265,7 +280,7 @@ void Ppu::writeRegister( size_t reg, Byte value )
 			break;
 
 		case PpuRegister::Data:
-			write( m_vramAddress, value );
+			write( m_vramAddress & 0x3fff, value );
 			incrementVRAMAddress();
 			break;
 
@@ -355,14 +370,15 @@ Byte Ppu::read( Word address )
 
 		case PALETTE_START ... PALETTE_END:
 		{
-			if ( ( address & 0x13 ) == 0x10 )
-				address &= ~0x10;
+			if ( ( address & 0x0013 ) == 0x0010 )
+				address &= ~0x0010;
 
 			return m_palette[ address ]
 				& ( testFlag( m_mask, GreyScale ) ? 0x30 : 0xff );
 		}
 
 		default:
+			dbBreakMessage( "reading outside PPU memory");
 			return 0;
 	}
 }
@@ -390,6 +406,10 @@ void Ppu::write( Word address, Byte value )
 			m_palette[ address ] = value;
 			break;
 		}
+
+		default:
+			dbBreakMessage( "writing outside PPU memory" );
+			break;
 	}
 }
 
@@ -419,13 +439,6 @@ void Ppu::clearOAM()
 void Ppu::tick()
 {
 	m_cycle = ( m_cycle + 1 ) % NUM_CYCLES;
-	if ( ( m_cycle == 340 )
-		&& ( m_scanline == PRERENDER_SCANLINE )
-		&& m_oddFrame
-		&& renderingEnabled() )
-	{
-		m_cycle = 0;
-	}
 
 	if ( m_cycle == 0 )
 	{
@@ -434,6 +447,9 @@ void Ppu::tick()
 		{
 			m_oddFrame = !m_oddFrame;
 			++m_frame;
+
+			if ( m_oddFrame && renderingEnabled() )
+				m_cycle = 1;
 		}
 	}
 
@@ -601,7 +617,7 @@ void Ppu::scanlineCycle()
 				m_renderAddress = getNametableAddress();
 				break;
 
-			// nametable fetach instead of attribute
+			// nametable fetch instead of attribute
 			case 338:
 			case 340:
 				m_nametableLatch = read( m_renderAddress );

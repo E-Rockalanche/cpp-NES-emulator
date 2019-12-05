@@ -13,36 +13,35 @@
 
 #else
 
-	#include "Logger.hpp"
-
 	#include <cstdlib>
+	#include <cstdio>
 
 	#define dbAbort() { *(int*)nullptr = 0; }
 
 	#define dbPrintFileLine()	\
-		logger.log( "\n\tin %s at line %i\n", __FILE__, __LINE__ );
+		std::printf( "\n\tin %s at line %i\n", __FILE__, __LINE__ );
 
-	#define dbLog( ... ) { logger.log( __VA_ARGS__ ); logger.log( "\n" ); }
+	#define dbLog( ... ) { std::printf( __VA_ARGS__ ); std::printf( "\n" ); }
 
 	#define dbLogByte( varname, value )	\
-		logger.log( "%s: 0x%02x", varname, (int)value );
+		std::printf( "%s: 0x%02x", varname, (int)value );
 
 	#define dbLogWord( varname, value )	\
-		logger.log( "%s: 0x%04x", varname, (int)value );
+		std::printf( "%s: 0x%04x", varname, (int)value );
 
 	#define dbLogError( ... ) {		\
-		logger.log( "Error: " );	\
-		logger.log( __VA_ARGS__ );	\
+		std::printf( "Error: " );	\
+		std::printf( __VA_ARGS__ );	\
 		dbPrintFileLine(); }
 
 	#define dbBreak() {			\
-		logger.log( "Break" );	\
+		std::printf( "Break" );	\
 		dbPrintFileLine();		\
 		dbAbort(); }
 
 	#define dbBreakMessage( ... ) {	\
-		logger.log( "Break: " );	\
-		logger.log( __VA_ARGS__ );	\
+		std::printf( "Break: " );	\
+		std::printf( __VA_ARGS__ );	\
 		dbPrintFileLine();			\
 		dbAbort(); }
 
@@ -53,8 +52,8 @@
 
 	#define dbAssertMessage( condition, ... )	\
 		if ( !( condition ) ) {					\
-			logger.log( "Error: failed assertion: %s\n\t", #condition );	\
-			logger.log( __VA_ARGS__ );	\
+			std::printf( "Error: failed assertion: %s\n\t", #condition );	\
+			std::printf( __VA_ARGS__ );	\
 			dbPrintFileLine();			\
 			dbAbort(); }
 
