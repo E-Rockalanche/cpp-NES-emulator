@@ -47,7 +47,7 @@ struct Constant {
 
 template<typename T>
 inline void writeBinary(std::ostream& out, const T& value) {
-	out.write((char*)&value, sizeof(T));
+	out.write((const char*)&value, sizeof(T));
 }
 
 template<typename T>
