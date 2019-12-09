@@ -24,10 +24,13 @@
 	#define dbLog( ... ) { std::printf( __VA_ARGS__ ); std::printf( "\n" ); }
 
 	#define dbLogByte( varname, value )	\
-		std::printf( "%s: 0x%02x", varname, (int)value );
+		std::printf( "%s: 0x%02x\n", static_cast<const char*>( varname ), (int)value );
 
 	#define dbLogWord( varname, value )	\
-		std::printf( "%s: 0x%04x", varname, (int)value );
+		std::printf( "%s: 0x%04x\n", static_cast<const char*>( varname ), (int)value );
+
+	#define dbLogHex( varname, value )	\
+		std::printf( "%s: 0x%08x\n", static_cast<const char*>( varname ), (int)value );
 
 	#define dbLogError( ... ) {		\
 		std::printf( "Error: " );	\

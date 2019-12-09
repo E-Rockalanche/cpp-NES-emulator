@@ -1,23 +1,24 @@
 
 #include "main.hpp"
 
+#include "api.hpp"
+#include "Cartridge.hpp"
+#include "config.hpp"
+#include "common.hpp"
 #include "debug.hpp"
 #include "filesystem.hpp"
-#include "common.hpp"
-#include "nes.hpp"
-#include "cartridge.hpp"
-#include "joypad.hpp"
-#include "zapper.hpp"
-#include "program_end.hpp"
-#include "config.hpp"
-#include "keyboard.hpp"
 #include "globals.hpp"
-#include "api.hpp"
-#include "movie.hpp"
 #include "hotkeys.hpp"
-#include "menu_elements.hpp"
+#include "joypad.hpp"
+#include "keyboard.hpp"
 #include "menu_bar.hpp"
+#include "menu_elements.hpp"
 #include "message.hpp"
+#include "movie.hpp"
+#include "nes.hpp"
+#include "program_end.hpp"
+#include "rom_loader.hpp"
+#include "zapper.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -28,8 +29,6 @@
 #include <sstream>
 
 #include "SDL2/SDL.h"
-
-Logger logger;
 
 // SDL
 SDL_Window* window = nullptr;
@@ -132,38 +131,34 @@ void resetFrameNumber()
 
 bool loadFile( std::string filename )
 {
-	if ( cartridge )
-		delete cartridge;
-	
-	cartridge = nes::Cartridge::loadFile( filename );
+	auto cartridge = nes::Rom::load( filename.c_str() );
+
 	if ( !cartridge )
-	{
 		return false;
+
+	rom_filename = filename;
+	if ( cartridge->hasSRAM() )
+	{
+		save_filename = save_folder / rom_filename.filename().replace_extension( save_ext );
+		cartridge->loadSave( save_filename.c_str() );
 	}
 	else
 	{
-		rom_filename = filename;
-		if ( cartridge->hasSRAM() )
-		{
-			save_filename = save_folder
-							/ rom_filename.filename().replace_extension( save_ext );
-			cartridge->loadSave( save_filename );
-		}
-		else
-		{
-			save_filename = "";
-		}
-		s_nes.setCartridge( cartridge );
-		power();
-		return true;
+		save_filename = "";
 	}
+
+	s_nes.setCartridge( std::move( cartridge ) );
+	power();
+
+	return true;
 }
 
 bool loadSave( std::string filename )
 {
+	auto cartridge = s_nes.cartridge.get();
 	if ( cartridge && cartridge->hasSRAM() )
 	{
-		if ( cartridge->loadSave( filename ) )
+		if ( cartridge->loadSave( filename.c_str() ) )
 		{
 			save_filename = filename;
 			return true;
@@ -174,9 +169,10 @@ bool loadSave( std::string filename )
 
 void saveGame()
 {
+	auto cartridge = s_nes.cartridge.get();
 	if ( cartridge && cartridge->hasSRAM() )
 	{
-		cartridge->saveGame( save_filename );
+		cartridge->saveGame( save_filename.c_str() );
 	}
 }
 
@@ -324,7 +320,8 @@ void dropEvent( const SDL_Event& event )
 		}
 		else if ( extension == save_ext )
 		{
-			cartridge->loadSave( filename );
+			auto cartridge = s_nes.cartridge.get();
+			cartridge->loadSave( filename.c_str() );
 		}
 		else if ( extension == movie_ext )
 		{
@@ -441,7 +438,7 @@ int main( int argc, char** argv )
 	{
 		pollEvents();
 
-		if ( ( !paused || step_frame ) && ( cartridge != NULL ) && !s_nes.halted() )
+		if ( ( !paused || step_frame ) && ( s_nes.cartridge != nullptr ) && !s_nes.halted() )
 		{
 			if ( Movie::isPlaying() )
 			{

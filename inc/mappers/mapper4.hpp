@@ -10,23 +10,34 @@ namespace nes
 class Mapper4 : public Cartridge
 {
 public:
-	Mapper4( Byte* data );
-	~Mapper4() override = default;
+	Mapper4( Memory data ) : Cartridge( std::move( data ) )
+	{
+		reset();
+	}
+
 	void reset() override;
 
 	void writePRG(Word address, Byte value) override;
-	void writeCHR(Word address, Byte value) override;
+
 	void signalScanline() override;
-	void setCPU( nes::Cpu& cpu ) override
+
+	void setCPU( Cpu& cpu ) override
 	{
 		m_cpu = &cpu;
 	}
 
-	void saveState(std::ostream& out);
-	void loadState(std::istream& in);
+	void saveState( ByteIO::Writer& writer ) override;
+	void loadState( ByteIO::Reader& reader ) override;
 
-protected:
-	enum
+	const char* getName() const override { return "MMC3"; }
+
+private:
+
+	void applyBankSwitch();
+
+private:
+
+	enum Register
 	{
 		BANK_SELECT_EVEN = 0x8000,
 		BANK_SELECT_ODD = 0x8001,
@@ -38,20 +49,22 @@ protected:
 		IRQ_RELOAD = 0xc001,
 
 		IRQ_DISABLE = 0xe000,
-		IRQ_ENABLE = 0xe001
+		IRQ_ENABLE = 0xe001,
+
+		NUM_REGISTERS = 8
 	};
 
 	nes::Cpu* m_cpu = nullptr;
-	
-	Byte bank_select;
-	Byte bank_registers[8];
-	bool protectRAM;
-	bool enableRAM;
-	Byte irq_latch;
-	Byte irq_counter;
-	bool irq_enabled;
 
-	void applyBankSwitch();
+	Byte m_bankRegisters[ NUM_REGISTERS ];
+	
+	Byte m_bankSelect = 0;
+	Byte m_irqLatch = 0;
+	Byte m_irqCounter = 0;
+
+	bool m_irqEnabled = false;
+	bool m_protectRAM = false;
+	bool m_enableRAM = false;
 };
 
 }

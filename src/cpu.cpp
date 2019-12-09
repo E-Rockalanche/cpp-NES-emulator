@@ -1,7 +1,7 @@
 #include "Cpu.hpp"
 
 #include "apu.hpp"
-#include "cartridge.hpp"
+#include "Cartridge.hpp"
 #include "controller.hpp"
 #include "Instructions.hpp"
 #include "ppu.hpp"
@@ -337,7 +337,7 @@ Byte Cpu::read( Word address )
 
 		case CARTRIDGE_START ... CARTRIDGE_END:
 			// return m_cartridge->readPRG( address );
-			return cartridge->readPRG( address );
+			return m_cartridge->readPRG( address );
 
 		default:
 			return 0;
@@ -376,7 +376,7 @@ void Cpu::write( Word address, Byte value )
 
 		case CARTRIDGE_START ... CARTRIDGE_END:
 			// m_cartridge->writePRG( address, value );
-			cartridge->writePRG( address, value );
+			m_cartridge->writePRG( address, value );
 			break;
 	}
 }

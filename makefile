@@ -1,9 +1,11 @@
 TARGET := nes.exe
 CXX := g++
 
+FLAGS = -O3
+
 SDL_LFLAGS := -Wl,-Bdynamic -lSDL2main -lSDL2 -lSDL2_ttf -lSDL2_image -Wl,-Bstatic
-LFLAGS := -std=c++17 -O3 -lmingw32 -lm -mwindows -mconsole $(SDL_LFLAGS)
-CCFLAGS := -c -std=c++17 -O3
+LFLAGS := -std=c++17 $(FLAGS) -lmingw32 -lm -mwindows -mconsole $(SDL_LFLAGS)
+CCFLAGS := -c -std=c++17 $(FLAGS)
 LIB_INCLUDE := -isystem ./lib/inc -isystem ./lib/inc/boost
 INCLUDE := -I./inc -I./inc/mappers $(LIB_INCLUDE)
 

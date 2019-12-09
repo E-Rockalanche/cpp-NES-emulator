@@ -31,7 +31,7 @@
 typedef unsigned int uint;
 typedef void(*Callback)(void);
 
-#define KB 0x400
+constexpr size_t KB = 0x400;
 
 template<typename T>
 inline void writeBinary(std::ostream& out, const T& value)

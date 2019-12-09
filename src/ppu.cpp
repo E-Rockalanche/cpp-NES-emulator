@@ -257,9 +257,6 @@ void Ppu::writeRegister( size_t reg, Byte value )
 			break;
 
 		case PpuRegister::Mask:
-			if ( !testFlag( m_mask, ShowBackground) && testFlag( value, ShowBackground ) )
-				dbLog( "enable bg. s=%i, c=%i", m_scanline, m_cycle );
-
 			m_mask = value;
 			break;
 
@@ -730,7 +727,7 @@ void Ppu::incrementVRAMAddress()
 Word Ppu::nametableMirror( Word address )
 {
 	dbAssert( m_cartridge );
-	switch( m_cartridge->nameTableMirroring() )
+	switch( m_cartridge->getNameTableMirroring() )
 	{
 		case Cartridge::NameTableMirroring::Horizontal:
 			return ( ( address / 2 ) & 0x400 )
@@ -783,7 +780,10 @@ void Ppu::loadSpritesOnScanline()
 		if ( destIndex == SECONDARY_OAM_SIZE )
 		{
 			if ( renderingEnabled() )
+			{
 				setStatusFlag( SpriteOverflow );
+				dbLog( "SPR V: %i", y );
+			}
 
 			if ( m_spriteFlickering )
 				break;
@@ -809,7 +809,7 @@ void Ppu::loadSpriteRegisters()
 	const auto spriteHeight = getSpriteHeight();
 	const bool tallSprites = ( spriteHeight == 16 );
 
-	const auto size = getSecondaryOamSize();
+	const size_t size = getSecondaryOamSize();
 	for( size_t i = 0; i < size; ++i )
 	{
 		Byte* object = m_secondaryOAM.data() + i * OBJECT_SIZE;

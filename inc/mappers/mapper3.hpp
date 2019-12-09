@@ -9,11 +9,11 @@ namespace nes
 class Mapper3 : public Cartridge
 {
 public:
-	Mapper3(Byte* data);
-	~Mapper3() {}
+	using Cartridge::Cartridge;
 
-	void writePRG(Word address, Byte value);
-	void writeCHR(Word address, Byte value);
+	void writePRG( Word address, Byte value ) override;
+
+	const char* getName() const override { return "CNROM"; }
 };
 
 }

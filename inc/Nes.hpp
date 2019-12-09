@@ -30,6 +30,8 @@ namespace nes
 			cpu.power();
 			ppu.power();
 			APU::reset();
+			if ( cartridge )
+				cartridge->reset();
 		}
 
 		void reset()
@@ -37,14 +39,16 @@ namespace nes
 			cpu.reset();
 			ppu.reset();
 			APU::reset();
+			if ( cartridge )
+				cartridge->reset();
 		}
 
-		void setCartridge( Cartridge* cartridge_ )
+		void setCartridge( std::unique_ptr<Cartridge> cartridge_ )
 		{
-			cartridge = cartridge_;
+			cartridge = std::move( cartridge_ );
 
-			cpu.setCartridge( cartridge );
-			ppu.setCartridge( cartridge );
+			cpu.setCartridge( cartridge.get() );
+			ppu.setCartridge( cartridge.get() );
 			
 			if ( cartridge )
 				cartridge->setCPU( cpu );
@@ -90,7 +94,9 @@ namespace nes
 			cpu.saveState( out );
 			ppu.saveState( out );
 			APU::saveState( out );
-			cartridge->saveState( out );
+
+			ByteIO::Writer writer( out );
+			cartridge->saveState( writer );
 		}
 
 		void loadState( std::istream& in )
@@ -98,7 +104,9 @@ namespace nes
 			cpu.loadState( in );
 			ppu.loadState( in );
 			APU::loadState( in );
-			cartridge->loadState( in );
+
+			ByteIO::Reader reader( in );
+			cartridge->loadState( reader );
 		}
 
 		void dump()
@@ -110,7 +118,7 @@ namespace nes
 
 		Cpu cpu;
 		Ppu ppu;
-		Cartridge* cartridge = nullptr;
+		std::unique_ptr<Cartridge> cartridge;
 	};
 
 }

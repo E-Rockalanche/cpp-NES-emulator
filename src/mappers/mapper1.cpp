@@ -4,7 +4,7 @@
 
 using namespace nes;
 
-Mapper1::Mapper1( Byte* data ) : Cartridge( data )
+Mapper1::Mapper1( Memory data ) : Cartridge( std::move( data ) )
 {
 	reset();
 }
@@ -13,127 +13,128 @@ void Mapper1::reset()
 {
 	Cartridge::reset();
 
-	shift_register = SHIFT_REG_INIT;
+	m_shiftRegister = SHIFT_REG_INIT;
 
-	// set initial banks
-	setPRGBank( 0, 0, 16 * KB );
-	setPRGBank( 1, -1, 16 * KB );
+	setPrgBank( 0, 0, 0x4000 );
+	setPrgBank( 1, -1, 0x4000 );
 }
 
 void Mapper1::writePRG( Word address, Byte value )
 {
-	if ( address >= PRG_START )
+	if ( address >= PrgStart )
 	{
 		if ( value & 0x80 )
 		{
-			shift_register = SHIFT_REG_INIT;
-			registers[CONTROL] |= 0x0c;
+			m_shiftRegister = SHIFT_REG_INIT;
+			m_registers[CONTROL] |= 0x0c;
 			applyBankSwitch();
 		}
 		else
 		{
-			bool last_write = shift_register & 1;
-			shift_register >>= 1;
-			shift_register |= ( value & 1 ) << 4;
+			bool last_write = m_shiftRegister & 1;
+			m_shiftRegister >>= 1;
+			m_shiftRegister |= ( value & 1 ) << 4;
 			if ( last_write )
 			{
-				registers[( address >> 13 ) & 0x03] = shift_register;
-				shift_register = SHIFT_REG_INIT;
+				m_registers[( address >> 13 ) & 0x03] = m_shiftRegister;
+				m_shiftRegister = SHIFT_REG_INIT;
 				applyBankSwitch();
 			}
 		}
 	}
-	else if ( address >= RAM_START )
+	else if ( address >= RamStart )
 	{
-		ram[address - RAM_START] = value;
+		getRam()[ address - RamStart ] = value;
 	}
 }
 
-void Mapper1::writeCHR( Word address, Byte value )
+int Mapper1::getMirrorMode()
 {
-	dbAssertMessage( address < chr_size, "chr address out of bounds" );
-	chr[address] = value;
+	return m_registers[ CONTROL ] & 0x03;
 }
 
-int Mapper1::mirrorMode()
+int Mapper1::getPrgBankMode()
 {
-	return registers[CONTROL] & 0x03;
+	return ( m_registers[ CONTROL ] >> 2 ) & 0x03;
 }
 
-int Mapper1::prgBankMode()
+bool Mapper1::getChrBankMode()
 {
-	return ( registers[CONTROL] >> 2 ) & 0x03;
+	return m_registers[ CONTROL ] & 0x10;
 }
 
-bool Mapper1::chrBankMode()
+bool Mapper1::isRamEnabled()
 {
-	return registers[CONTROL] & 0x10;
-}
-
-bool Mapper1::ramEnable()
-{
-	return !( registers[PRG_BANK] & 0x10 );
+	return !( m_registers[ PRG_BANK ] & 0x10 );
 }
 
 void Mapper1::applyBankSwitch()
 {
 	// switch prg rom
-	switch ( prgBankMode() )
+	switch ( getPrgBankMode() )
 	{
 		case 0:
 		case 1:
-			setPRGBank( 0, ( registers[PRG_BANK] & 0xf ) >> 1, 32 * KB );
+		{
+			int bank = ( m_registers[ PRG_BANK ] & 0xf ) >> 1;
+			setPrgBank( 0, bank, 32 * KB );
 			break;
+		}
 
 		case 2:
+		{
 			// 0x8000 fixed to bank 0x00
-			setPRGBank( 0, 0, 16 * KB );
+			setPrgBank( 0, 0, 16 * KB );
 			// 0xc000 swappable
-			setPRGBank( 1, registers[PRG_BANK] & 0x0f, 16 * KB );
+			int bank = m_registers[ PRG_BANK ] & 0x0f;
+			setPrgBank( 1, bank, 16 * KB );
 			break;
+		}
 
 		case 3:
 			// 0x8000 swappable
-			setPRGBank( 0, registers[PRG_BANK] & 0x0f, 16 * KB );
+			int bank = m_registers[PRG_BANK] & 0x0f;
+			setPrgBank( 0, bank, 16 * KB );
 			// 0xc000 fixed to last bank
-			setPRGBank( 1, -1, 16 * KB );
+			setPrgBank( 1, -1, 16 * KB );
 			break;
 	}
 
 	// switch chr rom
-	if ( chrBankMode() )
+	if ( getChrBankMode() )
 	{
-		setCHRBank( 0, registers[CHR_BANK_0], 4 * KB );
-		setCHRBank( 1, registers[CHR_BANK_1], 4 * KB );
+		setChrBank( 0, m_registers[ CHR_BANK_0 ], 4 * KB );
+		setChrBank( 1, m_registers[ CHR_BANK_1 ], 4 * KB );
 	}
 	else
 	{
-		setCHRBank( 0, registers[CHR_BANK_0] >> 1, 8 * KB );
+		setChrBank( 0, m_registers[CHR_BANK_0] >> 1, 8 * KB );
 	}
 
-	switch ( mirrorMode() )
+	switch ( getMirrorMode() )
 	{
 		case 2:
-			nt_mirroring = NameTableMirroring::Vertical;
+			setNameTableMirroring( NameTableMirroring::Vertical );
 			break;
+
 		case 3:
-			nt_mirroring = NameTableMirroring::Horizontal;
+			setNameTableMirroring( NameTableMirroring::Horizontal );
 			break;
 	}
 }
 
-void Mapper1::saveState( std::ostream& out )
+void Mapper1::saveState(  ByteIO::Writer& writer )
 {
-	Cartridge::saveState( out );
+	Cartridge::saveState( writer );
 
-	out.write( ( char* )&shift_register, sizeof( shift_register ) );
-	out.write( ( char* )registers, sizeof( registers ) );
+	writer.write( m_shiftRegister );
+	writer.write( m_registers );
 }
 
-void Mapper1::loadState( std::istream& in )
+void Mapper1::loadState( ByteIO::Reader& reader )
 {
-	Cartridge::loadState( in );
+	Cartridge::loadState( reader );
 
-	in.read( ( char* )&shift_register, sizeof( shift_register ) );
-	in.read( ( char* )registers, sizeof( registers ) );
+	reader.read( m_shiftRegister );
+	reader.read( m_registers );
 }

@@ -22,23 +22,14 @@ void quit()
 
 void reset()
 {
-	if ( cartridge != NULL )
-	{
-		cartridge->reset();
-		s_nes.reset();
-		resetFrameNumber();
-	}
+	s_nes.reset();
+	resetFrameNumber();
 }
 
 void power()
 {
-	if ( cartridge != NULL )
-	{
-		cartridge->reset();
-		s_nes.power();
-		resetFrameNumber();
-
-	}
+	s_nes.power();
+	resetFrameNumber();
 }
 
 void toggleSpriteFlickering()
@@ -133,13 +124,10 @@ void selectRom()
 void closeFile()
 {
 	saveGame();
-	delete cartridge;
-	cartridge = NULL;
+	s_nes.setCartridge( nullptr );
 	rom_filename = "";
 	save_filename = "";
 	Movie::clear();
-
-	s_nes.setCartridge( nullptr );
 }
 
 void toggleRecording()
@@ -244,12 +232,12 @@ void takeScreenshot()
 
 void saveState( const std::string& filename )
 {
-	if ( cartridge != NULL )
+	if ( s_nes.cartridge != nullptr )
 	{
 		std::ofstream fout( filename.c_str(), std::ios::binary );
 		if ( fout.is_open() )
 		{
-			unsigned int checksum = cartridge->getChecksum();
+			uint32_t checksum = s_nes.cartridge->getChecksum();
 			writeBinary( fout, checksum );
 			s_nes.saveState( fout );
 			fout.close();
@@ -266,7 +254,7 @@ void saveState()
 
 void loadState( const std::string& filename )
 {
-	if ( cartridge != NULL )
+	if ( s_nes.cartridge != nullptr )
 	{
 		std::ifstream fin( filename.c_str(), std::ios::binary );
 		if ( fin.is_open() )
@@ -274,7 +262,7 @@ void loadState( const std::string& filename )
 			unsigned int checksum = 0;
 			readBinary( fin, checksum );
 			bool load = true;
-			if ( cartridge->getChecksum() != checksum )
+			if ( s_nes.cartridge->getChecksum() != checksum )
 			{
 				load = askYesNo( "Warning",
 								 "This save state appears to be for a different game. Load it anyway?",
