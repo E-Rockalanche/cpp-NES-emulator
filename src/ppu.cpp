@@ -425,12 +425,17 @@ void Ppu::setVBlank()
 
 void Ppu::clearOAM()
 {
+	for( auto& value : m_secondaryOAM )
+		value = 0xff;
+
+	/*
 	auto it = m_secondaryOAM.data();
 	auto end = it + getSecondaryOamSize() * OBJECT_SIZE;
 	for( ; it != end; ++it )
 	{
 		*it = 0xff;
 	}
+	*/
 }
 
 void Ppu::tick()
@@ -780,10 +785,7 @@ void Ppu::loadSpritesOnScanline()
 		if ( destIndex == SECONDARY_OAM_SIZE )
 		{
 			if ( renderingEnabled() )
-			{
 				setStatusFlag( SpriteOverflow );
-				dbLog( "SPR V: %i", y );
-			}
 
 			if ( m_spriteFlickering )
 				break;
@@ -820,7 +822,7 @@ void Ppu::loadSpriteRegisters()
 		if ( tallSprites )
 		{
 			address = ( ( tile & 1 ) * 0x1000 )
-				+ ( ( tile & ~1 ) * 16 );
+				+ ( ( tile & 0xfe ) * 16 );
 		}
 		else // sprite height == 8
 		{
@@ -891,8 +893,7 @@ void Ppu::renderPixelInternal()
 		&& ( testFlag( m_mask, ShowSpriteLeft8 ) || ( x >= 8 ) )
 		&& ( x < 255 ) )
 	{
-		auto size = getSecondaryOamSize();
-		for( size_t i = size-1; i --> 0; )
+		for( size_t i = getSecondaryOamSize(); i-- > 0; )
 		{
 			Byte attributes = m_spriteAttributeLatch[ i ];
 
