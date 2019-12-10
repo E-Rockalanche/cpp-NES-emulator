@@ -67,7 +67,7 @@ namespace nes
 		{
 			for( size_t i = 0; i < NUM_SLOTS; ++i )
 			{
-				m_bankOffsets[ i ] = i * MIN_BANK_SIZE;
+				m_bankOffsets[ i ] = ( i * MIN_BANK_SIZE ) % m_memorySize;
 			}
 		}
 

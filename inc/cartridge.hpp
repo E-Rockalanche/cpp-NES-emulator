@@ -39,7 +39,7 @@ namespace nes
 		Byte readPRG( Word address );
 		Byte readCHR( Word address );
 		
-		virtual void writePRG( Word address, Byte value ) {}
+		virtual void writePRG( Word address, Byte value );
 		virtual void writeCHR( Word address, Byte value );
 
 		virtual void signalScanline() {}

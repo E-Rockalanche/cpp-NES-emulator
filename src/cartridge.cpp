@@ -86,12 +86,20 @@ Byte Cartridge::readCHR( Word address )
 	return m_chr[ m_chrMap[ address ] ];
 }
 
+void Cartridge::writePRG( Word address, Byte value )
+{
+	if ( address >= RamStart  && address < PrgStart )
+	{
+		m_ram[ address - RamStart ] = value;
+	}
+}
+
 void Cartridge::writeCHR( Word address, Byte value )
 {
 	if ( m_chrRam.size() > 0 )
 	{
 		dbAssert( address < getChrSize() );
-		getChr()[ address ] = value;
+		m_chr[ address ] = value;
 	}
 }
 

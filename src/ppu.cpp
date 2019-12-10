@@ -151,12 +151,14 @@ void Ppu::power()
 	m_canDraw = false;
 	m_spriteZeroNextScanline = false;
 	m_spriteZeroThisScanline = false;
+	m_spritesOnNextScanline = 0;
+	m_spritesOnThisScanline = 0;
 
 	for( auto& value : m_primaryOAM )
 		value = 0xff;
 
 	static_assert( PALETTE_SIZE == std::size( s_paletteRamBootValues ) );
-	for( size_t i = 0; i < m_palette.size(); ++i )
+	for( uint32_t i = 0; i < m_palette.size(); ++i )
 		m_palette[ i ] = s_paletteRamBootValues[ i ];
 
 	clearScreen();
@@ -175,6 +177,8 @@ void Ppu::reset()
 	m_canDraw = false;
 	m_spriteZeroNextScanline = false;
 	m_spriteZeroThisScanline = false;
+	m_spritesOnNextScanline = 0;
+	m_spritesOnThisScanline = 0;
 
 	clearScreen();
 	randomizeClockSync();
@@ -425,16 +429,11 @@ void Ppu::setVBlank()
 
 void Ppu::clearOAM()
 {
-	for( auto& value : m_secondaryOAM )
-		value = 0xff;
+	m_spritesOnNextScanline = 0;
 
 	/*
-	auto it = m_secondaryOAM.data();
-	auto end = it + getSecondaryOamSize() * OBJECT_SIZE;
-	for( ; it != end; ++it )
-	{
-		*it = 0xff;
-	}
+	for( auto& value : m_secondaryOAM )
+		value = 0xff;
 	*/
 }
 
@@ -757,6 +756,8 @@ void Ppu::loadShiftRegisters()
 
 void Ppu::loadSpritesOnScanline()
 {
+	dbAssertMessage( m_spritesOnNextScanline == 0, "secondary OAM was not cleared" );
+
 	m_spriteZeroNextScanline = false;
 
 	int scanlineY = ( m_scanline == PRERENDER_SCANLINE )
@@ -765,7 +766,6 @@ void Ppu::loadSpritesOnScanline()
 
 	auto spriteHeight = getSpriteHeight();
 
-	size_t destIndex = 0;
 	size_t secondaryOamSize = getSecondaryOamSize();
 
 	for( size_t i = 0; i < PRIMARY_OAM_SIZE; ++i )
@@ -782,7 +782,7 @@ void Ppu::loadSpritesOnScanline()
 		if ( i == 0 )
 			m_spriteZeroNextScanline = true;
 
-		if ( destIndex == SECONDARY_OAM_SIZE )
+		if ( m_spritesOnNextScanline == SECONDARY_OAM_SIZE )
 		{
 			if ( renderingEnabled() )
 				setStatusFlag( SpriteOverflow );
@@ -791,15 +791,15 @@ void Ppu::loadSpritesOnScanline()
 				break;
 		}
 
-		if ( destIndex < secondaryOamSize )
+		if ( m_spritesOnNextScanline < secondaryOamSize )
 		{
 			// copy object from primary OAM to secondary OAM
-			Byte* destObject = m_secondaryOAM.data() + destIndex * OBJECT_SIZE;
+			Byte* destObject = m_secondaryOAM.data() + m_spritesOnNextScanline * OBJECT_SIZE;
 			for( size_t a = 0; a < OBJECT_SIZE; ++a )
 			{
 				destObject[ a ] = srcObject[ a ];
 			}
-			++destIndex;
+			++m_spritesOnNextScanline;
 		}
 	}
 }
@@ -807,12 +807,12 @@ void Ppu::loadSpritesOnScanline()
 void Ppu::loadSpriteRegisters()
 {
 	m_spriteZeroThisScanline = m_spriteZeroNextScanline;
+	m_spritesOnThisScanline = m_spritesOnNextScanline;
 
 	const auto spriteHeight = getSpriteHeight();
 	const bool tallSprites = ( spriteHeight == 16 );
 
-	const size_t size = getSecondaryOamSize();
-	for( size_t i = 0; i < size; ++i )
+	for( size_t i = 0; i < m_spritesOnThisScanline; ++i )
 	{
 		Byte* object = m_secondaryOAM.data() + i * OBJECT_SIZE;
 		const Byte tile = object[ ObjectVariable::TileIndex ];
@@ -830,8 +830,8 @@ void Ppu::loadSpriteRegisters()
 				+ ( tile * 16 );
 		}
 
-		size_t spriteY = ( m_scanline - object[ ObjectVariable::YPos ] )
-			% spriteHeight;
+		int spriteY = ( m_scanline - object[ ObjectVariable::YPos ] )
+			& ( spriteHeight - 1 );
 
 		if ( testFlag( object[ ObjectVariable::Attributes ], FlipVertically ) )
 		{
@@ -893,7 +893,7 @@ void Ppu::renderPixelInternal()
 		&& ( testFlag( m_mask, ShowSpriteLeft8 ) || ( x >= 8 ) )
 		&& ( x < 255 ) )
 	{
-		for( size_t i = getSecondaryOamSize(); i-- > 0; )
+		for( size_t i = m_spritesOnThisScanline; i-- > 0; )
 		{
 			Byte attributes = m_spriteAttributeLatch[ i ];
 
@@ -979,6 +979,8 @@ void Ppu::saveState( std::ostream& out )
 	writeBytes( m_spriteZeroHit )
 	writeBytes( m_cycle )
 	writeBytes( m_scanline )
+	writeBytes( m_spritesOnNextScanline )
+	writeBytes( m_spritesOnThisScanline )
 	writeBytes( m_oddFrame )
 }
 
@@ -1021,6 +1023,8 @@ void Ppu::loadState( std::istream& in )
 	readBytes( m_spriteZeroHit )
 	readBytes( m_cycle )
 	readBytes( m_scanline )
+	readBytes( m_spritesOnNextScanline )
+	readBytes( m_spritesOnThisScanline )
 	readBytes( m_oddFrame )
 }
 

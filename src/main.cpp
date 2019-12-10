@@ -40,7 +40,7 @@ constexpr size_t ScreenHeight = nes::Ppu::ScreenHeight;
 
 // NES
 nes::Nes s_nes;
-nes::Zapper zapper;
+nes::Zapper zapper( s_nes.getPixelBuffer() );
 nes::Joypad joypad[ 4 ];
 bool paused = false;
 bool step_frame = false;

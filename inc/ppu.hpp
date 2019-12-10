@@ -146,9 +146,11 @@ namespace nes
 		Cpu* m_cpu = nullptr;
 		Cartridge* m_cartridge = nullptr;
 
-		int m_frame = 0;
-		int m_cycle = 0;
-		int m_scanline = 0;
+		uint32_t m_frame = 0;
+		uint32_t m_cycle = 0;
+		uint32_t m_scanline = 0;
+		uint32_t m_spritesOnNextScanline = 0;
+		uint32_t m_spritesOnThisScanline = 0;
 
 		Pixel m_pixels[ ScreenWidth * ScreenHeight ];
 

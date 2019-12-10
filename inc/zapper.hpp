@@ -12,6 +12,8 @@ namespace nes
 	{
 	public:
 
+		Zapper( const Pixel* screen ) : m_screen( screen ) {}
+
 		Byte read() override
 		{
 			return ( ( m_triggerHeld >= 1 ) ? 0x10 : 0 ) | ( detectingLight() ? 0 : 0x08 );
@@ -40,7 +42,7 @@ namespace nes
 
 		bool detectingLight()
 		{
-			if ( m_x >= 0 && m_x < 256 && m_y >= 0 && m_y < 240 && m_screen )
+			if ( m_x >= 0 && m_x < 256 && m_y >= 0 && m_y < 240 )
 			{
 				Pixel p = m_screen[ m_x + m_y * 256 ];
 				return ( p.r >= 0xf8 ) && ( p.g >= 0xf8 ) && ( p.b >= 0xf8 );
