@@ -57,7 +57,7 @@ namespace nes
 		bool getSpriteFlickering() const { return m_spriteFlickering; }
 		void setSpriteFlickering( bool flicker ) { m_spriteFlickering = flicker; }
 
-		void saveState( std::ostream& out );
+		void saveState( std::ostream& out ) const;
 		void loadState( std::istream& in );
 
 		const Pixel* getPixelBuffer() const

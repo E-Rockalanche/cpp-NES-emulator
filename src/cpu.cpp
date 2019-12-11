@@ -188,6 +188,8 @@ enum class Cpu::AddressMode
 
 void Cpu::power()
 {
+	m_cycles = 0;
+
 	m_stackPointer = STACK_START;
 	m_status = STATUS_START;
 
@@ -200,8 +202,6 @@ void Cpu::power()
 	for ( Word i = 0; i < 16; ++i )
 		write( APU_START + i, 0 );
 
-	m_cycles = 0;
-
 	m_programCounter = readWordTick( RESET_VECTOR );
 	dbLogWord( "PC", m_programCounter );
 
@@ -213,6 +213,8 @@ void Cpu::power()
 
 void Cpu::reset()
 {
+	m_cycles = 0;
+	
 	m_stackPointer -= 3;
 	setStatus( DisableInterrupts );
 	write( APU_STATUS, 0 );
@@ -220,7 +222,6 @@ void Cpu::reset()
 	m_programCounter = readWordTick( RESET_VECTOR );
 	dbLogWord( "PC", m_programCounter );
 
-	m_cycles = 0;
 	m_halt = false;
 	m_nmi = -1;
 	m_irq = -1;
@@ -264,7 +265,7 @@ void Cpu::runFrame()
 		executeInstruction();
 	}
 
-	APU::runFrame( m_cycles );
+	m_apu->runFrame( m_cycles );
 }
 
 void Cpu::tick()
@@ -319,15 +320,15 @@ Byte Cpu::read( Word address )
 			return m_ram[ address - RAM_START ];
 
 		case PPU_START ... PPU_END:
-			// return m_ppu->read( address - PPU_START );
 			return m_ppu->readRegister( ( address - PPU_START ) % PPU_SIZE );
 
 		case APU_START ... APU_END:
+		{
 			if ( address == OAM_DMA )
 				return 0;
 
-			return APU::readByte( m_cycles, address );
-			// return m_apu->read( m_cycles, address );
+			return m_apu->read( m_cycles, address );
+		}
 
 		case JOY1 ... JOY2:
 		{
@@ -336,7 +337,6 @@ Byte Cpu::read( Word address )
 		}
 
 		case CARTRIDGE_START ... CARTRIDGE_END:
-			// return m_cartridge->readPRG( address );
 			return m_cartridge->readPRG( address );
 
 		default:
@@ -362,8 +362,7 @@ void Cpu::write( Word address, Byte value )
 			if ( address == OAM_DMA )
 				oamDmaTransfer( value );
 			else
-				// m_apu->write( m_cycles, address, value );
-				APU::writeByte( m_cycles, address, value );
+				m_apu->write( m_cycles, address, value );
 			break;
 		}
 
@@ -375,7 +374,6 @@ void Cpu::write( Word address, Byte value )
 		}
 
 		case CARTRIDGE_START ... CARTRIDGE_END:
-			// m_cartridge->writePRG( address, value );
 			m_cartridge->writePRG( address, value );
 			break;
 	}
@@ -1187,7 +1185,7 @@ void Cpu::initialize()
 #define writeBytes( var ) out.write( ( const char* )&var, sizeof( var ) );
 #define readBytes( var ) in.read( ( char* )&var, sizeof( var ) );
 
-void Cpu::saveState( std::ostream& out )
+void Cpu::saveState( std::ostream& out ) const
 {
 	writeBytes( m_ram );
 	writeBytes( m_cycles );

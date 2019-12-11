@@ -940,7 +940,7 @@ void Ppu::renderPixelInternal()
 #define writeBytes( var ) out.write( (const char*)&var, sizeof( var ) );
 #define readBytes( var ) in.read( (char*)&var, sizeof( var ) );
 
-void Ppu::saveState( std::ostream& out )
+void Ppu::saveState( std::ostream& out ) const
 {
 	writeBytes( m_nametable )
 	writeBytes( m_palette )

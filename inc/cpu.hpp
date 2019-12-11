@@ -23,6 +23,11 @@ namespace nes
 			m_ppu = &ppu;
 		}
 
+		void setAPU( Apu& apu )
+		{
+			m_apu = &apu;
+		}
+
 		void setCartridge( Cartridge* cartridge )
 		{
 			m_cartridge = cartridge;
@@ -50,7 +55,7 @@ namespace nes
 
 		bool halted() const { return m_halt; }
 
-		void saveState( std::ostream& out );
+		void saveState( std::ostream& out ) const;
 		void loadState( std::istream& in );
 
 		// public so APU can read DMC

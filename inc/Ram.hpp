@@ -36,7 +36,7 @@ namespace nes
 		}
 
 		Byte* data() { return m_data; }
-		const Byte& data() const { return m_data; }
+		const Byte* data() const { return m_data; }
 
 		Byte* begin() { return m_data; }
 		const Byte* begin() const { return m_data; }

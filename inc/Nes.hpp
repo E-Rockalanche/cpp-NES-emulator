@@ -4,6 +4,7 @@
 #include "apu.hpp"
 #include "Cartridge.hpp"
 #include "Cpu.hpp"
+#include "debug.hpp"
 #include "Ppu.hpp"
 
 #include <iostream>
@@ -19,28 +20,30 @@ namespace nes
 
 		Nes()
 		{
+			cpu.setAPU( apu );
 			cpu.setPPU( ppu );
 			ppu.setCPU( cpu );
-			APU::init();
-			APU::setDmcReader( [this]( void*, cpu_addr_t address ){ return (int)cpu.read( address ); } );
+			apu.setDmcReader( [this]( void*, cpu_addr_t address ) -> int { return cpu.read( address ); } );
 		}
 
 		void power()
 		{
-			cpu.power();
 			ppu.power();
-			APU::reset();
+			apu.reset();
 			if ( cartridge )
 				cartridge->reset();
+
+			cpu.power();
 		}
 
 		void reset()
 		{
-			cpu.reset();
 			ppu.reset();
-			APU::reset();
+			apu.reset();
 			if ( cartridge )
 				cartridge->reset();
+
+			cpu.reset();
 		}
 
 		void setCartridge( std::unique_ptr<Cartridge> cartridge_ )
@@ -86,26 +89,30 @@ namespace nes
 
 		void setMute( bool mute )
 		{
-			APU::setMute( mute );
+			apu.setMute( mute );
 		}
 
 		void saveState( std::ostream& out )
 		{
-			cpu.saveState( out );
-			ppu.saveState( out );
-			APU::saveState( out );
+			dbAssert( cartridge );
 
 			ByteIO::Writer writer( out );
+
+			cpu.saveState( out );
+			ppu.saveState( out );
+			apu.saveState( writer );
 			cartridge->saveState( writer );
 		}
 
 		void loadState( std::istream& in )
 		{
-			cpu.loadState( in );
-			ppu.loadState( in );
-			APU::loadState( in );
+			dbAssert( cartridge );
 
 			ByteIO::Reader reader( in );
+
+			cpu.loadState( in );
+			ppu.loadState( in );
+			apu.loadState( reader );
 			cartridge->loadState( reader );
 		}
 
@@ -118,6 +125,7 @@ namespace nes
 
 		Cpu cpu;
 		Ppu ppu;
+		Apu apu;
 		std::unique_ptr<Cartridge> cartridge;
 	};
 
