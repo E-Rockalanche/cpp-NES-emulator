@@ -3,13 +3,19 @@
 
 #include "cartridge.hpp"
 
-class Mapper3 : public Cartridge {
-public:
-	Mapper3(Byte* data);
-	~Mapper3() {}
+namespace nes
+{
 
-	void writePRG(Word address, Byte value);
-	void writeCHR(Word address, Byte value);
+class Mapper3 : public Cartridge
+{
+public:
+	using Cartridge::Cartridge;
+
+	void writePRG( Word address, Byte value ) override;
+
+	const char* getName() const override { return "CNROM"; }
 };
+
+}
 
 #endif

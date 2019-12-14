@@ -8,6 +8,10 @@
 
 #include "Blip_Buffer.h"
 
+#include <functional>
+
+using dmc_reader_t = std::function<int( void*, cpu_addr_t )>;
+
 class Nes_Apu;
 
 struct Nes_Osc
@@ -120,8 +124,8 @@ struct Nes_Dmc : Nes_Osc
 	bool irq_flag;
 	bool pal_mode;
 	bool nonlinear;
-	
-	int (*rom_reader)( void*, cpu_addr_t ); // needs to be initialized to rom read function
+
+	dmc_reader_t rom_reader; // needs to be initialized to rom read function
 	void* rom_reader_data;
 	
 	Nes_Apu* apu;

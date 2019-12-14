@@ -5,7 +5,6 @@
 #include <iomanip>
 #include <bitset>
 #include <string>
-#include "debugging.hpp"
 
 #define GET_MACRO(_1, _2, _3, MACRO_NAME, ...) MACRO_NAME
 #define toHex3(number, bytes, prefix) (prefix) << std::setfill('0') << std::setw((bytes) * 2) \
@@ -30,20 +29,9 @@
 	&& (y) < ((top) + (height)))
 
 typedef unsigned int uint;
-typedef unsigned char Byte;
-typedef unsigned short Word;
 typedef void(*Callback)(void);
 
-#define BL(bit) (1 << (bit))
-
-#define KB 0x400
-
-template <class T, T V>
-struct Constant {
-	operator T() const { return V; }
-};
-
-#define testFlag(mask, flag) ((bool)((mask) & (flag)))
+constexpr size_t KB = 0x400;
 
 template<typename T>
 inline void writeBinary(std::ostream& out, const T& value) {
@@ -51,7 +39,8 @@ inline void writeBinary(std::ostream& out, const T& value) {
 }
 
 template<typename T>
-inline void readBinary(std::istream& in, T& value) {
+inline void readBinary(std::istream& in, T& value)
+{
 	in.read((char*)&value, sizeof(T));
 }
 

@@ -1,39 +1,37 @@
 #ifndef PIXEL_HPP
 #define PIXEL_HPP
 
-#include "common.hpp"
-#include "assert.hpp"
+#include <cstdint>
 
-struct Pixel {
-	// big endian
-	Byte red;
-	Byte green;
-	Byte blue;
+struct Pixel
+{
+	static constexpr uint32_t r_mask = 0x000000ff;
+	static constexpr uint32_t g_mask = 0x0000ff00;
+	static constexpr uint32_t b_mask = 0x00ff0000;
+	static constexpr uint32_t a_mask = 0x00000000;
 
-	Pixel(Byte red, Byte green, Byte blue)
-		: red(red), green(green), blue(blue) {}
-		
-	Pixel(int rgb = 0) : red((rgb >> 16) & 0xff),
-						  green((rgb >> 8) & 0xff),
-						  blue(rgb & 0xff) {}
+	Pixel() = default;
 
-	operator int() {
-		return (red << 16) | (green << 8) | (blue << 0);
-	}
+	constexpr Pixel( uint32_t rgb )
+		: r( rgb >> 16 )
+		, g( rgb >> 8 )
+		, b( rgb )
+	{}
 
-	Byte& operator [](unsigned int index) {
-		switch(index % 3) {
-			case 0: return red;
-			case 1: return green;
-			case 2: return blue;
-			default: assert(false, "invalid pixel index");
-		}
-	}
+	constexpr Pixel( uint8_t r_, uint8_t g_, uint8_t b_ )
+		: r( r_ )
+		, g( g_ )
+		, b( b_ )
+	{}
 
-	static const int r_mask = 0x0000ff;
-	static const int g_mask = 0x00ff00;
-	static const int b_mask = 0xff0000;
-	static const int a_mask = 0;
+	uint8_t* data() { return (uint8_t*)(char*)this; }
+	const uint8_t* data() const { return (const uint8_t*)(const char*)this; }
+	uint8_t& operator[]( std::size_t index ) { return data()[ index ]; }
+	const uint8_t& operator[]( std::size_t index ) const { return data()[ index ]; }
+
+	uint8_t r;
+	uint8_t g;
+	uint8_t b;
 };
 
 #endif

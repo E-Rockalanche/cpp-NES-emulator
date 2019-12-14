@@ -1,1 +1,1 @@
-// required by current makefile
+// needed for compilation

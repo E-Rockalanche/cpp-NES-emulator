@@ -1,134 +1,155 @@
-#include <cstring>
 
 #include "mapper4.hpp"
 
-Mapper4::Mapper4(Byte* data) : Cartridge(data) {
-	reset();
-}
+#include "Cpu.hpp"
+#include "debug.hpp"
+#include "main.hpp" // temp
 
-void Mapper4::reset() {
+#include <cstring>
+
+using namespace nes;
+
+void Mapper4::reset()
+{
 	Cartridge::reset();
 
-	irq_enabled = false;
-	irq_latch = 0;
-	irq_counter = 0;
-	bank_select = 0;
-	nt_mirroring = HORIZONTAL;
+	m_irqEnabled = false;
+	m_irqLatch = 0;
+	m_irqCounter = 0;
+	m_bankSelect = 0;
+	setNameTableMirroring( NameTableMirroring::Horizontal );
 
-	for(int i = 0; i < 8; i++) {
-		bank_registers[i] = 0;
-	}
-	setPRGBank(3, -1, 8 * KB);
+	for( auto& reg : m_bankRegisters )
+		reg = 0;
+
+	setPrgBank( 3, -1, 8 * KB );
+
 	applyBankSwitch();
 }
 
-void Mapper4::writePRG(Word address, Byte value) {
-	if (address >= 0x8000) {
-		switch(address & 0xe001) {
-			case BANK_SELECT_EVEN: bank_select = value; break;
+void Mapper4::writePRG( Word address, Byte value )
+{
+	if ( address >= PrgStart )
+	{
+		switch ( address & 0xe001 )
+		{
+			case BANK_SELECT_EVEN:
+				m_bankSelect = value;
+				break;
+
 			case BANK_SELECT_ODD:
-				bank_registers[bank_select & 0x07] = value;
+				m_bankRegisters[m_bankSelect & 0x07] = value;
 				applyBankSwitch();
 				break;
 
 			case MIRRORING:
-				nt_mirroring = (value & 1) ? HORIZONTAL : VERTICAL;
+				setNameTableMirroring( ( value & 1 )
+					? NameTableMirroring::Horizontal
+					: NameTableMirroring::Vertical );
 				break;
-			case PRG_RAM_PROTECT: break;
 
-			case IRQ_LATCH: irq_latch = value; break;
-			case IRQ_RELOAD: irq_counter = 0; break;
+			case PRG_RAM_PROTECT:
+				// TODO?
+				break;
+
+			case IRQ_LATCH:
+				m_irqLatch = value;
+				break;
+
+			case IRQ_RELOAD:
+				m_irqCounter = 0;
+				break;
 
 			case IRQ_DISABLE:
-				irq_enabled = false;
-				CPU::setIRQ(false);
+				m_irqEnabled = false;
+				m_cpu->setIRQ( false );
 				break;
-			case IRQ_ENABLE: irq_enabled = true; break;
-			
-			default:
-				assert(false, "invalid mapper 4 register");
-		}
-	} else if (address >= 0x6000) {
-		ram[address - 0x6000] = value;
-	}
-}
 
-void Mapper4::writeCHR(Word address, Byte value) {
-	assert(address < chr_size, "chr address out of bounds");
-	chr[address] = value;
-}
-
-void Mapper4::applyBankSwitch() {
-	setPRGBank(1, bank_registers[7], 8 * KB);
-
-	if (bank_select & 0x40) {
-		setPRGBank(0, -2, 8 * KB);
-		setPRGBank(2, bank_registers[6], 8 * KB);
-	} else {
-		setPRGBank(0, bank_registers[6], 8 * KB);
-		setPRGBank(2, -2, 8 * KB);
-	}
-
-	if (bank_select & 0x80) {
-		for(int i = 0; i < 4; i++) {
-			setCHRBank(i, bank_registers[2 + i], KB);
-		}
-		setCHRBank(2, bank_registers[0] / 2, 2 * KB);
-		setCHRBank(3, bank_registers[1] / 2, 2 * KB);
-	} else {
-		setCHRBank(0, bank_registers[0] / 2, 2 * KB);
-		setCHRBank(1, bank_registers[1] / 2, 2 * KB);
-		for(int i = 0; i < 4; i++) {
-			setCHRBank(i + 4, bank_registers[2 + i], KB);
+			case IRQ_ENABLE:
+				m_irqEnabled = true;
+				break;
 		}
 	}
-}
-
-void Mapper4::signalScanline() {
-	if (irq_counter == 0) {
-		irq_counter = irq_latch;
-	} else {
-		irq_counter--;
-	}
-
-	if (irq_enabled && (irq_counter == 0)) {
-		CPU::setIRQ();
+	else if ( address >= RamStart )
+	{
+		getRam()[ address - RamStart ] = value;
 	}
 }
 
-struct SaveState {
-	Byte bank_select;
-	bool protectRAM;
-	bool enableRAM;
-	Byte irq_latch;
-	Byte irq_counter;
-	bool irq_enabled;
-	Byte bank_registers[8];
-};
+void Mapper4::applyBankSwitch()
+{
+	setPrgBank( 1, m_bankRegisters[7], 8 * KB );
 
-void Mapper4::saveState(std::ostream& out) {
-	SaveState ss;
-	ss.bank_select = bank_select;
-	ss.protectRAM = protectRAM;
-	ss.enableRAM = enableRAM;
-	ss.irq_latch = irq_latch;
-	ss.irq_counter = irq_counter;
-	memcpy(ss.bank_registers, bank_registers, sizeof(bank_registers));
+	if ( m_bankSelect & 0x40 )
+	{
+		setPrgBank( 0, -2, 8 * KB );
+		setPrgBank( 2, m_bankRegisters[6], 8 * KB );
+	}
+	else
+	{
+		setPrgBank( 0, m_bankRegisters[6], 8 * KB );
+		setPrgBank( 2, -2, 8 * KB );
+	}
 
-	Cartridge::saveState(out);
-	out.write((char*)&ss, sizeof(SaveState));
+	if ( m_bankSelect & 0x80 )
+	{
+		for ( int i = 0; i < 4; i++ )
+		{
+			setChrBank( i, m_bankRegisters[2 + i], KB );
+		}
+		setChrBank( 2, m_bankRegisters[0] / 2, 2 * KB );
+		setChrBank( 3, m_bankRegisters[1] / 2, 2 * KB );
+	}
+	else
+	{
+		setChrBank( 0, m_bankRegisters[0] / 2, 2 * KB );
+		setChrBank( 1, m_bankRegisters[1] / 2, 2 * KB );
+		for ( int i = 0; i < 4; i++ )
+		{
+			setChrBank( i + 4, m_bankRegisters[2 + i], KB );
+		}
+	}
 }
 
-void Mapper4::loadState(std::istream& in) {
-	SaveState ss;
+void Mapper4::signalScanline()
+{
+	if ( m_irqCounter == 0 )
+	{
+		m_irqCounter = m_irqLatch;
+	}
+	else
+	{
+		m_irqCounter--;
+	}
 
-	Cartridge::loadState(in);
-	in.read((char*)&ss, sizeof(SaveState));
+	if ( m_irqEnabled && ( m_irqCounter == 0 ) )
+	{
+		m_cpu->setIRQ();
+	}
+}
 
-	bank_select = ss.bank_select;
-	protectRAM = ss.protectRAM;
-	enableRAM = ss.enableRAM;
-	irq_latch = ss.irq_latch;
-	irq_counter = ss.irq_counter;
-	memcpy(bank_registers, ss.bank_registers, sizeof(bank_registers));
+void Mapper4::saveState( ByteIO::Writer& writer  )
+{
+	Cartridge::saveState( writer );
+
+	writer.write( m_bankRegisters );
+	writer.write( m_bankSelect );
+	writer.write( m_irqLatch );
+	writer.write( m_irqCounter );
+	writer.write( m_irqEnabled );
+	writer.write( m_protectRAM );
+	writer.write( m_enableRAM );
+}
+
+void Mapper4::loadState( ByteIO::Reader& reader )
+{
+	Cartridge::loadState( reader );
+
+	reader.read( m_bankRegisters );
+	reader.read( m_bankSelect );
+	reader.read( m_irqLatch );
+	reader.read( m_irqCounter );
+	reader.read( m_irqEnabled );
+	reader.read( m_protectRAM );
+	reader.read( m_enableRAM );
 }

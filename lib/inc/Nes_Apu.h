@@ -25,7 +25,7 @@ public:
 	// Set memory reader callback used by DMC oscillator to fetch samples.
 	// When callback is invoked, 'user_data' is passed unchanged as the
 	// first parameter.
-	void dmc_reader( int (*callback)( void* user_data, cpu_addr_t ), void* user_data = NULL );
+	void dmc_reader( dmc_reader_t callback, void* user_data = NULL );
 	
 	// All time values are the number of CPU clock cycles relative to the
 	// beginning of the current time frame. Before resetting the CPU clock
@@ -141,7 +141,7 @@ inline cpu_time_t Nes_Apu::earliest_irq() const
 	return earliest_irq_;
 }
 
-inline void Nes_Apu::dmc_reader( int (*func)( void*, cpu_addr_t ), void* user_data )
+inline void Nes_Apu::dmc_reader( dmc_reader_t func, void* user_data )
 {
 	dmc.rom_reader_data = user_data;
 	dmc.rom_reader = func;

@@ -1,3 +1,9 @@
+
+
+#include "menu_elements.hpp"
+#include "api.hpp"
+#include "debug.hpp"
+
 #include <string>
 #include <vector>
 
@@ -7,11 +13,6 @@
 #endif
 
 #include "SDL2/SDL.h"
-
-#include "menu_elements.hpp"
-#include "api.hpp"
-#include "debugging.hpp"
-#include "assert.hpp"
 
 #define setFlag(mask) (flags) |= (mask)
 #define clearFlag(mask) (flags) &= ~(mask)
@@ -168,7 +169,7 @@ namespace Menu {
 	}
 
 	void Menu::setMenuBar(SDL_Window* window) {
-		assert(window != NULL, "Menu::setMenuBar() SDL window is NULL");
+		dbAssertMessage(window != nullptr, "Menu::setMenuBar() SDL window is NULL");
 
 	#ifdef _WIN32
 		// enable windows menu bar events
