@@ -23,7 +23,7 @@ namespace Movie {
 	void startRecording();
 	void stopRecording();
 	bool isRecording();
-	void recordButtonState(int frame, int joypad, Joypad::Button button, bool pressed);
+	void recordButtonState(int frame, int joypad, nes::Joypad::Button button, bool pressed);
 
 	void startPlayback();
 	void stopPlayback();

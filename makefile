@@ -1,9 +1,11 @@
 TARGET := nes.exe
 CXX := g++
 
+FLAGS = -O3
+
 SDL_LFLAGS := -Wl,-Bdynamic -lSDL2main -lSDL2 -lSDL2_ttf -lSDL2_image -Wl,-Bstatic
-LFLAGS := -std=c++17 -O3 -lmingw32 -lm -mwindows -mconsole $(SDL_LFLAGS)
-CCFLAGS := -c -std=c++17 -O3
+LFLAGS := -std=c++17 $(FLAGS) -lmingw32 -lm -mwindows -mconsole $(SDL_LFLAGS)
+CCFLAGS := -c -std=c++17 $(FLAGS)
 LIB_INCLUDE := -isystem ./lib/inc -isystem ./lib/inc/boost
 INCLUDE := -I./inc -I./inc/mappers $(LIB_INCLUDE)
 
@@ -22,13 +24,13 @@ MAKE_EXE = $(CXX) $^ -o $@ $(LFLAGS)
 $(TARGET): $(LIB_OBJECTS) $(MAP_OBJECTS) $(OBJECTS)
 	$(MAKE_EXE)
 
-obj/mappers/%.o: src/mappers/%.cpp inc/mappers/%.hpp inc/cartridge.hpp inc/common.hpp inc/debugging.hpp
+obj/mappers/%.o: src/mappers/%.cpp inc/mappers/%.hpp inc/cartridge.hpp inc/common.hpp
 	$(MAKE_OBJ) -Wall -Wextra -Wno-unused-parameter
 
 lib/obj/%.o: lib/src/%.cpp lib/inc/%.h
 	$(MAKE_OBJ)
 
-obj/%.o: src/%.cpp inc/%.hpp inc/common.hpp inc/debugging.hpp
+obj/%.o: src/%.cpp inc/%.hpp inc/common.hpp
 	$(MAKE_OBJ) -Wall -Wextra -Wno-unused-parameter
 
 clean:

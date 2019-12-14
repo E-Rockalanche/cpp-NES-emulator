@@ -3,20 +3,28 @@
 
 #include "cartridge.hpp"
 
-class Mapper1 : public Cartridge {
+#include "ByteIO.hpp"
+
+namespace nes
+{
+
+class Mapper1 : public Cartridge
+{
 public:
-	Mapper1(Byte* data);
-	~Mapper1() {}
-	void reset();
+	Mapper1( Memory data );
 
-	void writePRG(Word address, Byte value);
-	void writeCHR(Word address, Byte value);
+	void reset() override;
 
-	void saveState(std::ostream& out);
-	void loadState(std::istream& in);
+	void writePRG( Word address, Byte value ) override;
 
-protected:
-	enum Register {
+	void saveState( ByteIO::Writer& writer ) override;
+	void loadState( ByteIO::Reader& reader ) override;
+
+	const char* getName() const override { return "MMC1"; }
+
+private:
+	enum Register
+	{
 		CONTROL,
 		CHR_BANK_0,
 		CHR_BANK_1,
@@ -25,16 +33,18 @@ protected:
 		NUM_REGISTERS
 	};
 
-	static const int SHIFT_REG_INIT = 0x10;
+	static constexpr Byte SHIFT_REG_INIT = 0x10;
 
-	int shift_register;
-	int registers[NUM_REGISTERS];
+	Byte m_shiftRegister;
+	Byte m_registers[ NUM_REGISTERS ];
 
 	void applyBankSwitch();
-	int mirrorMode();
-	int prgBankMode();
-	bool chrBankMode();
-	bool ramEnable();
+	int getMirrorMode();
+	int getPrgBankMode();
+	bool getChrBankMode();
+	bool isRamEnabled();
 };
+
+}
 
 #endif

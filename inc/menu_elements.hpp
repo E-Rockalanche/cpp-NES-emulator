@@ -59,7 +59,7 @@ namespace Menu {
 	class Button : public TextElement {
 	public:
 		Button();
-		Button(const std::string& name, VoidCallback callback = NULL);
+		Button(const std::string& name, VoidCallback callback = nullptr);
 		void setCallback(VoidCallback callback);
 		void operator=(const Button& other);
 
@@ -70,7 +70,7 @@ namespace Menu {
 	class Checkbox : public Button {
 	public:
 		Checkbox();
-		Checkbox(const std::string& name, VoidCallback callback = NULL, bool checked = false);
+		Checkbox(const std::string& name, VoidCallback callback = nullptr, bool checked = false);
 		void check(bool check = true);
 		void uncheck();
 		void operator=(const Checkbox& other) {

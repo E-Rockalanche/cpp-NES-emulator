@@ -1,258 +1,200 @@
-#ifndef PPU_HPP
-#define PPU_HPP
+#ifndef NES_PPU_HPP
+#define NES_PPU_HPP
+
+#include "Pixel.hpp"
+#include "ppu_defs.hpp"
+#include "Ram.hpp"
+#include "types.hpp"
 
 #include <iostream>
 
-#include "cpu.hpp"
-#include "common.hpp"
-#include "cartridge.hpp"
-#include "screen.hpp"
+namespace nes
+{
+	class Cartridge;
+	class Cpu;
 
-namespace PPU {
-	Byte readByte(Word address);
-	void writeByte(Word address, Byte value);
-	void clockTick();
-	void power();
-	void reset();
-	bool readyToDraw();
-	void writeToOAM(Byte value);
-	bool renderingEnabled();
+	class Ppu
+	{
+	public:
 
-	void saveState(std::ostream& out);
-	void loadState(std::istream& in);
+		Ppu() { power(); }
 
-	void dump();
-	bool nmiEnabled();
+		void setCPU( Cpu& cpu )
+		{
+			m_cpu = &cpu;
+		}
 
-	/*
-	OAM: Object Attribute Memory
-	Contains a display list of up to 64 sprites.
-	Each sprites' info occupies 4 bytes
+		void setCartridge( Cartridge* cartridge )
+		{
+			m_cartridge = cartridge;
+		}
 
-	0: y position of top of sprite
-	1: tile index number
-	2: attributes
-	3: x position of left side of sprite
-	*/
+		void power();
+		void reset();
 
-	enum Register {
-		PPU_CONTROL,
-		/*
-		write
-		various flags controlling PPU operation
-		*/
+		bool readyToDraw();
 
-		PPU_MASK,
-		/*
-		write
-		register controlling the rendering of sprites and backgrounds,
-		as well as colour effects
-		*/
+		void tick();
 
-		PPU_STATUS,
-		/*
-		read
-		register effects the state of varous functions in PPU. Often used to determine timing.
-		To determine when the PPU has reached a given pixel of the screen, put an opaque pixel of sprite 0 there
-		*/
+		Byte readRegister( size_t reg );
+		void writeRegister( size_t reg, Byte value );
 
-		OAM_ADDRESS,
-		/*
-		write
-		write the address of OAM you wanto to access here.
-		Most games just write $00 here and use OAM_DMA
-		(DMA implemented in 2A03/7 chip. Works by repeatedly writing to OAM_DATA)
-		*/
+		void writeToOAM( Byte value )
+		{
+			m_primaryOAM[ m_oamAddress++ ] = value;
+		}
 
-		OAM_DATA,
-		/*
-		read/write
-		write OAM data here. Writes will increment OAM_ADDRESS
-		reads during vblank return the value from OAM but do not increment address
-		Writes to oam through this register are slow, so are only good for partial updates
-		Most games use the DMA feature through OAM_DMA instead
+		bool renderingEnabled()
+		{
+			return m_mask & ( ShowBackground | ShowSprite );
+		}
 
-		Reading oam data while the ppu is rendering will expose internal oam accesses.
-		Writes to oam data during rendering (on the pre-render line and visible lines)
-		do not modify values in OAM, but do perform glitchy increment of oam address,
-		bumping only the high 6 bits. This extends to DMA tranfers, since it uses
-		writes to OAM_DATA. Probably best to ignore writes during rendering for emulation.
-		Old versions of the PPU did not support reading from this port!
-		*/
+		bool nmiEnabled()
+		{
+			return m_control & NmiEnable;
+		}
 
-		PPU_SCROLL,
-		/*
-		write x2
-		used to set scroll position. Tells the PPU which pixel offset of the
-		nametable selected through PPU_CONTROL should be in the top left corner
-		Typically this register is written to during vertical blanking, but it
-		can also be written to during rendering to split the screen.
-		Changes made to vertical scroll during rendering will only take effect
-		on the next frame.
-		Write the horizontal and vertical scroll positions after resetting the
-		address latch by reading PPU_STATUS
+		bool getSpriteFlickering() const { return m_spriteFlickering; }
+		void setSpriteFlickering( bool flicker ) { m_spriteFlickering = flicker; }
 
-		Horizontal offsets range from 0-255
-		Normal vertical offsets range from 0-239 while values of 240-255
-		are treated as -16 to -1 in a way, but tile data is fetched incorrectly
-		from the attribute table
+		void saveState( std::ostream& out ) const;
+		void loadState( std::istream& in );
 
-		note: PPU_SCROLL and PPU_ADDRESS use the same write toggle
-		*/
+		const Pixel* getPixelBuffer() const
+		{
+			return m_pixels;
+		}
 
-		PPU_ADDRESS,
-		/*
-		write x2
-		CPU and PPU are on seperate busses.
-		The CPU writes to VRAM through a pair of registers on the PPU.
-		First it loads an address to PPU_ADDRESS, then writes repeatedly to
-		PPU_DATA to fill VRAM
-		write the 16 bit address of VRAM after reading PPU_STATUS to reset the
-		address latch (upper byte first)
-		valid addresses are $0000-$3fff. Higher addresses are mirrored down
-		*/
+		static constexpr size_t ScreenWidth = 256;
+		static constexpr size_t ScreenHeight = 240;
 
-		PPU_DATA,
-		/*
-		read/write
-		VRAM read/write data register
-		after access, the VRAM address will increment by amount determined by
-		PPU_CONTROL bit 2.
-		during VBLANK or when rendering is disabled data can be read or written
-		to through this port. Accessing PPU_DATA during rendering will create
-		graphical glitches since it increments the VRAM address
-		VRAM reading/writing uses the same internal address register that
-		rendering uses. So after loading data into VRAM the program should
-		reload the scroll position afterwards in order to avoid wrong scrolling
-		*/
+	private:
 
-		NUM_REGISTERS,
+		enum class Scanline
+		{
+			Visible,
+			PostRender,
+			PreRender,
+			VBlankLine
+		};
 
-		OAM_DMA = 0x4014
-		/*
-		write
-		Writing $XX will upload 256 bytes of data from CPU page $XX00-$XXff to
-		internal PPU OAM.
-		This page is typically located in internal RAM, commonly $0200-$02ff,
-		but cartridge RAM or ROM can be used as well
-		The CPU is suspended during transfer, which takes 513 or 514 cycles
-		after $4014 write tick (1 dummy read cycle while waiting for writes to
-		complete, +1 if on add odd CPU cycle, then 256 alternating read/write
-		cycles)
-		Only effective method for transfering all 256 bytes of OAM
-		DMA transfer will begin at the current oam write address.
-		It is common to initialize oam address to 0 before DMA transfer
-		*/
+		enum ObjectVariable
+		{
+			YPos,
+			TileIndex,
+			Attributes,
+			XPos,
+		};
+		static constexpr size_t OBJECT_SIZE = 4;
+
+		enum ObjectAttribute
+		{
+			SpritePalette = 0x03,
+			Priority = 1 << 5, // 0: front, 1: back
+			FlipHorizontally = 1 << 6,
+			FlipVertically = 1 << 7
+		};
+
+		static constexpr size_t NAMETABLE_SIZE = 0x0800;
+		static constexpr size_t PALETTE_SIZE = 0x0020;
+		static constexpr size_t PRIMARY_OAM_SIZE = 64;
+		static constexpr size_t SECONDARY_OAM_SIZE = 8;
+
+	private:
+
+		void clearScreen();
+		void randomizeClockSync();
+		void clearOAM();
+		void setStatusFlag( Byte flag );
+		void clearStatusFlag( Byte flag );
+		void setStatusFlag( Byte flag, bool value );
+		void writeToControl( Byte value );
+		void writeToScroll( Byte value );
+		void writeToAddress( Byte value );
+		void setVBlank();
+		void clearVBlank();
+		void incrementVRAMAddress();
+		void incrementVRAMX();
+		void incrementVRAMY();
+		void updateVRAMX();
+		void updateVRAMY();
+		void renderPixel();
+		void renderPixelInternal();
+		void loadSpritesOnScanline();
+		void loadSpriteRegisters();
+		void loadShiftRegisters();
+		void incrementXComponent();
+		void incrementYComponent();
+
+		Byte read( Word address );
+		void write( Word address, Byte value );
+
+		Byte getSpriteHeight();
+
+		size_t getSecondaryOamSize();
+
+		Word getNametableAddress();
+		Word getAttributeAddress();
+		Word getBackgroundAddress();
+		Word nametableMirror( Word address );
+
+		template <Scanline s>
+		void scanlineCycle();
+
+	private:
+
+		Cpu* m_cpu = nullptr;
+		Cartridge* m_cartridge = nullptr;
+
+		uint32_t m_frame = 0;
+		uint32_t m_cycle = 0;
+		uint32_t m_scanline = 0;
+		uint32_t m_spritesOnNextScanline = 0;
+		uint32_t m_spritesOnThisScanline = 0;
+
+		Pixel m_pixels[ ScreenWidth * ScreenHeight ];
+
+		Word m_renderAddress = 0;
+		Word m_vramAddress = 0;
+		Word m_tempVRAMAddress = 0;
+		Word m_bgShiftLow = 0;
+		Word m_bgShiftHigh = 0;
+
+		Ram<NAMETABLE_SIZE, false> m_nametable;
+		Ram<PALETTE_SIZE> m_palette;
+		Ram<PRIMARY_OAM_SIZE * OBJECT_SIZE> m_primaryOAM;
+		Ram<PRIMARY_OAM_SIZE * OBJECT_SIZE> m_secondaryOAM; // need full size to turn off sprite flickering
+		Ram<PRIMARY_OAM_SIZE, false> m_spriteShiftLow;
+		Ram<PRIMARY_OAM_SIZE, false> m_spriteShiftHigh;
+		Ram<PRIMARY_OAM_SIZE, false> m_spriteXCounter;
+		Ram<PRIMARY_OAM_SIZE, false> m_spriteAttributeLatch;
+
+		Byte m_openBus = 0;
+		Byte m_readBuffer = 0;
+		Byte m_control = 0;
+		Byte m_mask = 0;
+		Byte m_status = 0;
+		Byte m_oamAddress = 0;
+		Byte m_fineXScroll = 0;
+		Byte m_bgLatchLow = 0;
+		Byte m_bgLatchHigh = 0;
+		Byte m_attributeLatch = 0;
+		Byte m_attributeShiftLow = 0;
+		Byte m_attributeShiftHigh = 0;
+		Byte m_nametableLatch = 0;
+
+		bool m_canDraw = false;
+		bool m_spriteFlickering = true;
+		bool m_writeToggle = false;
+		bool m_supressVBlank = false;
+		bool m_attributeLatchLow = false;
+		bool m_attributeLatchHigh = false;
+		bool m_spriteZeroNextScanline = false;
+		bool m_spriteZeroThisScanline = false;
+		bool m_spriteZeroHit = false;
+		bool m_oddFrame = false;
 	};
-
-	extern const char* register_names[NUM_REGISTERS];
-
-	enum ControlFlag {
-		NAMETABLE_0 = BL(0), // 1: x scroll += 256
-		NAMETABLE_1 = BL(1), // 1: y scroll += 240
-		/*
-		base nametable address
-		0: $2000
-		1: $2400
-		2: $2800
-		3: $2c00
-		*/
-
-		INCREMENT_MODE = BL(2),
-		/*
-		VRAM address increment per CPU read/write of PPU_DATA
-		0: add 1 (going across)
-		1: add 32 (going down)
-		*/
-
-		SPRITE_TILE_SELECT = BL(3),
-		/*
-		sprite pattern table address for 8x8 sprites
-		(ignored in 8x16 mode)
-		0: $0000
-		1: $1000
-		*/
-
-		BACKGROUND_TILE_SELECT = BL(4),
-		/*
-		background pattern table address
-		0: $0000
-		1: $1000
-		*/
-
-		SPRITE_HEIGHT = BL(5),
-		/*
-		sprite size
-		0: 8x8
-		1: 8x16
-		*/
-
-		MASTER_SLAVE = BL(6),
-		/*
-		PPU master/slave select
-		0: read backdrop from EXT pins
-		1: output colour on EXT pins
-		*/
-
-		NMI_ENABLE = BL(7)
-		/*
-		generate an NMI at the start of the vertical blanking interval
-		0: off
-		1: on
-		*/
-	};
-
-	enum MaskFlag {
-		GREYSCALE = BL(0),
-		/*
-		0: normal colour
-		1: greyscale display
-		*/
-
-		SHOW_BKG_LEFT_8 = BL(1),
-		/*
-		1: show background in leftmost 8 pixels of screen
-		0: hide
-		*/
-
-		SHOW_SPR_LEFT_8 = BL(2),
-		/*
-		1: show sprites in leftmost 8 pixels of screen
-		0: hide
-		*/
-
-		SHOW_BACKGROUND = BL(3),
-		SHOW_SPRITES = BL(4),
-		RED = BL(5), // green on PAL
-		GREEN = BL(6), // red on PAL
-		BLUE = BL(7)
-	};
-
-	enum StatusFlag {
-		SPRITE_OVERFLOW = BL(5),
-		/*
-		Set when more than 8 sprites appear on a scanline.
-		A hardware bug causes this to give false positives and negatives.
-		Set during sprite evaluation and cleared at dot 1 (second dot) of the pre-render line.
-		*/
-
-		SPRITE_0_HIT = BL(6),
-		/*
-		Set when a nonzero pixel of sprite 0 overlaps with a nonzero background pixel.
-		Cleared at dot 1 of the pre-render line.
-		Used for raster timing
-		*/
-
-		VBLANK = BL(7),
-		/*
-		Set at dot 1 of line 241 (line after post-render line).
-		Cleared after reading $2002 and at dot 1 of the pre-render line
-		0: not in vblank
-		1: in vblank
-		*/
-	};
-
-	extern bool sprite_flickering;
 }
 
 #endif
+
