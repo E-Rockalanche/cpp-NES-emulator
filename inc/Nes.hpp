@@ -123,6 +123,9 @@ namespace nes
 			cpu.dump( cpu.getProgramCounter() );
 		}
 
+		Cartridge* getCartridge() { return cartridge.get(); }
+		const Cartridge* getCartridge() const { return cartridge.get(); }
+
 		Cpu cpu;
 		Ppu ppu;
 		Apu apu;

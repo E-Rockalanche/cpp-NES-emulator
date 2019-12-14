@@ -64,7 +64,7 @@ void Apu::runFrame( cpu_time_t elapsedCycles )
     {
         m_buffer.clear();
     }
-    else if ( m_buffer.samples_avail() >= OutBufferSize )
+    else if ( (size_t)m_buffer.samples_avail() >= OutBufferSize )
     {
         size_t samples = m_buffer.read_samples( m_outBuf, OutBufferSize );
         m_soundQueue.write( m_outBuf, samples );
