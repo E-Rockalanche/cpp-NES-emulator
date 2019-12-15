@@ -98,6 +98,11 @@ namespace nes
 			readByteTick( m_programCounter );
 		}
 
+		void dummyRead( Word address )
+		{
+			readByteTick( address );
+		}
+
 		Byte readByteTick( Word address )
 		{
 			tick();
@@ -264,7 +269,27 @@ namespace nes
 		void transferXToAcc();
 		void transferXToStackPointer();
 		void transferYToAcc();
+		
 		void illegalOpcode();
+
+		// unofficial
+
+		DEF_ADDRMODE_OP( andShiftRight )
+		DEF_ADDRMODE_OP( andSetCarry )
+		DEF_ADDRMODE_OP( andRotateRight )
+		DEF_ADDRMODE_OP( setAccAndX )
+		DEF_ADDRMODE_OP( loadAccTransferToX )
+		DEF_ADDRMODE_OP( storeAccAndX )
+		DEF_ADDRMODE_OP( decrementCompare )
+		DEF_ADDRMODE_OP( incrementSubtract )
+		DEF_ADDRMODE_OP( rotateLeftAnd )
+		DEF_ADDRMODE_OP( rotateRightAdd )
+		DEF_ADDRMODE_OP( shiftLeftOrAcc )
+		DEF_ADDRMODE_OP( shiftRightExclusiveOr )
+		DEF_ADDRMODE_OP( transferXToAccAnd )
+		DEF_ADDRMODE_OP( orAndAccSetAccX )
+		void skipByte();
+		DEF_ADDRMODE_OP( ignoreByte )
 
 		#undef DEF_ADDRMODE_OP
 
