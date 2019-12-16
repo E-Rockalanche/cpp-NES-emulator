@@ -1036,7 +1036,6 @@ void Cpu::andShiftRight()
 	setStatus( Carry, m_accumulator & 1 );
 	m_accumulator >>= 1;
 	setArithmeticFlags( m_accumulator );
-	tick();
 }
 
 // ANC
@@ -1046,7 +1045,6 @@ void Cpu::andSetCarry()
 	m_accumulator &= readByteTick( getAddress<Mode>() );
 	setArithmeticFlags( m_accumulator );
 	setStatus( Carry, m_accumulator & 0x80 );
-	tick();
 }
 
 // ARR
@@ -1058,7 +1056,6 @@ void Cpu::andRotateRight()
 	setArithmeticFlags( m_accumulator );
 	setStatus( Carry, 0x40 & m_accumulator );
 	setStatus( Overflow, (bool)( 0x40 & m_accumulator) ^ (bool)( 0x20 & m_accumulator ) );
-	tick();
 }
 
 // AXS
@@ -1070,7 +1067,6 @@ void Cpu::subtractFromAccAndX()
 	m_xRegister = result & 0xff;
 	setArithmeticFlags( m_xRegister );
 	setStatus( Carry, result & 0x100 );
-	tick();
 }
 
 // LAX
@@ -1079,7 +1075,6 @@ void Cpu::loadAccTransferToX()
 {
 	m_xRegister = m_accumulator = readByteTick( getAddress<Mode>() );
 	setArithmeticFlags( m_accumulator );
-	tick();
 }
 
 // SAX
@@ -1087,7 +1082,6 @@ template <Cpu::AddressMode Mode>
 void Cpu::storeAccAndX()
 {
 	writeByteTick( getAddress<Mode>(), m_accumulator & m_xRegister );
-	tick();
 }
 
 // DCP
@@ -1096,11 +1090,11 @@ void Cpu::decrementCompare()
 {
 	Word address = getAddress<Mode>();
 	Byte value = readByteTick( address ) - 1;
-	tick();
 	writeByteTick( address, value );
 
 	setStatus( Carry, m_accumulator >= value );
 	setArithmeticFlags( m_accumulator - value );
+	tick();
 }
 
 // ISC
@@ -1196,12 +1190,19 @@ void Cpu::orAndAccSetAccX()
 	// TODO: check cycles
 }
 
+// SXA
+template <Cpu::AddressMode Mode>
+void Cpu::andXAddrHigh()
+{
+	Word address = getAddress<Mode>();
+	writeByteTick( address, m_xRegister & ( ( address >> 8 ) + 1 ) );
+}
+
 // SHY
 template <Cpu::AddressMode Mode>
 void Cpu::andYAddrHigh()
 {
 	Word address = getAddress<Mode>();
-	tick();
 	writeByteTick( address, m_yRegister & ( ( address >> 8 ) + 1 ) );
 }
 
@@ -1211,17 +1212,7 @@ void Cpu::andXAccStoreStackPointer()
 {
 	Word address = getAddress<Mode>();
 	m_stackPointer = m_xRegister & m_accumulator;
-	tick();
 	writeByteTick( address, m_stackPointer & ( ( address >> 8 ) + 1 ) );
-}
-
-// SXA
-template <Cpu::AddressMode Mode>
-void Cpu::andXAddrHigh()
-{
-	Word address = getAddress<Mode>();
-	tick();
-	writeByteTick( address, m_xRegister & ( ( address >> 8 ) + 1 ) );
 }
 
 //SHA
@@ -1229,7 +1220,6 @@ template <Cpu::AddressMode Mode>
 void Cpu::andXAccSeven()
 {
 	Word address = getAddress<Mode>();
-	tick();
 	writeByteTick( address, m_xRegister & m_accumulator & 0x07 );
 }
 
@@ -1239,12 +1229,6 @@ void Cpu::andSPTransferToAcXSP()
 {
 	m_accumulator = m_xRegister = m_stackPointer = readByteTick( getAddress<Mode>() ) & m_stackPointer;
 	setArithmeticFlags( m_accumulator );
-}
-
-// SKB
-void Cpu::skipByte()
-{
-	ignoreByte<AddressMode::Immediate>();
 }
 
 // IGN
@@ -1493,49 +1477,49 @@ void Cpu::initialize()
 	SET_ADDRMODE_OP( 0xc3, decrementCompare, IndirectX )
 	SET_ADDRMODE_OP( 0xc7, decrementCompare, ZeroPage )
 	SET_ADDRMODE_OP( 0xcf, decrementCompare, Absolute )
-	SET_ADDRMODE_OP( 0xd3, decrementCompare, IndirectY )
+	SET_ADDRMODE_OP( 0xd3, decrementCompare, IndirectYStore )
 	SET_ADDRMODE_OP( 0xd7, decrementCompare, ZeroPageX )
-	SET_ADDRMODE_OP( 0xdb, decrementCompare, AbsoluteY )
+	SET_ADDRMODE_OP( 0xdb, decrementCompare, AbsoluteYStore )
 	SET_ADDRMODE_OP( 0xdf, decrementCompare, AbsoluteXStore )
 
 	SET_ADDRMODE_OP( 0xe3, incrementSubtract, IndirectX )
 	SET_ADDRMODE_OP( 0xe7, incrementSubtract, ZeroPage )
 	SET_ADDRMODE_OP( 0xef, incrementSubtract, Absolute )
-	SET_ADDRMODE_OP( 0xf3, incrementSubtract, IndirectY )
+	SET_ADDRMODE_OP( 0xf3, incrementSubtract, IndirectYStore )
 	SET_ADDRMODE_OP( 0xf7, incrementSubtract, ZeroPageX )
-	SET_ADDRMODE_OP( 0xfb, incrementSubtract, AbsoluteY )
+	SET_ADDRMODE_OP( 0xfb, incrementSubtract, AbsoluteYStore )
 	SET_ADDRMODE_OP( 0xff, incrementSubtract, AbsoluteXStore )
 
 	SET_ADDRMODE_OP( 0x23, rotateLeftAnd, IndirectX )
 	SET_ADDRMODE_OP( 0x27, rotateLeftAnd, ZeroPage )
 	SET_ADDRMODE_OP( 0x2f, rotateLeftAnd, Absolute )
-	SET_ADDRMODE_OP( 0x33, rotateLeftAnd, IndirectY )
+	SET_ADDRMODE_OP( 0x33, rotateLeftAnd, IndirectYStore )
 	SET_ADDRMODE_OP( 0x37, rotateLeftAnd, ZeroPageX )
-	SET_ADDRMODE_OP( 0x3b, rotateLeftAnd, AbsoluteY )
+	SET_ADDRMODE_OP( 0x3b, rotateLeftAnd, AbsoluteYStore )
 	SET_ADDRMODE_OP( 0x3f, rotateLeftAnd, AbsoluteXStore )
 
 	SET_ADDRMODE_OP( 0x63, rotateRightAdd, IndirectX )
 	SET_ADDRMODE_OP( 0x67, rotateRightAdd, ZeroPage )
 	SET_ADDRMODE_OP( 0x6f, rotateRightAdd, Absolute )
-	SET_ADDRMODE_OP( 0x73, rotateRightAdd, IndirectY )
+	SET_ADDRMODE_OP( 0x73, rotateRightAdd, IndirectYStore )
 	SET_ADDRMODE_OP( 0x77, rotateRightAdd, ZeroPageX )
-	SET_ADDRMODE_OP( 0x7b, rotateRightAdd, AbsoluteY )
+	SET_ADDRMODE_OP( 0x7b, rotateRightAdd, AbsoluteYStore )
 	SET_ADDRMODE_OP( 0x7f, rotateRightAdd, AbsoluteXStore )
 
 	SET_ADDRMODE_OP( 0x03, shiftLeftOrAcc, IndirectX )
 	SET_ADDRMODE_OP( 0x07, shiftLeftOrAcc, ZeroPage )
 	SET_ADDRMODE_OP( 0x0f, shiftLeftOrAcc, Absolute )
-	SET_ADDRMODE_OP( 0x13, shiftLeftOrAcc, IndirectY )
+	SET_ADDRMODE_OP( 0x13, shiftLeftOrAcc, IndirectYStore )
 	SET_ADDRMODE_OP( 0x17, shiftLeftOrAcc, ZeroPageX )
-	SET_ADDRMODE_OP( 0x1b, shiftLeftOrAcc, AbsoluteY )
+	SET_ADDRMODE_OP( 0x1b, shiftLeftOrAcc, AbsoluteYStore )
 	SET_ADDRMODE_OP( 0x1f, shiftLeftOrAcc, AbsoluteXStore )
 
 	SET_ADDRMODE_OP( 0x43, shiftRightExclusiveOr, IndirectX )
 	SET_ADDRMODE_OP( 0x47, shiftRightExclusiveOr, ZeroPage )
 	SET_ADDRMODE_OP( 0x4f, shiftRightExclusiveOr, Absolute )
-	SET_ADDRMODE_OP( 0x53, shiftRightExclusiveOr, IndirectY )
+	SET_ADDRMODE_OP( 0x53, shiftRightExclusiveOr, IndirectYStore )
 	SET_ADDRMODE_OP( 0x57, shiftRightExclusiveOr, ZeroPageX )
-	SET_ADDRMODE_OP( 0x5b, shiftRightExclusiveOr, AbsoluteY )
+	SET_ADDRMODE_OP( 0x5b, shiftRightExclusiveOr, AbsoluteYStore )
 	SET_ADDRMODE_OP( 0x5f, shiftRightExclusiveOr, AbsoluteXStore )
 
 	SET_ADDRMODE_OP( 0xeb, subtractFromAcc, Immediate )
@@ -1559,12 +1543,6 @@ void Cpu::initialize()
 	SET_IMPLIED( 0xda, noOperation )
 	SET_IMPLIED( 0xfa, noOperation )
 
-	SET_IMPLIED( 0x80, skipByte )
-	SET_IMPLIED( 0x82, skipByte )
-	SET_IMPLIED( 0x89, skipByte )
-	SET_IMPLIED( 0xc2, skipByte )
-	SET_IMPLIED( 0xe2, skipByte )
-
 	SET_ADDRMODE_OP( 0x0c, ignoreByte, Absolute )
 	SET_ADDRMODE_OP( 0x1c, ignoreByte, AbsoluteX )
 	SET_ADDRMODE_OP( 0x3c, ignoreByte, AbsoluteX )
@@ -1572,6 +1550,20 @@ void Cpu::initialize()
 	SET_ADDRMODE_OP( 0x7c, ignoreByte, AbsoluteX )
 	SET_ADDRMODE_OP( 0xdc, ignoreByte, AbsoluteX )
 	SET_ADDRMODE_OP( 0xfc, ignoreByte, AbsoluteX )
+	SET_ADDRMODE_OP( 0x04, ignoreByte, ZeroPage )
+	SET_ADDRMODE_OP( 0x14, ignoreByte, ZeroPageX )
+	SET_ADDRMODE_OP( 0x34, ignoreByte, ZeroPageX )
+	SET_ADDRMODE_OP( 0x44, ignoreByte, ZeroPage )
+	SET_ADDRMODE_OP( 0x54, ignoreByte, ZeroPageX )
+	SET_ADDRMODE_OP( 0x64, ignoreByte, ZeroPage )
+	SET_ADDRMODE_OP( 0x74, ignoreByte, ZeroPageX )
+	SET_ADDRMODE_OP( 0x80, ignoreByte, Immediate )
+	SET_ADDRMODE_OP( 0x82, ignoreByte, Immediate )
+	SET_ADDRMODE_OP( 0x89, ignoreByte, Immediate )
+	SET_ADDRMODE_OP( 0xc2, ignoreByte, Immediate )
+	SET_ADDRMODE_OP( 0xd4, ignoreByte, ZeroPageX )
+	SET_ADDRMODE_OP( 0xe2, ignoreByte, Immediate )
+	SET_ADDRMODE_OP( 0xf4, ignoreByte, ZeroPageX )
 }
 
 #undef SET_ADDRMODE_OP

@@ -101,7 +101,6 @@ const char* s_instructionNames[] = {
 	"XAS",
 	"AXA",
 	"LAR",
-	"SKB",
 	"IGN"
 };
 

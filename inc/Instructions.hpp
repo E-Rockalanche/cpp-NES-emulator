@@ -99,7 +99,6 @@ enum class Instruction
 	andXAccStoreStackPointer,
 	andXAccSeven,
 	andSPTransferToAcXSP,
-	skipByte,
 	ignoreByte
 };
 constexpr Instruction enum_back( Instruction ) noexcept { return Instruction::ignoreByte; }

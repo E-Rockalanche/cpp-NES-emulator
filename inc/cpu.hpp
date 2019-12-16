@@ -293,7 +293,6 @@ namespace nes
 		DEF_ADDRMODE_OP( andXAccStoreStackPointer )
 		DEF_ADDRMODE_OP( andXAccSeven )
 		DEF_ADDRMODE_OP( andSPTransferToAcXSP )
-		void skipByte();
 		DEF_ADDRMODE_OP( ignoreByte )
 
 		#undef DEF_ADDRMODE_OP
