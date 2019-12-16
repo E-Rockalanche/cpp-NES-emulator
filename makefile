@@ -1,4 +1,4 @@
-TARGET := nes.exe
+TARGET := build\nes.exe
 CXX := g++
 
 FLAGS = -O3
@@ -38,3 +38,4 @@ clean:
 
 cleanall:
 	del .\obj\*.o .\obj\mappers\*.o .\lib\obj\*.o $(TARGET)
+

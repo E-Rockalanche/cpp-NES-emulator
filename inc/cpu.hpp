@@ -277,7 +277,7 @@ namespace nes
 		DEF_ADDRMODE_OP( andShiftRight )
 		DEF_ADDRMODE_OP( andSetCarry )
 		DEF_ADDRMODE_OP( andRotateRight )
-		DEF_ADDRMODE_OP( setAccAndX )
+		DEF_ADDRMODE_OP( subtractFromAccAndX )
 		DEF_ADDRMODE_OP( loadAccTransferToX )
 		DEF_ADDRMODE_OP( storeAccAndX )
 		DEF_ADDRMODE_OP( decrementCompare )
@@ -288,6 +288,11 @@ namespace nes
 		DEF_ADDRMODE_OP( shiftRightExclusiveOr )
 		DEF_ADDRMODE_OP( transferXToAccAnd )
 		DEF_ADDRMODE_OP( orAndAccSetAccX )
+		DEF_ADDRMODE_OP( andXAddrHigh )
+		DEF_ADDRMODE_OP( andYAddrHigh )
+		DEF_ADDRMODE_OP( andXAccStoreStackPointer )
+		DEF_ADDRMODE_OP( andXAccSeven )
+		DEF_ADDRMODE_OP( andSPTransferToAcXSP )
 		void skipByte();
 		DEF_ADDRMODE_OP( ignoreByte )
 

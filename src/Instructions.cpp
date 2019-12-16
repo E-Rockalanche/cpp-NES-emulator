@@ -96,6 +96,11 @@ const char* s_instructionNames[] = {
 	"SRE",
 	"XAA",
 	"OAL",
+	"SHX",
+	"SHY",
+	"XAS",
+	"AXA",
+	"LAR",
 	"SKB",
 	"IGN"
 };

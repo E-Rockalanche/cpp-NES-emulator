@@ -83,7 +83,7 @@ enum class Instruction
 	andShiftRight,
 	andSetCarry,
 	andRotateRight,
-	setAccAndX,
+	subtractFromAccAndX,
 	loadAccTransferToX,
 	storeAccAndX,
 	decrementCompare,
@@ -94,6 +94,11 @@ enum class Instruction
 	shiftRightExclusiveOr,
 	transferXToAccAnd,
 	orAndAccSetAccX,
+	andXAddrHigh,
+	andYAddrHigh,
+	andXAccStoreStackPointer,
+	andXAccSeven,
+	andSPTransferToAcXSP,
 	skipByte,
 	ignoreByte
 };

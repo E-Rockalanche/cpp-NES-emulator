@@ -710,7 +710,6 @@ void Cpu::exclusiveOr()
 {
 	m_accumulator ^= readByteTick( getAddress<Mode>() );
 	setArithmeticFlags( m_accumulator );
-	tick();
 }
 
 // INC
@@ -1037,6 +1036,7 @@ void Cpu::andShiftRight()
 	setStatus( Carry, m_accumulator & 1 );
 	m_accumulator >>= 1;
 	setArithmeticFlags( m_accumulator );
+	tick();
 }
 
 // ANC
@@ -1046,6 +1046,7 @@ void Cpu::andSetCarry()
 	m_accumulator &= readByteTick( getAddress<Mode>() );
 	setArithmeticFlags( m_accumulator );
 	setStatus( Carry, m_accumulator & 0x80 );
+	tick();
 }
 
 // ARR
@@ -1053,21 +1054,23 @@ template <Cpu::AddressMode Mode>
 void Cpu::andRotateRight()
 {
 	m_accumulator &= readByteTick( getAddress<Mode>() );
-	bool carry = m_accumulator & 1;
 	m_accumulator = ( m_accumulator >> 1 ) | ( testStatus( Carry ) ? 0x80 : 0 );
 	setArithmeticFlags( m_accumulator );
-	setStatus( Carry, carry );
+	setStatus( Carry, 0x40 & m_accumulator );
+	setStatus( Overflow, (bool)( 0x40 & m_accumulator) ^ (bool)( 0x20 & m_accumulator ) );
+	tick();
 }
 
-// SAX
+// AXS
 template <Cpu::AddressMode Mode>
-void Cpu::setAccAndX()
+void Cpu::subtractFromAccAndX()
 {
 	Byte value = readByteTick( getAddress<Mode>() );
-	int result = ( m_accumulator & m_xRegister ) + ~value; // TODO: one or twos comp?
+	int result = ( m_accumulator & m_xRegister ) - value; // TODO: one or twos comp?
 	m_xRegister = result & 0xff;
 	setArithmeticFlags( m_xRegister );
 	setStatus( Carry, result & 0x100 );
+	tick();
 }
 
 // LAX
@@ -1076,14 +1079,15 @@ void Cpu::loadAccTransferToX()
 {
 	m_xRegister = m_accumulator = readByteTick( getAddress<Mode>() );
 	setArithmeticFlags( m_accumulator );
+	tick();
 }
 
-// AXS
+// SAX
 template <Cpu::AddressMode Mode>
 void Cpu::storeAccAndX()
 {
 	writeByteTick( getAddress<Mode>(), m_accumulator & m_xRegister );
-	// TODO: extra tick?
+	tick();
 }
 
 // DCP
@@ -1190,6 +1194,51 @@ void Cpu::orAndAccSetAccX()
 	m_xRegister = m_accumulator;
 
 	// TODO: check cycles
+}
+
+// SHY
+template <Cpu::AddressMode Mode>
+void Cpu::andYAddrHigh()
+{
+	Word address = getAddress<Mode>();
+	tick();
+	writeByteTick( address, m_yRegister & ( ( address >> 8 ) + 1 ) );
+}
+
+// XAS
+template <Cpu::AddressMode Mode>
+void Cpu::andXAccStoreStackPointer()
+{
+	Word address = getAddress<Mode>();
+	m_stackPointer = m_xRegister & m_accumulator;
+	tick();
+	writeByteTick( address, m_stackPointer & ( ( address >> 8 ) + 1 ) );
+}
+
+// SXA
+template <Cpu::AddressMode Mode>
+void Cpu::andXAddrHigh()
+{
+	Word address = getAddress<Mode>();
+	tick();
+	writeByteTick( address, m_xRegister & ( ( address >> 8 ) + 1 ) );
+}
+
+//SHA
+template <Cpu::AddressMode Mode>
+void Cpu::andXAccSeven()
+{
+	Word address = getAddress<Mode>();
+	tick();
+	writeByteTick( address, m_xRegister & m_accumulator & 0x07 );
+}
+
+// LAR
+template <Cpu::AddressMode Mode>
+void Cpu::andSPTransferToAcXSP()
+{
+	m_accumulator = m_xRegister = m_stackPointer = readByteTick( getAddress<Mode>() ) & m_stackPointer;
+	setArithmeticFlags( m_accumulator );
 }
 
 // SKB
@@ -1426,7 +1475,7 @@ void Cpu::initialize()
 
 	SET_ADDRMODE_OP( 0x6b, andRotateRight, Immediate );
 
-	SET_ADDRMODE_OP( 0xcb, setAccAndX, Immediate );
+	SET_ADDRMODE_OP( 0xcb, subtractFromAccAndX, Immediate );
 
 	SET_ADDRMODE_OP( 0xa3, loadAccTransferToX, IndirectX )
 	SET_ADDRMODE_OP( 0xa7, loadAccTransferToX, ZeroPage )
@@ -1492,6 +1541,16 @@ void Cpu::initialize()
 	SET_ADDRMODE_OP( 0xeb, subtractFromAcc, Immediate )
 
 	SET_ADDRMODE_OP( 0x8b, transferXToAccAnd, Immediate )
+
+	SET_ADDRMODE_OP( 0x9e, andXAddrHigh, AbsoluteYStore )
+	SET_ADDRMODE_OP( 0x9c, andYAddrHigh, AbsoluteXStore )
+
+	SET_ADDRMODE_OP( 0x9b, andXAccStoreStackPointer, AbsoluteYStore )
+
+	SET_ADDRMODE_OP( 0x9f, andXAccSeven, AbsoluteYStore )
+	SET_ADDRMODE_OP( 0x93, andXAccSeven, IndirectYStore )
+
+	SET_ADDRMODE_OP( 0xbb, andSPTransferToAcXSP, AbsoluteY );
 
 	SET_IMPLIED( 0x1a, noOperation )
 	SET_IMPLIED( 0x3a, noOperation )
