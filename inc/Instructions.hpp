@@ -76,8 +76,32 @@ enum class Instruction
 	transferXToStackPointer,
 	transferYToAcc,
 	
-	illegalOpcode
+	illegalOpcode,
+
+	// unofficial
+
+	andShiftRight,
+	andSetCarry,
+	andRotateRight,
+	subtractFromAccAndX,
+	loadAccTransferToX,
+	storeAccAndX,
+	decrementCompare,
+	incrementSubtract,
+	rotateLeftAnd,
+	rotateRightAdd,
+	shiftLeftOrAcc,
+	shiftRightExclusiveOr,
+	transferXToAccAnd,
+	orAndAccSetAccX,
+	andXAddrHigh,
+	andYAddrHigh,
+	andXAccStoreStackPointer,
+	andXAccSeven,
+	andSPTransferToAcXSP,
+	ignoreByte
 };
+constexpr Instruction enum_back( Instruction ) noexcept { return Instruction::ignoreByte; }
 
 const char* getInstructionName( Instruction instr );
 

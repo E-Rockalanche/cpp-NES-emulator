@@ -1,5 +1,6 @@
 #include "Instructions.hpp"
 
+#include "enum_iterator.hpp"
 #include "debug.hpp"
 
 #include <iterator>
@@ -78,8 +79,32 @@ const char* s_instructionNames[] = {
 	"TXS",
 	"TYA",
 
-	"ILL"
+	"ILL",
+
+	// unofficial
+	"ALR",
+	"ANC",
+	"ARR",
+	"AXS",
+	"LAX",
+	"SAX",
+	"DCP",
+	"ISC",
+	"RLA",
+	"RRA",
+	"SLO",
+	"SRE",
+	"XAA",
+	"OAL",
+	"SXA",
+	"SYA",
+	"XAS",
+	"AXA",
+	"LAR",
+	"IGN"
 };
+
+static_assert( std::size( s_instructionNames ) == enum_size_v<Instruction> );
 
 const char* getInstructionName( Instruction instr )
 {

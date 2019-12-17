@@ -56,7 +56,7 @@ namespace
 
 	inline bool crossedPage( Word addr1, Word addr2 )
 	{
-		return ( addr1 & 0xff00 ) != ( addr2 & 0xff00 );
+		return ( addr1 ^ addr2 ) & 0x0100;
 	}
 
 	inline bool isNegative( Byte value )
@@ -72,7 +72,6 @@ namespace
 	}
 
 	using CpuInstruction = void( Cpu::* )( void );
-	// CpuInstruction s_cpuOperations[ 0x100 ];
 
 	struct Operation
 	{
@@ -83,8 +82,6 @@ namespace
 	};
 
 	Operation s_cpuOperations[ 0x100 ];
-
-	// History s_history;
 }
 
 enum class Cpu::AddressMode
@@ -214,7 +211,7 @@ void Cpu::power()
 void Cpu::reset()
 {
 	m_cycles = 0;
-	
+
 	m_stackPointer -= 3;
 	setStatus( DisableInterrupts );
 	write( APU_STATUS, 0 );
@@ -249,10 +246,8 @@ void Cpu::executeInstruction()
 			return;
 		}
 
-		// auto pc = m_programCounter;
 		Byte opcode = readByteTick( m_programCounter++ );
 		auto operation = s_cpuOperations[ opcode ];
-		// s_history.add( "[0x%04x] 0x%02x %s (%s)", (int)pc, (int)opcode, operation.instructionName, operation.addressModeName );
 		( this->*operation.func )();
 	}
 }
@@ -260,7 +255,7 @@ void Cpu::executeInstruction()
 void Cpu::runFrame()
 {
 	m_cycles = 0;
-	while( !halted() && !m_ppu->readyToDraw() )
+	while ( !halted() && !m_ppu->readyToDraw() )
 	{
 		executeInstruction();
 	}
@@ -451,10 +446,10 @@ Word Cpu::getAddress()
 		case AddressMode::AbsoluteX:
 		{
 			Word page1 = readWordTick( m_programCounter );
-			m_programCounter += 2;
 			auto address = page1 + m_xRegister;
 			if ( crossedPage( page1, address ) )
-				dummyRead();
+				dummyRead( address - 0x100 );
+			m_programCounter += 2;
 			return address;
 		}
 
@@ -463,17 +458,17 @@ Word Cpu::getAddress()
 			Word page1 = readWordTick( m_programCounter );
 			m_programCounter += 2;
 			Word address = page1 + m_xRegister;
-			dummyRead();
+			dummyRead( address - ( crossedPage( page1, address ) ? 0x100 : 0 ) );
 			return address;
 		}
 
 		case AddressMode::AbsoluteY:
 		{
 			Word page1 = readWordTick( m_programCounter );
-			m_programCounter += 2;
 			Word address = page1 + m_yRegister;
 			if ( crossedPage( page1, address ) )
-				dummyRead();
+				dummyRead( address - 0x100 );
+			m_programCounter += 2;
 			return address;
 		}
 
@@ -482,7 +477,7 @@ Word Cpu::getAddress()
 			Word page1 = readWordTick( m_programCounter );
 			m_programCounter += 2;
 			Word address = page1 + m_yRegister;
-			dummyRead();
+			dummyRead( address - ( crossedPage( page1, address ) ? 0x100 : 0 ) );
 			return address;
 		}
 
@@ -505,30 +500,44 @@ Word Cpu::getAddress()
 			Word zp = readByteTick( m_programCounter++ );
 			Word address = readWordTickBug( zp ) + m_yRegister;
 			if ( crossedPage( address - m_yRegister, address ) )
-				dummyRead();
+				dummyRead( address - 0x100 );
 			return address;
 		}
 
 		case AddressMode::IndirectYStore:
 		{
-			Word zp = readByteTick( m_programCounter++ );
-			Word address = readWordTickBug( zp ) + m_yRegister;
-			dummyRead();
+			Word page1 = readWordTickBug( readByteTick( m_programCounter++ ) );
+			Word address = page1 + m_yRegister;
+			dummyRead( address - ( crossedPage( page1, address ) ? 0x100 : 0 ) );
 			return address;
 		}
 	}
+}
+
+void Cpu::buggyIndexWrite( Byte index, Byte value )
+{
+	Word page1 = getAddress<AddressMode::Absolute>();
+	Word address = page1 + index;
+	dummyRead( ( page1 & 0xff00 ) | ( address & 0x00ff ) );
+	if ( crossedPage( page1, address ) )
+	{
+		address &= ( value << 8 );
+	}
+	writeByteTick( address, value & ( ( page1 >> 8 ) + 1 ) );
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                 OPERATIONS                                 //
 ////////////////////////////////////////////////////////////////////////////////
 
+// ADC
 template <Cpu::AddressMode Mode>
 void Cpu::addWithCarry()
 {
 	addToAccumulator( readByteTick( getAddress<Mode>() ) );
 }
 
+// AND
 template <Cpu::AddressMode Mode>
 void Cpu::bitwiseAnd()
 {
@@ -537,6 +546,7 @@ void Cpu::bitwiseAnd()
 	setArithmeticFlags( m_accumulator );
 }
 
+// ASL
 template <Cpu::AddressMode Mode>
 void Cpu::shiftLeft()
 {
@@ -558,21 +568,25 @@ void Cpu::shiftLeft()
 	setStatus( Carry, didCarry( result ) );
 }
 
+// BCC
 void Cpu::branchOnCarryClear()
 {
 	conditionalBranch( !testStatus( Carry ) );
 }
 
+// BCS
 void Cpu::branchOnCarrySet()
 {
 	conditionalBranch( testStatus( Carry ) );
 }
 
+// BEQ
 void Cpu::branchOnZero()
 {
 	conditionalBranch( testStatus( Zero ) );
 }
 
+// BIT
 template <Cpu::AddressMode Mode>
 void Cpu::testBits()
 {
@@ -582,21 +596,25 @@ void Cpu::testBits()
 	setStatus( Zero, ( value & m_accumulator ) == 0 );
 }
 
+// BMI
 void Cpu::branchOnNegative()
 {
 	conditionalBranch( testStatus( Negative ) );
 }
 
+// BNE
 void Cpu::branchOnNotZero()
 {
 	conditionalBranch( !testStatus( Zero ) );
 }
 
+// BPL
 void Cpu::branchOnPositive()
 {
 	conditionalBranch( !testStatus( Negative ) );
 }
 
+// BRK
 void Cpu::forceBreak()
 {
 	dummyRead();
@@ -607,58 +625,68 @@ void Cpu::forceBreak()
 	m_programCounter = readWordTick( IRQ_VECTOR );
 }
 
+// BVC
 void Cpu::branchOnOverflowClear()
 {
 	conditionalBranch( !testStatus( Overflow ) );
 }
 
+// BVS
 void Cpu::branchOnOverflowSet()
 {
 	conditionalBranch( testStatus( Overflow ) );
 }
 
+// CLC
 void Cpu::clearCarryFlag()
 {
 	clearStatus( Carry );
 	tick();
 }
 
+// CLD
 void Cpu::clearDecimalFlag()
 {
 	clearStatus( DecimalMode );
 	tick();
 }
 
+// CLI
 void Cpu::clearInterruptDisableFlag()
 {
 	clearStatus( DisableInterrupts );
 	tick();
 }
 
+// CLV
 void Cpu::clearOverflowFlag()
 {
 	clearStatus( Overflow );
 	tick();
 }
 
+// CMP
 template <Cpu::AddressMode Mode>
 void Cpu::compareWithAcc()
 {
 	compareWithValue<Mode>( m_accumulator );
 }
 
+// CPX
 template <Cpu::AddressMode Mode>
 void Cpu::compareWithX()
 {
 	compareWithValue<Mode>( m_xRegister );
 }
 
+// CPY
 template <Cpu::AddressMode Mode>
 void Cpu::compareWithY()
 {
 	compareWithValue<Mode>( m_yRegister );
 }
 
+// DEC
 template <Cpu::AddressMode Mode>
 void Cpu::decrement()
 {
@@ -669,26 +697,29 @@ void Cpu::decrement()
 	writeByteTick( address, result );
 }
 
+// DEX
 void Cpu::decrementX()
 {
 	setArithmeticFlags( --m_xRegister );
 	tick();
 }
 
+// DEY
 void Cpu::decrementY()
 {
 	setArithmeticFlags( --m_yRegister );
 	tick();
 }
 
+// EOR
 template <Cpu::AddressMode Mode>
 void Cpu::exclusiveOr()
 {
 	m_accumulator ^= readByteTick( getAddress<Mode>() );
 	setArithmeticFlags( m_accumulator );
-	tick();
 }
 
+// INC
 template <Cpu::AddressMode Mode>
 void Cpu::increment()
 {
@@ -699,24 +730,28 @@ void Cpu::increment()
 	writeByteTick( address, result );
 }
 
+// INX
 void Cpu::incrementX()
 {
 	setArithmeticFlags( ++m_xRegister );
 	tick();
 }
 
+// INY
 void Cpu::incrementY()
 {
 	setArithmeticFlags( ++m_yRegister );
 	tick();
 }
 
+// JMP
 template <Cpu::AddressMode Mode>
 void Cpu::jump()
 {
 	m_programCounter = getAddress<Mode>();
 }
 
+// JSR
 template <Cpu::AddressMode Mode>
 void Cpu::jumpToSubroutine()
 {
@@ -725,6 +760,7 @@ void Cpu::jumpToSubroutine()
 	m_programCounter = readWordTick( m_programCounter );
 }
 
+// LDA
 template <Cpu::AddressMode Mode>
 void Cpu::loadAcc()
 {
@@ -732,6 +768,7 @@ void Cpu::loadAcc()
 	setArithmeticFlags( m_accumulator );
 }
 
+// LDX
 template <Cpu::AddressMode Mode>
 void Cpu::loadX()
 {
@@ -739,6 +776,7 @@ void Cpu::loadX()
 	setArithmeticFlags( m_xRegister );
 }
 
+// LDY
 template <Cpu::AddressMode Mode>
 void Cpu::loadY()
 {
@@ -746,6 +784,7 @@ void Cpu::loadY()
 	setArithmeticFlags( m_yRegister );
 }
 
+// LSR
 template <Cpu::AddressMode Mode>
 void Cpu::shiftRight()
 {
@@ -773,11 +812,13 @@ void Cpu::shiftRight()
 	setArithmeticFlags( result );
 }
 
+// NOP
 void Cpu::noOperation()
 {
 	tick();
 }
 
+// ORA
 template <Cpu::AddressMode Mode>
 void Cpu::bitwiseOr()
 {
@@ -785,18 +826,21 @@ void Cpu::bitwiseOr()
 	setArithmeticFlags( m_accumulator );
 }
 
+// PHA
 void Cpu::pushAcc()
 {
 	tick();
 	pushByte( m_accumulator );
 }
 
+// PHP
 void Cpu::pushStatus()
 {
 	tick();
 	pushByte( m_status | 0x30 );
 }
 
+// PLA
 void Cpu::popAcc()
 {
 	dummyRead();
@@ -805,6 +849,7 @@ void Cpu::popAcc()
 	setArithmeticFlags( m_accumulator );
 }
 
+// PLP
 void Cpu::popStatus()
 {
 	dummyRead();
@@ -812,6 +857,7 @@ void Cpu::popStatus()
 	m_status = ( popByte() & ~0x30 ) | ( m_status & 0x30 );
 }
 
+// ROL
 template <Cpu::AddressMode Mode>
 void Cpu::rotateLeft()
 {
@@ -839,6 +885,7 @@ void Cpu::rotateLeft()
 	setArithmeticFlags( result );
 }
 
+// ROR
 template <Cpu::AddressMode Mode>
 void Cpu::rotateRight()
 {
@@ -865,6 +912,7 @@ void Cpu::rotateRight()
 	setArithmeticFlags( result );
 }
 
+// RTI
 void Cpu::returnFromInterrupt()
 {
 	dummyRead();
@@ -873,6 +921,7 @@ void Cpu::returnFromInterrupt()
 	tick();
 }
 
+// RTS
 void Cpu::returnFromSubroutine()
 {
 	readByteTick( m_programCounter );
@@ -881,48 +930,56 @@ void Cpu::returnFromSubroutine()
 	tick();
 }
 
+// SBS
 template <Cpu::AddressMode Mode>
 void Cpu::subtractFromAcc()
 {
 	addToAccumulator( ~readByteTick( getAddress<Mode>() ) );
 }
 
+// SEC
 void Cpu::setCarryFlag()
 {
 	setStatus( Carry );
 	tick();
 }
 
+// SED
 void Cpu::setDecimalFlag()
 {
 	setStatus( DecimalMode );
 	tick();
 }
 
+// SEI
 void Cpu::setInterruptDisableFlag()
 {
 	setStatus( DisableInterrupts );
 	tick();
 }
 
+// STA
 template <Cpu::AddressMode Mode>
 void Cpu::storeAcc()
 {
 	writeByteTick( getAddress<Mode>(), m_accumulator );
 }
 
+// STX
 template <Cpu::AddressMode Mode>
 void Cpu::storeX()
 {
 	writeByteTick( getAddress<Mode>(), m_xRegister );
 }
 
+// STY
 template <Cpu::AddressMode Mode>
 void Cpu::storeY()
 {
 	writeByteTick( getAddress<Mode>(), m_yRegister );
 }
 
+// TAX
 void Cpu::transferAccToX()
 {
 	m_xRegister = m_accumulator;
@@ -930,6 +987,7 @@ void Cpu::transferAccToX()
 	tick();
 }
 
+// TAY
 void Cpu::transferAccToY()
 {
 	m_yRegister = m_accumulator;
@@ -937,6 +995,7 @@ void Cpu::transferAccToY()
 	tick();
 }
 
+// TSX
 void Cpu::transferStackPointerToX()
 {
 	m_xRegister = m_stackPointer;
@@ -944,6 +1003,7 @@ void Cpu::transferStackPointerToX()
 	tick();
 }
 
+// TXA
 void Cpu::transferXToAcc()
 {
 	m_accumulator = m_xRegister;
@@ -951,12 +1011,14 @@ void Cpu::transferXToAcc()
 	tick();
 }
 
+// TXS
 void Cpu::transferXToStackPointer()
 {
 	m_stackPointer = m_xRegister;
 	tick();
 }
 
+// TYA
 void Cpu::transferYToAcc()
 {
 	m_accumulator = m_yRegister;
@@ -964,15 +1026,233 @@ void Cpu::transferYToAcc()
 	tick();
 }
 
+// ILL
 void Cpu::illegalOpcode()
 {
 	halt();
-	// s_history.print();
 }
 
-#define SET_ADDRMODE_OP( opcode, instr, addrmode ) s_cpuOperations[ opcode ] = { &Cpu::instr< Cpu::AddressMode::addrmode >, Instruction::instr, #instr, #addrmode };
-#define SET_IMPLIED( opcode, instr ) s_cpuOperations[ opcode ] = { &Cpu::instr, Instruction::instr, #instr, "Implied" };
-#define SET_BRANCH( opcode, instr ) s_cpuOperations[ opcode ] = { &Cpu::instr, Instruction::instr, #instr, "Relative" };
+// unofficial opcodes
+
+// ALR
+template <Cpu::AddressMode Mode>
+void Cpu::andShiftRight()
+{
+	m_accumulator &= readByteTick( getAddress<Mode>() );
+	setStatus( Carry, m_accumulator & 1 );
+	m_accumulator >>= 1;
+	setArithmeticFlags( m_accumulator );
+}
+
+// ANC
+template <Cpu::AddressMode Mode>
+void Cpu::andSetCarry()
+{
+	m_accumulator &= readByteTick( getAddress<Mode>() );
+	setArithmeticFlags( m_accumulator );
+	setStatus( Carry, m_accumulator & 0x80 );
+}
+
+// ARR
+template <Cpu::AddressMode Mode>
+void Cpu::andRotateRight()
+{
+	m_accumulator &= readByteTick( getAddress<Mode>() );
+	m_accumulator = ( m_accumulator >> 1 ) | ( testStatus( Carry ) ? 0x80 : 0 );
+	setArithmeticFlags( m_accumulator );
+	setStatus( Carry, 0x40 & m_accumulator );
+	setStatus( Overflow, (bool)( 0x40 & m_accumulator) ^ (bool)( 0x20 & m_accumulator ) );
+}
+
+// AXS
+template <Cpu::AddressMode Mode>
+void Cpu::subtractFromAccAndX()
+{
+	Byte value = readByteTick( getAddress<Mode>() );
+	int result = ( m_accumulator & m_xRegister ) - value;
+	setStatus( Carry, ( m_accumulator & m_xRegister ) >= value );
+	m_xRegister = result & 0xff;
+	setArithmeticFlags( m_xRegister );
+}
+
+// LAX
+template <Cpu::AddressMode Mode>
+void Cpu::loadAccTransferToX()
+{
+	m_xRegister = m_accumulator = readByteTick( getAddress<Mode>() );
+	setArithmeticFlags( m_accumulator );
+}
+
+// SAX, AXA
+template <Cpu::AddressMode Mode>
+void Cpu::storeAccAndX()
+{
+	writeByteTick( getAddress<Mode>(), m_accumulator & m_xRegister );
+}
+
+// DCP
+template <Cpu::AddressMode Mode>
+void Cpu::decrementCompare()
+{
+	Word address = getAddress<Mode>();
+	Byte value = readByteTick( address ) - 1;
+	writeByteTick( address, value );
+
+	setStatus( Carry, m_accumulator >= value );
+	setArithmeticFlags( m_accumulator - value );
+	tick();
+}
+
+// ISC
+template <Cpu::AddressMode Mode>
+void Cpu::incrementSubtract()
+{
+	Word address = getAddress<Mode>();
+	Byte value = readByteTick( address ) + 1;
+	tick();
+	writeByteTick( address, value );
+
+	addToAccumulator( ~value );
+}
+
+// RLA
+template <Cpu::AddressMode Mode>
+void Cpu::rotateLeftAnd()
+{
+	Word address = getAddress<Mode>();
+	Byte value = readByteTick( address );
+	tick();
+	bool carry = value & 0x80;
+	value = ( value << 1 ) | testStatus( Carry );
+	setStatus( Carry, carry );
+	writeByteTick( address, value );
+	m_accumulator &= value;
+	setArithmeticFlags( m_accumulator );
+}
+
+// RRA
+template <Cpu::AddressMode Mode>
+void Cpu::rotateRightAdd()
+{
+	Word address = getAddress<Mode>();
+	Byte value = readByteTick( address );
+	tick();
+	bool carry = value & 1;
+	value = ( value >> 1 ) | ( testStatus( Carry ) ? 0x80 : 0 );
+	setStatus( Carry, carry );
+
+	writeByteTick( address, value );
+	addToAccumulator( value );
+}
+
+// SLO
+template <Cpu::AddressMode Mode>
+void Cpu::shiftLeftOrAcc()
+{
+	Word address = getAddress<Mode>();
+	Byte value = readByteTick( address );
+	tick();
+	setStatus( Carry, value & 0x80 );
+	value <<= 1;
+	writeByteTick( address, value );
+
+	m_accumulator |= value;
+	setArithmeticFlags( m_accumulator );
+}
+
+// SRE
+template <Cpu::AddressMode Mode>
+void Cpu::shiftRightExclusiveOr()
+{
+	Word address = getAddress<Mode>();
+	Byte value = readByteTick( address );
+	tick();
+	setStatus( Carry, value & 1 );
+	value >>= 1;
+	writeByteTick( address, value );
+
+	m_accumulator ^= value;
+	setArithmeticFlags( m_accumulator );
+}
+
+// XAA
+template <Cpu::AddressMode Mode>
+void Cpu::transferXToAccAnd()
+{
+	m_accumulator = m_xRegister;
+	m_accumulator &= readByteTick( getAddress<Mode>() );
+}
+
+// OAL
+template <Cpu::AddressMode Mode>
+void Cpu::orAndAccSetAccX()
+{
+	m_accumulator |= 0xee;
+	m_accumulator &= readByteTick( getAddress<Mode>() );
+	m_xRegister = m_accumulator;
+}
+
+// SXA
+void Cpu::andXAddrHigh()
+{
+	buggyIndexWrite( m_yRegister, m_xRegister );
+}
+
+// SYA
+void Cpu::andYAddrHigh()
+{
+	buggyIndexWrite( m_xRegister, m_yRegister );
+}
+
+// XAS
+template <Cpu::AddressMode Mode>
+void Cpu::andXAccStoreStackPointer()
+{
+	Word address = getAddress<Mode>();
+	m_stackPointer = m_xRegister & m_accumulator;
+	writeByteTick( address, m_stackPointer & ( ( address >> 8 ) + 1 ) );
+}
+
+//SHA
+template <Cpu::AddressMode Mode>
+void Cpu::andXAccSeven()
+{
+	Word address = getAddress<Mode>();
+	writeByteTick( address, m_xRegister & m_accumulator & 0x07 );
+}
+
+// LAR
+template <Cpu::AddressMode Mode>
+void Cpu::andSPTransferToAcXSP()
+{
+	m_accumulator = m_xRegister = m_stackPointer = readByteTick( getAddress<Mode>() ) & m_stackPointer;
+	setArithmeticFlags( m_accumulator );
+}
+
+// IGN
+template <Cpu::AddressMode Mode>
+void Cpu::ignoreByte()
+{
+	Word address = getAddress<Mode>();
+	readByteTick( address );
+}
+
+
+#define CHECK_NULL_OR_ILL( opcode )	do {		\
+	auto func = s_cpuOperations[ opcode ].func;	\
+	dbAssert( func == nullptr || func == &Cpu::illegalOpcode ); } while( false )
+
+#define SET_ADDRMODE_OP( opcode, instr, addrmode ) 	\
+	CHECK_NULL_OR_ILL( opcode );					\
+	s_cpuOperations[ opcode ] = { &Cpu::instr< Cpu::AddressMode::addrmode >, Instruction::instr, #instr, #addrmode };
+
+#define SET_IMPLIED( opcode, instr )	\
+	CHECK_NULL_OR_ILL( opcode );		\
+	s_cpuOperations[ opcode ] = { &Cpu::instr, Instruction::instr, #instr, "Implied" };
+
+#define SET_BRANCH( opcode, instr )	\
+	CHECK_NULL_OR_ILL( opcode );	\
+	s_cpuOperations[ opcode ] = { &Cpu::instr, Instruction::instr, #instr, "Relative" };
 
 void Cpu::initialize()
 {
@@ -1170,12 +1450,118 @@ void Cpu::initialize()
 
 	// unofficial:
 
-	SET_IMPLIED( 0x1a, noOperation );
-	SET_IMPLIED( 0x3a, noOperation );
-	SET_IMPLIED( 0x5a, noOperation );
-	SET_IMPLIED( 0x7a, noOperation );
-	SET_IMPLIED( 0xda, noOperation );
-	SET_IMPLIED( 0xfa, noOperation );
+	SET_ADDRMODE_OP( 0x4b, andShiftRight, Immediate );
+
+	SET_ADDRMODE_OP( 0x0b, andSetCarry, Immediate );
+	SET_ADDRMODE_OP( 0x2b, andSetCarry, Immediate );
+
+	SET_ADDRMODE_OP( 0x6b, andRotateRight, Immediate );
+
+	SET_ADDRMODE_OP( 0xcb, subtractFromAccAndX, Immediate );
+
+	SET_ADDRMODE_OP( 0xa3, loadAccTransferToX, IndirectX )
+	SET_ADDRMODE_OP( 0xa7, loadAccTransferToX, ZeroPage )
+	SET_ADDRMODE_OP( 0xab, loadAccTransferToX, Immediate )
+	SET_ADDRMODE_OP( 0xaf, loadAccTransferToX, Absolute )
+	SET_ADDRMODE_OP( 0xb3, loadAccTransferToX, IndirectY )
+	SET_ADDRMODE_OP( 0xb7, loadAccTransferToX, ZeroPageY )
+	SET_ADDRMODE_OP( 0xbf, loadAccTransferToX, AbsoluteY )
+
+	SET_ADDRMODE_OP( 0x83, storeAccAndX, IndirectX )
+	SET_ADDRMODE_OP( 0x87, storeAccAndX, ZeroPage )
+	SET_ADDRMODE_OP( 0x8f, storeAccAndX, Absolute )
+	SET_ADDRMODE_OP( 0x97, storeAccAndX, ZeroPageY )
+
+	SET_ADDRMODE_OP( 0xc3, decrementCompare, IndirectX )
+	SET_ADDRMODE_OP( 0xc7, decrementCompare, ZeroPage )
+	SET_ADDRMODE_OP( 0xcf, decrementCompare, Absolute )
+	SET_ADDRMODE_OP( 0xd3, decrementCompare, IndirectYStore )
+	SET_ADDRMODE_OP( 0xd7, decrementCompare, ZeroPageX )
+	SET_ADDRMODE_OP( 0xdb, decrementCompare, AbsoluteYStore )
+	SET_ADDRMODE_OP( 0xdf, decrementCompare, AbsoluteXStore )
+
+	SET_ADDRMODE_OP( 0xe3, incrementSubtract, IndirectX )
+	SET_ADDRMODE_OP( 0xe7, incrementSubtract, ZeroPage )
+	SET_ADDRMODE_OP( 0xef, incrementSubtract, Absolute )
+	SET_ADDRMODE_OP( 0xf3, incrementSubtract, IndirectYStore )
+	SET_ADDRMODE_OP( 0xf7, incrementSubtract, ZeroPageX )
+	SET_ADDRMODE_OP( 0xfb, incrementSubtract, AbsoluteYStore )
+	SET_ADDRMODE_OP( 0xff, incrementSubtract, AbsoluteXStore )
+
+	SET_ADDRMODE_OP( 0x23, rotateLeftAnd, IndirectX )
+	SET_ADDRMODE_OP( 0x27, rotateLeftAnd, ZeroPage )
+	SET_ADDRMODE_OP( 0x2f, rotateLeftAnd, Absolute )
+	SET_ADDRMODE_OP( 0x33, rotateLeftAnd, IndirectYStore )
+	SET_ADDRMODE_OP( 0x37, rotateLeftAnd, ZeroPageX )
+	SET_ADDRMODE_OP( 0x3b, rotateLeftAnd, AbsoluteYStore )
+	SET_ADDRMODE_OP( 0x3f, rotateLeftAnd, AbsoluteXStore )
+
+	SET_ADDRMODE_OP( 0x63, rotateRightAdd, IndirectX )
+	SET_ADDRMODE_OP( 0x67, rotateRightAdd, ZeroPage )
+	SET_ADDRMODE_OP( 0x6f, rotateRightAdd, Absolute )
+	SET_ADDRMODE_OP( 0x73, rotateRightAdd, IndirectYStore )
+	SET_ADDRMODE_OP( 0x77, rotateRightAdd, ZeroPageX )
+	SET_ADDRMODE_OP( 0x7b, rotateRightAdd, AbsoluteYStore )
+	SET_ADDRMODE_OP( 0x7f, rotateRightAdd, AbsoluteXStore )
+
+	SET_ADDRMODE_OP( 0x03, shiftLeftOrAcc, IndirectX )
+	SET_ADDRMODE_OP( 0x07, shiftLeftOrAcc, ZeroPage )
+	SET_ADDRMODE_OP( 0x0f, shiftLeftOrAcc, Absolute )
+	SET_ADDRMODE_OP( 0x13, shiftLeftOrAcc, IndirectYStore )
+	SET_ADDRMODE_OP( 0x17, shiftLeftOrAcc, ZeroPageX )
+	SET_ADDRMODE_OP( 0x1b, shiftLeftOrAcc, AbsoluteYStore )
+	SET_ADDRMODE_OP( 0x1f, shiftLeftOrAcc, AbsoluteXStore )
+
+	SET_ADDRMODE_OP( 0x43, shiftRightExclusiveOr, IndirectX )
+	SET_ADDRMODE_OP( 0x47, shiftRightExclusiveOr, ZeroPage )
+	SET_ADDRMODE_OP( 0x4f, shiftRightExclusiveOr, Absolute )
+	SET_ADDRMODE_OP( 0x53, shiftRightExclusiveOr, IndirectYStore )
+	SET_ADDRMODE_OP( 0x57, shiftRightExclusiveOr, ZeroPageX )
+	SET_ADDRMODE_OP( 0x5b, shiftRightExclusiveOr, AbsoluteYStore )
+	SET_ADDRMODE_OP( 0x5f, shiftRightExclusiveOr, AbsoluteXStore )
+
+	SET_ADDRMODE_OP( 0xeb, subtractFromAcc, Immediate )
+
+	SET_ADDRMODE_OP( 0x8b, transferXToAccAnd, Immediate )
+
+	SET_IMPLIED( 0x9e, andXAddrHigh )
+	SET_IMPLIED( 0x9c, andYAddrHigh )
+
+	SET_ADDRMODE_OP( 0x9b, andXAccStoreStackPointer, AbsoluteYStore )
+
+	SET_ADDRMODE_OP( 0x9f, andXAccSeven, AbsoluteYStore )
+	SET_ADDRMODE_OP( 0x93, andXAccSeven, IndirectYStore )
+
+	SET_ADDRMODE_OP( 0xbb, andSPTransferToAcXSP, AbsoluteY );
+
+	SET_IMPLIED( 0x1a, noOperation )
+	SET_IMPLIED( 0x3a, noOperation )
+	SET_IMPLIED( 0x5a, noOperation )
+	SET_IMPLIED( 0x7a, noOperation )
+	SET_IMPLIED( 0xda, noOperation )
+	SET_IMPLIED( 0xfa, noOperation )
+
+	SET_ADDRMODE_OP( 0x0c, ignoreByte, Absolute )
+	SET_ADDRMODE_OP( 0x1c, ignoreByte, AbsoluteX )
+	SET_ADDRMODE_OP( 0x3c, ignoreByte, AbsoluteX )
+	SET_ADDRMODE_OP( 0x5c, ignoreByte, AbsoluteX )
+	SET_ADDRMODE_OP( 0x7c, ignoreByte, AbsoluteX )
+	SET_ADDRMODE_OP( 0xdc, ignoreByte, AbsoluteX )
+	SET_ADDRMODE_OP( 0xfc, ignoreByte, AbsoluteX )
+	SET_ADDRMODE_OP( 0x04, ignoreByte, ZeroPage )
+	SET_ADDRMODE_OP( 0x14, ignoreByte, ZeroPageX )
+	SET_ADDRMODE_OP( 0x34, ignoreByte, ZeroPageX )
+	SET_ADDRMODE_OP( 0x44, ignoreByte, ZeroPage )
+	SET_ADDRMODE_OP( 0x54, ignoreByte, ZeroPageX )
+	SET_ADDRMODE_OP( 0x64, ignoreByte, ZeroPage )
+	SET_ADDRMODE_OP( 0x74, ignoreByte, ZeroPageX )
+	SET_ADDRMODE_OP( 0x80, ignoreByte, Immediate )
+	SET_ADDRMODE_OP( 0x82, ignoreByte, Immediate )
+	SET_ADDRMODE_OP( 0x89, ignoreByte, Immediate )
+	SET_ADDRMODE_OP( 0xc2, ignoreByte, Immediate )
+	SET_ADDRMODE_OP( 0xd4, ignoreByte, ZeroPageX )
+	SET_ADDRMODE_OP( 0xe2, ignoreByte, Immediate )
+	SET_ADDRMODE_OP( 0xf4, ignoreByte, ZeroPageX )
 }
 
 #undef SET_ADDRMODE_OP
@@ -1220,7 +1606,8 @@ void Cpu::loadState( std::istream& in )
 #undef writeBytes
 #undef readBytes
 
-enum ByteInterpretation {
+enum ByteInterpretation
+{
 	RAW,
 	OPCODE,
 	ASCII,
@@ -1239,12 +1626,15 @@ void Cpu::dump( Word address )
 	address &= 0xfff0;
 
 	std::cout << "      ";
-	for(int bi = 0; bi < NUM_BYTE_INTERPRETATIONS; bi++) {
+	for ( int bi = 0; bi < NUM_BYTE_INTERPRETATIONS; bi++ )
+	{
 		std::cout << "| ";
-		for(unsigned int i = 0; i < 0x10; i++) {
-			std::cout << toHex(i, 0.5, "");
+		for ( unsigned int i = 0; i < 0x10; i++ )
+		{
+			std::cout << toHex( i, 0.5, "" );
 			std::string spaces;
-			switch(bi) {
+			switch ( bi )
+			{
 				case RAW:
 					spaces = "  ";
 					break;
@@ -1259,19 +1649,23 @@ void Cpu::dump( Word address )
 	}
 
 	std::cout << '\n';
-	for(int i = 0; i < 156; i++) std::cout << '-';
+	for ( int i = 0; i < 156; i++ ) std::cout << '-';
 	std::cout << '\n';
 
-	for(unsigned int high = 0; high < 0x10; high++) {
-		std::cout << toHex(address + (high << 4), 2) << ' ';
-		for(int bi = 0; bi < NUM_BYTE_INTERPRETATIONS; bi++) {
+	for ( unsigned int high = 0; high < 0x10; high++ )
+	{
+		std::cout << toHex( address + ( high << 4 ), 2 ) << ' ';
+		for ( int bi = 0; bi < NUM_BYTE_INTERPRETATIONS; bi++ )
+		{
 			std::cout << "| ";
-			for(unsigned int low = 0; low < 0x10; low++) {
-				Byte value = read(address + ((high << 4) + low));
-				switch(bi) {
+			for ( unsigned int low = 0; low < 0x10; low++ )
+			{
+				Byte value = read( address + ( ( high << 4 ) + low ) );
+				switch ( bi )
+				{
 					case RAW:
 					{
-						std::cout << toHex(value, 1, "");
+						std::cout << toHex( value, 1, "" );
 						break;
 					}
 
@@ -1279,14 +1673,14 @@ void Cpu::dump( Word address )
 					{
 						auto operation = s_cpuOperations[ value ];
 						std::cout << ( ( operation.instr != Instruction::illegalOpcode )
-							? nes::getInstructionName( operation.instr )
-							: "   " );
+									   ? nes::getInstructionName( operation.instr )
+									   : "   " );
 						break;
 					}
 
 					case ASCII:
 					{
-						std::cout << (isspace(value) ? ' ' : (char)value);
+						std::cout << ( isspace( value ) ? ' ' : ( char )value );
 						break;
 					}
 				}
@@ -1297,20 +1691,23 @@ void Cpu::dump( Word address )
 	}
 }
 
-void Cpu::dumpStack() {
+void Cpu::dumpStack()
+{
 	std::cout << "Stack:\n";
-	for(int i = (StackOffset | m_stackPointer) + 1; i <= (StackOffset | STACK_START); i++) {
-		std::cout << ' ' << toHex(read(i), 1) << '\n';
+	for ( int i = ( StackOffset | m_stackPointer ) + 1; i <= ( StackOffset | STACK_START ); i++ )
+	{
+		std::cout << ' ' << toHex( read( i ), 1 ) << '\n';
 	}
 	std::cout << "-----\n";
 }
 
-void Cpu::dumpState() {
-	std::cout << "Accumulator: " << toHex(m_accumulator) << '\n';
-	std::cout << "X register: " << toHex(m_xRegister) << '\n';
-	std::cout << "Y register: " << toHex(m_yRegister) << '\n';
-	std::cout << "Program counter: " << toHex(m_programCounter) << '\n';
-	std::cout << "Stack pointer: " << toHex(m_stackPointer) << '\n';
+void Cpu::dumpState()
+{
+	std::cout << "Accumulator: " << toHex( m_accumulator ) << '\n';
+	std::cout << "X register: " << toHex( m_xRegister ) << '\n';
+	std::cout << "Y register: " << toHex( m_yRegister ) << '\n';
+	std::cout << "Program counter: " << toHex( m_programCounter ) << '\n';
+	std::cout << "Stack pointer: " << toHex( m_stackPointer ) << '\n';
 	std::cout << "Status: NV BDIZC\n";
-	std::cout << "        " << std::bitset<8>(m_status) << '\n';
+	std::cout << "        " << std::bitset<8>( m_status ) << '\n';
 }
