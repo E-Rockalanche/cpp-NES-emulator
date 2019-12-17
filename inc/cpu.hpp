@@ -209,6 +209,8 @@ namespace nes
 
 		void oamDmaTransfer( Byte addressHigh );
 
+		void buggyIndexWrite( Byte index, Byte value );
+
 		// operations:
 
 		#define DEF_ADDRMODE_OP( name ) template <AddressMode Mode> void name();
@@ -288,8 +290,8 @@ namespace nes
 		DEF_ADDRMODE_OP( shiftRightExclusiveOr )
 		DEF_ADDRMODE_OP( transferXToAccAnd )
 		DEF_ADDRMODE_OP( orAndAccSetAccX )
-		DEF_ADDRMODE_OP( andXAddrHigh )
-		DEF_ADDRMODE_OP( andYAddrHigh )
+		void andXAddrHigh();
+		void andYAddrHigh();
 		DEF_ADDRMODE_OP( andXAccStoreStackPointer )
 		DEF_ADDRMODE_OP( andXAccSeven )
 		DEF_ADDRMODE_OP( andSPTransferToAcXSP )

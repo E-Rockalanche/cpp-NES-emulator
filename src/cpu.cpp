@@ -56,7 +56,7 @@ namespace
 
 	inline bool crossedPage( Word addr1, Word addr2 )
 	{
-		return ( addr1 & 0xff00 ) != ( addr2 & 0xff00 );
+		return ( addr1 ^ addr2 ) & 0x0100;
 	}
 
 	inline bool isNegative( Byte value )
@@ -517,6 +517,18 @@ Word Cpu::getAddress()
 			return address;
 		}
 	}
+}
+
+void Cpu::buggyIndexWrite( Byte index, Byte value )
+{
+	Word page1 = getAddress<AddressMode::Absolute>();
+	Word address = page1 + index;
+	dummyRead( ( page1 & 0xff00 ) | ( address & 0x00ff ) );
+	if ( crossedPage( page1, address ) )
+	{
+		address &= ( value << 8 );
+	}
+	writeByteTick( address, value & ( ( page1 >> 8 ) + 1 ) );
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1064,9 +1076,9 @@ void Cpu::subtractFromAccAndX()
 {
 	Byte value = readByteTick( getAddress<Mode>() );
 	int result = ( m_accumulator & m_xRegister ) - value; // TODO: one or twos comp?
+	setStatus( Carry, ( m_accumulator & m_xRegister ) >= value );
 	m_xRegister = result & 0xff;
 	setArithmeticFlags( m_xRegister );
-	setStatus( Carry, result & 0x100 );
 }
 
 // LAX
@@ -1077,7 +1089,7 @@ void Cpu::loadAccTransferToX()
 	setArithmeticFlags( m_accumulator );
 }
 
-// SAX
+// SAX, AXA
 template <Cpu::AddressMode Mode>
 void Cpu::storeAccAndX()
 {
@@ -1175,8 +1187,6 @@ void Cpu::transferXToAccAnd()
 {
 	m_accumulator = m_xRegister;
 	m_accumulator &= readByteTick( getAddress<Mode>() );
-
-	// TODO: check cycles
 }
 
 // OAL
@@ -1186,24 +1196,18 @@ void Cpu::orAndAccSetAccX()
 	m_accumulator |= 0xee;
 	m_accumulator &= readByteTick( getAddress<Mode>() );
 	m_xRegister = m_accumulator;
-
-	// TODO: check cycles
 }
 
 // SXA
-template <Cpu::AddressMode Mode>
 void Cpu::andXAddrHigh()
 {
-	Word address = getAddress<Mode>();
-	writeByteTick( address, m_xRegister & ( ( address >> 8 ) + 1 ) );
+	buggyIndexWrite( m_yRegister, m_xRegister );
 }
 
-// SHY
-template <Cpu::AddressMode Mode>
+// SYA
 void Cpu::andYAddrHigh()
 {
-	Word address = getAddress<Mode>();
-	writeByteTick( address, m_yRegister & ( ( address >> 8 ) + 1 ) );
+	buggyIndexWrite( m_xRegister, m_yRegister );
 }
 
 // XAS
@@ -1526,8 +1530,8 @@ void Cpu::initialize()
 
 	SET_ADDRMODE_OP( 0x8b, transferXToAccAnd, Immediate )
 
-	SET_ADDRMODE_OP( 0x9e, andXAddrHigh, AbsoluteYStore )
-	SET_ADDRMODE_OP( 0x9c, andYAddrHigh, AbsoluteXStore )
+	SET_IMPLIED( 0x9e, andXAddrHigh ) // buggy AbsoluteXStore
+	SET_IMPLIED( 0x9c, andYAddrHigh ) // buggy AbsoluteYStore
 
 	SET_ADDRMODE_OP( 0x9b, andXAccStoreStackPointer, AbsoluteYStore )
 
