@@ -72,7 +72,6 @@ namespace
 	}
 
 	using CpuInstruction = void( Cpu::* )( void );
-	// CpuInstruction s_cpuOperations[ 0x100 ];
 
 	struct Operation
 	{
@@ -83,8 +82,6 @@ namespace
 	};
 
 	Operation s_cpuOperations[ 0x100 ];
-
-	// History s_history;
 }
 
 enum class Cpu::AddressMode
@@ -249,10 +246,8 @@ void Cpu::executeInstruction()
 			return;
 		}
 
-		// auto pc = m_programCounter;
 		Byte opcode = readByteTick( m_programCounter++ );
 		auto operation = s_cpuOperations[ opcode ];
-		// s_history.add( "[0x%04x] 0x%02x %s (%s)", (int)pc, (int)opcode, operation.instructionName, operation.addressModeName );
 		( this->*operation.func )();
 	}
 }
@@ -1035,7 +1030,6 @@ void Cpu::transferYToAcc()
 void Cpu::illegalOpcode()
 {
 	halt();
-	// s_history.print();
 }
 
 // unofficial opcodes
@@ -1075,7 +1069,7 @@ template <Cpu::AddressMode Mode>
 void Cpu::subtractFromAccAndX()
 {
 	Byte value = readByteTick( getAddress<Mode>() );
-	int result = ( m_accumulator & m_xRegister ) - value; // TODO: one or twos comp?
+	int result = ( m_accumulator & m_xRegister ) - value;
 	setStatus( Carry, ( m_accumulator & m_xRegister ) >= value );
 	m_xRegister = result & 0xff;
 	setArithmeticFlags( m_xRegister );
@@ -1118,7 +1112,7 @@ void Cpu::incrementSubtract()
 	tick();
 	writeByteTick( address, value );
 
-	addToAccumulator( ~value ); // TODO: one or twos comp?
+	addToAccumulator( ~value );
 }
 
 // RLA
@@ -1467,7 +1461,7 @@ void Cpu::initialize()
 
 	SET_ADDRMODE_OP( 0xa3, loadAccTransferToX, IndirectX )
 	SET_ADDRMODE_OP( 0xa7, loadAccTransferToX, ZeroPage )
-	SET_ADDRMODE_OP( 0xab, loadAccTransferToX, Immediate ) // TODO: OAL?
+	SET_ADDRMODE_OP( 0xab, loadAccTransferToX, Immediate )
 	SET_ADDRMODE_OP( 0xaf, loadAccTransferToX, Absolute )
 	SET_ADDRMODE_OP( 0xb3, loadAccTransferToX, IndirectY )
 	SET_ADDRMODE_OP( 0xb7, loadAccTransferToX, ZeroPageY )
@@ -1530,8 +1524,8 @@ void Cpu::initialize()
 
 	SET_ADDRMODE_OP( 0x8b, transferXToAccAnd, Immediate )
 
-	SET_IMPLIED( 0x9e, andXAddrHigh ) // buggy AbsoluteXStore
-	SET_IMPLIED( 0x9c, andYAddrHigh ) // buggy AbsoluteYStore
+	SET_IMPLIED( 0x9e, andXAddrHigh )
+	SET_IMPLIED( 0x9c, andYAddrHigh )
 
 	SET_ADDRMODE_OP( 0x9b, andXAccStoreStackPointer, AbsoluteYStore )
 
