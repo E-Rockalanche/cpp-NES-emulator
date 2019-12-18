@@ -6,7 +6,7 @@ FLAGS = -O3 -DIMGUI_IMPL_OPENGL_LOADER_GLAD
 SDL_LFLAGS := -Wl,-Bdynamic -lSDL2main -lSDL2 -lSDL2_ttf -lSDL2_image -Wl,-Bstatic
 LFLAGS := -std=c++17 $(FLAGS) -lmingw32 -lm -mwindows -mconsole $(SDL_LFLAGS)
 CCFLAGS := -c -std=c++17 $(FLAGS)
-LIB_INCLUDE := -isystem ./lib/inc -isystem ./lib/inc/boost ./glad/include/glad ../imgui
+LIB_INCLUDE := -isystem ./lib/inc -isystem ./lib/inc/boost -isystem ./glad/include/glad -isystem ../imgui
 INCLUDE := -I./inc -I./inc/mappers -I../imgui $(LIB_INCLUDE)
 
 SOURCES = $(wildcard src/*.cpp)
@@ -21,7 +21,7 @@ MAP_OBJECTS = $(patsubst src/mappers/%.cpp, obj/mappers/%.o, $(MAP_SOURCES))
 IMGUI_SOURCES = $(wildcard ../imgui/*.cpp)
 IMGUI_OBJECTS = $(patsubst ../imgui/%.cpp, obj/imgui/%.o, $(IMGUI_SOURCES))
 
-MAKE_OBJ = $(CXX) $< -o $@ -Wall -Wextra -Wno-unused-parameter $(CCFLAGS) $(INCLUDE)
+MAKE_OBJ = $(CXX) $< -o $@ -Wall -Wextra $(CCFLAGS) $(INCLUDE)
 MAKE_EXE = $(CXX) $^ -o $@ $(LFLAGS)
 
 $(TARGET): $(LIB_OBJECTS) $(MAP_OBJECTS) $(IMGUI_OBJECTS) $(OBJECTS)
