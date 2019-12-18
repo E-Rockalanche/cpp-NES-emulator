@@ -55,7 +55,8 @@ const uint32_t crc_table[256] = {
     0x2d02ef8dUL
 };
 
-uint32_t crc32(const unsigned char* data, size_t size) {
+uint32_t crc32(const unsigned char* data, size_t size)
+{
 	uint32_t crc = 0xffffffff;
     auto it = data;
     auto end = data + size;

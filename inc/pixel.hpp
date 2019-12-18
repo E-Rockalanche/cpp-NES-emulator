@@ -5,6 +5,7 @@
 
 struct Pixel
 {
+	// little endian
 	static constexpr uint32_t r_mask = 0x000000ff;
 	static constexpr uint32_t g_mask = 0x0000ff00;
 	static constexpr uint32_t b_mask = 0x00ff0000;

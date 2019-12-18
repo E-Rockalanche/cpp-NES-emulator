@@ -4,6 +4,6 @@
 #include <cstddef>
 #include <cstdint>
 
-uint32_t crc32(const unsigned char* data, size_t size);
+uint32_t crc32( const unsigned char* data, size_t size );
 
 #endif
