@@ -1,4 +1,4 @@
-TARGET := build\nes.exe
+TARGET := bin\nes.exe
 CXX := g++
 
 FLAGS = -O3
