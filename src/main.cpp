@@ -1,6 +1,4 @@
 
-#include "main.hpp"
-
 #include "api.hpp"
 #include "Cartridge.hpp"
 #include "config.hpp"
@@ -20,6 +18,12 @@
 #include "rom_loader.hpp"
 #include "zapper.hpp"
 
+#include "imgui.h"
+#include "imgui_impl_sdl.h"
+#include "imgui_impl_opengl3.h"
+#include <SDL2/SDL.h>
+#include <glad/glad.h>
+
 #include <iostream>
 #include <iomanip>
 #include <string>
@@ -27,8 +31,6 @@
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
-
-#include "SDL2/SDL.h"
 
 // SDL
 SDL_Window* window = nullptr;
@@ -100,25 +102,6 @@ float total_real_fps = 0;
 #define FPS_COUNT 15
 float fps_count[FPS_COUNT];
 std::string fps_text = "fps: 0";
-
-void addFPS( float fps )
-{
-	for ( int i = 0; i < FPS_COUNT - 1; i++ )
-	{
-		fps_count[i] = fps_count[i + 1];
-	}
-	fps_count[FPS_COUNT - 1] = fps;
-}
-
-float currentFPS()
-{
-	float sum = 0;
-	for ( int i = 0; i < FPS_COUNT; i++ )
-	{
-		sum += fps_count[i];
-	}
-	return sum / FPS_COUNT;
-}
 
 void resetFrameNumber()
 {
@@ -226,7 +209,7 @@ ProgramEnd pe( []
 void keyboardEvent( const SDL_Event& event )
 {
 	SDL_Keycode key = event.key.keysym.sym;
-	bool pressed = event.key.state == SDL_PRESSED;
+	bool pressed = ( event.key.state == SDL_PRESSED );
 	if ( pressed )
 	{
 		switch ( key )
@@ -345,6 +328,8 @@ void pollEvents()
 	SDL_Event event;
 	while ( SDL_PollEvent( &event ) )
 	{
+		ImGui_ImplSDL2_ProcessEvent( &event );
+
 		switch ( event.type )
 		{
 			case SDL_KEYDOWN:
@@ -390,36 +375,74 @@ int main( int argc, char** argv )
 {
 	srand( time( NULL ) );
 
-	nes::Cpu::initialize();
+	dbAssertMessage( SDL_Init( SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER ) == 0, "failed to initialize SDL" );
 
-	dbAssertMessage( SDL_Init( SDL_INIT_VIDEO | SDL_INIT_AUDIO ) == 0, "failed to initialize SDL" );
+    const char* glslVersion = "#version 130";
+    SDL_GL_SetAttribute( SDL_GL_CONTEXT_FLAGS, 0 );
+    SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE );
+    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
+    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 0 );
+
+    SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
+    SDL_GL_SetAttribute( SDL_GL_DEPTH_SIZE, 24 );
+    SDL_GL_SetAttribute( SDL_GL_STENCIL_SIZE, 8 );
 
 	loadConfig();
 
 	// create window
-	int window_flags = SDL_WINDOW_OPENGL | ( fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0 );
+	int windowFlags = SDL_WINDOW_OPENGL
+		| SDL_WINDOW_RESIZABLE
+		| ( fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0 );
 	window = SDL_CreateWindow( "NES emulator",
 							   SDL_WINDOWPOS_UNDEFINED,
 							   SDL_WINDOWPOS_UNDEFINED,
 							   window_width, window_height,
-							   window_flags );
-	dbAssertMessage( window != NULL, "failed to create screen" );
-	SDL_SetWindowResizable( window, SDL_bool( true ) );
+							   windowFlags );
+	dbAssertMessage( window, "failed to create window" );
+
+	SDL_GLContext openglContext = SDL_GL_CreateContext( window );
+    SDL_GL_MakeCurrent( window, openglContext );
+    // SDL_GL_SetSwapInterval( 1 );
+
+    if ( !gladLoadGL() )
+    {
+    	dbLogError( "failed to initialize opengl loader" );
+    	return 1;
+    }
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    auto& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_ViewportsEnable;
+
+    ImGui::StyleColorsDark();
+
+    ImGui_ImplSDL2_InitForOpenGL( window, openglContext );
+    ImGui_ImplOpenGL3_Init( glslVersion );
 
 	constructMenu();
 
 	// create renderer
+	
 	renderer = SDL_CreateRenderer( window, -1, SDL_RENDERER_PRESENTVSYNC );
 	dbAssertMessage( renderer != NULL, "failed to create renderer" );
+	
 
 	// create texture
+	
 	nes_texture = SDL_CreateTexture( renderer,
 									 ( sizeof( Pixel ) == 32 ) ? SDL_PIXELFORMAT_RGBA32 : SDL_PIXELFORMAT_RGB24,
 									 SDL_TEXTUREACCESS_STREAMING,
 									 ScreenWidth, ScreenHeight );
 	dbAssertMessage( nes_texture != NULL, "failed to create texture" );
+	
+
+	// unsigned int nesTexture = 0;
+	// glGenTextures( 1, nesTexture );
+	
 
 	// initialize NES
+	nes::Cpu::initialize();
 	s_nes.setController( &joypad[ 0 ], 0 );
 	s_nes.setController( &zapper, 1 );
 
@@ -438,6 +461,10 @@ int main( int argc, char** argv )
 	while ( true )
 	{
 		pollEvents();
+
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplSDL2_NewFrame( window );
+        ImGui::NewFrame();
 
 		if ( ( !paused || step_frame ) && ( s_nes.cartridge != nullptr ) && !s_nes.halted() )
 		{
@@ -464,16 +491,49 @@ int main( int argc, char** argv )
 		}
 		step_frame = false;
 
+
+
+
+
+
+		// glViewport( 0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y );
+		// glClearColor( 0, 0, 0, 1 );
+		// glClear( GL_COLOR_BUFFER_BIT );
+
+		/*
+		glPixelZoom( (float)window_width / ScreenWidth, -(float)window_height / ScreenHeight );
+		glRasterPos2i( -1, 1 );
+		glDrawPixels( ScreenWidth, ScreenHeight, GL_RGB, GL_UNSIGNED_BYTE, s_nes.getPixelBuffer() );
+		*/
+
+
+
 		// clear the screen
+		
 		SDL_SetRenderDrawColor( renderer, 0, 0, 0, 255 ); // black
 		SDL_RenderClear( renderer );
 
 		// render nes & gui
 		SDL_UpdateTexture( nes_texture, nullptr, s_nes.getPixelBuffer(), ScreenWidth * sizeof ( Pixel ) );
 		SDL_RenderCopy( renderer, nes_texture, &crop_area, &render_area );
+		
 
-		// preset screen
+
+		ImGui::Begin( "Perf" );
+		ImGui::Text( "fps: %f", ave_fps );
+		ImGui::Text( "real fps: %f", ave_real_fps );
+		ImGui::End();
+		ImGui::Render();
+		ImGui_ImplOpenGL3_RenderDrawData( ImGui::GetDrawData() );
+		SDL_Window* backup_current_window = SDL_GL_GetCurrentWindow();
+		SDL_GLContext backup_current_context = SDL_GL_GetCurrentContext();
+		ImGui::UpdatePlatformWindows();
+		ImGui::RenderPlatformWindowsDefault();
+		SDL_GL_MakeCurrent( backup_current_window, backup_current_context );
+
+		// present screen
 		SDL_RenderPresent( renderer );
+        // SDL_GL_SwapWindow( window );
 
 		int now = SDL_GetTicks();
 		if ( !paused )
@@ -481,14 +541,18 @@ int main( int argc, char** argv )
 			double elapsed = now - last_time;
 			double current_fps = 1000.0 / elapsed;
 			total_fps += current_fps;
-			addFPS( current_fps );
-
-			std::stringstream stream;
-			stream << std::fixed << std::setprecision( 1 ) << currentFPS();
-			fps_text = "fps: " + stream.str();
 		}
 		last_time = now;
 	}
+
+    // Cleanup
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext();
+
+    SDL_GL_DeleteContext( openglContext );
+    SDL_DestroyWindow( window );
+    SDL_Quit();
 
 	return 0;
 }

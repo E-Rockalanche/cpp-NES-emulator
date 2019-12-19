@@ -40,7 +40,10 @@ obj/glad.o:	C:/MinGW/src/glad.c
 
 
 
-imgui_test.exe:	obj/imgui_test.o $(IMGUI_OBJECTS) obj/glad.o
+test_code/%.o:	test_code/%.cpp
+	$(MAKE_OBJ)
+
+imgui_test.exe:	test_code/imgui_test.o $(IMGUI_OBJECTS) obj/glad.o
 	$(MAKE_EXE)
 
 
@@ -50,3 +53,6 @@ clean:
 
 cleanall:
 	del .\obj\*.o .\obj\mappers\*.o .\lib\obj\*.o $(TARGET)
+
+run:
+	$(TARGET)

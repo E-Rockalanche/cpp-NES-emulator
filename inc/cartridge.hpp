@@ -43,7 +43,7 @@ namespace nes
 		virtual void writeCHR( Word address, Byte value );
 
 		virtual void signalScanline() {}
-		virtual void setCPU( Cpu& cpu ) {}
+		virtual void setCPU( Cpu& ) {}
 
 		virtual void reset();
 
