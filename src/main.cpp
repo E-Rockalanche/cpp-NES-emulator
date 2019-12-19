@@ -24,13 +24,16 @@
 #include <SDL2/SDL.h>
 #include <glad/glad.h>
 
-#include <iostream>
-#include <iomanip>
-#include <string>
-#include <ctime>
 #include <cstdlib>
+#include <ctime>
 #include <fstream>
+#include <iomanip>
+#include <iostream>
 #include <sstream>
+#include <string>
+
+const double targetFPS = 60.0;
+const double targetMPF = 1000.0 / targetFPS;
 
 // SDL
 SDL_Window* window = nullptr;
@@ -66,20 +69,24 @@ std::string savestate_ext = ".state";
 // window size
 bool fullscreen = false;
 float render_scale = 1;
-SDL_Rect render_area =
-{
+
+SDL_Rect render_area = {
 	0,
 	0,
 	ScreenWidth - DefaultCrop * 2,
 	ScreenHeight - DefaultCrop * 2
 };
-SDL_Rect crop_area =
-{
+
+SDL_Rect crop_area = {
 	DefaultCrop,
 	DefaultCrop,
 	ScreenWidth - DefaultCrop,
 	ScreenHeight - DefaultCrop
 };
+
+float texCropX = (float)DefaultCrop / (float)ScreenWidth;
+float texCropY = (float)DefaultCrop / (float)ScreenHeight;
+
 int window_width = ScreenWidth - DefaultCrop;
 int window_height = ScreenHeight - DefaultCrop;
 
@@ -93,8 +100,8 @@ double last_wait_time = 0;
 // frame rate
 int frame_number = 0;
 float fps = 0;
-float total_fps = 0;
 float real_fps = 0;
+float total_fps = 0;
 float total_real_fps = 0;
 #define ave_fps ( total_fps / frame_number )
 #define ave_real_fps ( total_real_fps / frame_number )
@@ -196,6 +203,10 @@ void cropScreen( int dx, int dy )
 	crop_area.y = CLAMP( crop_area.y + dy, 0, MaxCrop );
 	crop_area.w = ScreenWidth - crop_area.x * 2;
 	crop_area.h = ScreenHeight - crop_area.y * 2;
+
+	texCropX = (float)crop_area.x / (float)ScreenWidth;
+	texCropY = (float)crop_area.y / (float)ScreenWidth;
+
 	resizeWindow( crop_area.w * render_scale, crop_area.h * render_scale );
 }
 
@@ -422,27 +433,15 @@ int main( int argc, char** argv )
 
 	constructMenu();
 
-	// create renderer
-	/*
-	renderer = SDL_CreateRenderer( window, -1, SDL_RENDERER_PRESENTVSYNC );
-	dbAssertMessage( renderer != NULL, "failed to create renderer" );
-	
-
-	// create texture
-	
-	nes_texture = SDL_CreateTexture( renderer,
-									 ( sizeof( Pixel ) == 32 ) ? SDL_PIXELFORMAT_RGBA32 : SDL_PIXELFORMAT_RGB24,
-									 SDL_TEXTUREACCESS_STREAMING,
-									 ScreenWidth, ScreenHeight );
-	dbAssertMessage( nes_texture != NULL, "failed to create texture" );
-	*/
+	glEnable( GL_TEXTURE_2D );
 
 	GLuint nesTexture = 0;
-	glGenTextures( 1, nesTexture );
+	glGenTextures( 1, &nesTexture );
 	glBindTexture( GL_TEXTURE_2D, nesTexture );
 	glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, ScreenWidth, ScreenHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, s_nes.getPixelBuffer() );
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
+	glBindTexture( GL_TEXTURE_2D, 0 );
 	
 
 	// initialize NES
@@ -461,14 +460,10 @@ int main( int argc, char** argv )
 	resizeWindow( window_width, window_height );
 
 	// run emulator
-	int last_time = SDL_GetTicks();
 	while ( true )
 	{
+		auto frameStart = SDL_GetTicks();
 		pollEvents();
-
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplSDL2_NewFrame( window );
-        ImGui::NewFrame();
 
 		if ( ( !paused || step_frame ) && ( s_nes.cartridge != nullptr ) && !s_nes.halted() )
 		{
@@ -485,12 +480,7 @@ int main( int argc, char** argv )
 				ss << "The CPU encountered an illegal instruction at address " << std::hex << ( s_nes.cpu.getProgramCounter() - 1 );
 				showError( "Error", ss.str() );
 				s_nes.dump();
-			}
-			else
-			{
-				frame_number++;
-				double elapsed = SDL_GetTicks() - last_time;
-				total_real_fps += 1000.0 / elapsed;
+				paused = true;
 			}
 		}
 		step_frame = false;
@@ -504,33 +494,32 @@ int main( int argc, char** argv )
 		
 		glClearColor( 0, 0, 0, 1 );
 		glClear( GL_COLOR_BUFFER_BIT );
+		glLoadIdentity();
 
+		glViewport( render_area.x, render_area.y, render_area.w, render_area.h );
+
+		glEnable( GL_TEXTURE_2D );
 		glBindTexture( GL_TEXTURE_2D, nesTexture );
-		glViewport( 0, 0, ScreenWidth, ScreenHeight );
 
-
-		/*
-		glPixelZoom( (float)window_width / ScreenWidth, -(float)window_height / ScreenHeight );
-		glRasterPos2i( -1, 1 );
-		glDrawPixels( ScreenWidth, ScreenHeight, GL_RGB, GL_UNSIGNED_BYTE, s_nes.getPixelBuffer() );
-		*/
-
-
-
-		// clear the screen
+		glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, ScreenWidth, ScreenHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, s_nes.getPixelBuffer() );
 		
-		SDL_SetRenderDrawColor( renderer, 0, 0, 0, 255 ); // black
-		SDL_RenderClear( renderer );
+		glBegin( GL_QUADS );
+		glTexCoord2f( texCropX, 1 - texCropY ); 	glVertex2f( -1, -1 );
+		glTexCoord2f( texCropX, texCropY ); 		glVertex2f( -1, 1 );
+		glTexCoord2f( 1 - texCropX, texCropY ); 	glVertex2f( 1, 1 );
+		glTexCoord2f( 1 - texCropX, 1 - texCropY );	glVertex2f( 1, -1 );
+		glEnd();
+		glBindTexture( GL_TEXTURE_2D, 0 );
 
-		// render nes & gui
-		SDL_UpdateTexture( nes_texture, nullptr, s_nes.getPixelBuffer(), ScreenWidth * sizeof ( Pixel ) );
-		SDL_RenderCopy( renderer, nes_texture, &crop_area, &render_area );
-		
 
+
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplSDL2_NewFrame( window );
+        ImGui::NewFrame();
 
 		ImGui::Begin( "Perf" );
-		ImGui::Text( "fps: %f", ave_fps );
-		ImGui::Text( "real fps: %f", ave_real_fps );
+		ImGui::Text( "fps: %f", fps );
+		ImGui::Text( "real fps: %f", real_fps );
 		ImGui::End();
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData( ImGui::GetDrawData() );
@@ -542,17 +531,30 @@ int main( int argc, char** argv )
 		SDL_GL_MakeCurrent( backup_current_window, backup_current_context );
 
 		// present screen
-		SDL_RenderPresent( renderer );
-        // SDL_GL_SwapWindow( window );
+		// SDL_RenderPresent( renderer );
+        SDL_GL_SwapWindow( window );
 
-		int now = SDL_GetTicks();
+     	auto elapsed = SDL_GetTicks() - frameStart;
+
 		if ( !paused )
 		{
-			double elapsed = now - last_time;
-			double current_fps = 1000.0 / elapsed;
-			total_fps += current_fps;
+			real_fps = 1000.0 / elapsed;
+			total_real_fps += real_fps;
 		}
-		last_time = now;
+
+		if ( elapsed < targetMPF )
+		{
+			SDL_Delay( targetMPF - elapsed );
+		}
+
+		if ( !paused )
+		{
+			auto elapsed = SDL_GetTicks() - frameStart;
+			fps = 1000.0 / elapsed;
+			total_fps += fps;
+
+			frame_number++;
+		}
 	}
 
     // Cleanup
