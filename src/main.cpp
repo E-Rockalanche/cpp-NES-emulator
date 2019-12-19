@@ -423,7 +423,7 @@ int main( int argc, char** argv )
 	constructMenu();
 
 	// create renderer
-	
+	/*
 	renderer = SDL_CreateRenderer( window, -1, SDL_RENDERER_PRESENTVSYNC );
 	dbAssertMessage( renderer != NULL, "failed to create renderer" );
 	
@@ -435,10 +435,14 @@ int main( int argc, char** argv )
 									 SDL_TEXTUREACCESS_STREAMING,
 									 ScreenWidth, ScreenHeight );
 	dbAssertMessage( nes_texture != NULL, "failed to create texture" );
-	
+	*/
 
-	// unsigned int nesTexture = 0;
-	// glGenTextures( 1, nesTexture );
+	GLuint nesTexture = 0;
+	glGenTextures( 1, nesTexture );
+	glBindTexture( GL_TEXTURE_2D, nesTexture );
+	glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, ScreenWidth, ScreenHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, s_nes.getPixelBuffer() );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
 	
 
 	// initialize NES
@@ -497,8 +501,13 @@ int main( int argc, char** argv )
 
 
 		// glViewport( 0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y );
-		// glClearColor( 0, 0, 0, 1 );
-		// glClear( GL_COLOR_BUFFER_BIT );
+		
+		glClearColor( 0, 0, 0, 1 );
+		glClear( GL_COLOR_BUFFER_BIT );
+
+		glBindTexture( GL_TEXTURE_2D, nesTexture );
+		glViewport( 0, 0, ScreenWidth, ScreenHeight );
+
 
 		/*
 		glPixelZoom( (float)window_width / ScreenWidth, -(float)window_height / ScreenHeight );
@@ -525,6 +534,7 @@ int main( int argc, char** argv )
 		ImGui::End();
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData( ImGui::GetDrawData() );
+
 		SDL_Window* backup_current_window = SDL_GL_GetCurrentWindow();
 		SDL_GLContext backup_current_context = SDL_GL_GetCurrentContext();
 		ImGui::UpdatePlatformWindows();
