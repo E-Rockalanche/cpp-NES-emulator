@@ -3,7 +3,6 @@
 #include "apu.hpp"
 #include "Cartridge.hpp"
 #include "controller.hpp"
-#include "Instructions.hpp"
 #include "ppu.hpp"
 
 #include "common.hpp"
@@ -70,18 +69,6 @@ namespace
 		static_assert( sizeof( T ) > 1 );
 		return result & 0x100;
 	}
-
-	using CpuInstruction = void( Cpu::* )( void );
-
-	struct Operation
-	{
-		CpuInstruction func = nullptr;
-		Instruction instr = Instruction::illegalOpcode;
-		const char* instructionName = nullptr;
-		const char* addressModeName = nullptr;
-	};
-
-	Operation s_cpuOperations[ 0x100 ];
 }
 
 enum class Cpu::AddressMode
@@ -247,7 +234,7 @@ void Cpu::executeInstruction()
 		}
 
 		Byte opcode = readByteTick( m_programCounter++ );
-		auto operation = s_cpuOperations[ opcode ];
+		auto operation = m_operations[ opcode ];
 		( this->*operation.func )();
 	}
 }
@@ -1239,22 +1226,22 @@ void Cpu::ignoreByte()
 
 
 #define CHECK_NULL_OR_ILL( opcode )	do {		\
-	auto func = s_cpuOperations[ opcode ].func;	\
+	auto func = m_operations[ opcode ].func;	\
 	dbAssert( func == nullptr || func == &Cpu::illegalOpcode ); } while( false )
 
 #define SET_ADDRMODE_OP( opcode, instr, addrmode ) 	\
 	CHECK_NULL_OR_ILL( opcode );					\
-	s_cpuOperations[ opcode ] = { &Cpu::instr< Cpu::AddressMode::addrmode >, Instruction::instr, #instr, #addrmode };
+	m_operations[ opcode ] = { &Cpu::instr< Cpu::AddressMode::addrmode >, Instruction::instr, #instr, #addrmode };
 
 #define SET_IMPLIED( opcode, instr )	\
 	CHECK_NULL_OR_ILL( opcode );		\
-	s_cpuOperations[ opcode ] = { &Cpu::instr, Instruction::instr, #instr, "Implied" };
+	m_operations[ opcode ] = { &Cpu::instr, Instruction::instr, #instr, "Implied" };
 
 #define SET_BRANCH( opcode, instr )	\
 	CHECK_NULL_OR_ILL( opcode );	\
-	s_cpuOperations[ opcode ] = { &Cpu::instr, Instruction::instr, #instr, "Relative" };
+	m_operations[ opcode ] = { &Cpu::instr, Instruction::instr, #instr, "Relative" };
 
-void Cpu::initialize()
+Cpu::Cpu()
 {
 	for ( size_t i = 0; i < 0x100; ++i )
 	{
@@ -1671,7 +1658,7 @@ void Cpu::dump( Word address )
 
 					case OPCODE:
 					{
-						auto operation = s_cpuOperations[ value ];
+						auto operation = m_operations[ value ];
 						std::cout << ( ( operation.instr != Instruction::illegalOpcode )
 									   ? nes::getInstructionName( operation.instr )
 									   : "   " );

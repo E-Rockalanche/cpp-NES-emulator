@@ -57,9 +57,9 @@ namespace nes
 				cartridge->setCPU( cpu );
 		}
 
-		void setController( Controller* controller, size_t port )
+		void setController( size_t port, Controller* controller )
 		{
-			cpu.setController( controller, port );
+			cpu.setController( port, controller );
 		}
 
 		const Pixel* getPixelBuffer() const

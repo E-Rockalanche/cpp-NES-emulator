@@ -1,10 +1,13 @@
 #ifndef NES_CPU_HPP
 #define NES_CPU_HPP
 
+#include "debug.hpp"
+#include "Instructions.hpp"
 #include "Ram.hpp"
 #include "types.hpp"
 
 #include <iostream>
+#include <iterator>
 
 namespace nes
 {
@@ -17,6 +20,8 @@ namespace nes
 	class Cpu
 	{
 	public:
+
+		Cpu();
 
 		void setPPU( Ppu& ppu )
 		{
@@ -33,8 +38,9 @@ namespace nes
 			m_cartridge = cartridge;
 		}
 
-		void setController( Controller* controller, size_t port )
+		void setController( size_t port, Controller* controller )
 		{
+			dbAssert( port < std::size( m_controllerPorts ) );
 			m_controllerPorts[ port ] = controller;
 		}
 
@@ -65,8 +71,6 @@ namespace nes
 		void dumpStack();
 		void dumpState();
 		Word getProgramCounter() const { return m_programCounter; }
-
-		static void initialize();
 
 	private:
 
@@ -300,6 +304,18 @@ namespace nes
 		#undef DEF_ADDRMODE_OP
 
 	private:
+
+		using CpuInstruction = void( Cpu::* )( void );
+
+		struct Operation
+		{
+			CpuInstruction func = nullptr;
+			Instruction instr = Instruction::illegalOpcode;
+			const char* instructionName = nullptr;
+			const char* addressModeName = nullptr;
+		};
+
+		Operation m_operations[ 0x100 ];
 
 		Apu* m_apu = nullptr;
 		Ppu* m_ppu = nullptr;

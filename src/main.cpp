@@ -17,6 +17,7 @@
 #include "program_end.hpp"
 #include "rom_loader.hpp"
 #include "zapper.hpp"
+#include "RGBTexture.hpp"
 
 #include "imgui.h"
 #include "imgui_impl_sdl.h"
@@ -70,22 +71,19 @@ std::string savestate_ext = ".state";
 bool fullscreen = false;
 float render_scale = 1;
 
-SDL_Rect render_area = {
+Rect render_area = {
 	0,
 	0,
 	ScreenWidth - DefaultCrop * 2,
 	ScreenHeight - DefaultCrop * 2
 };
 
-SDL_Rect crop_area = {
+Rect crop_area = {
 	DefaultCrop,
 	DefaultCrop,
 	ScreenWidth - DefaultCrop,
 	ScreenHeight - DefaultCrop
 };
-
-float texCropX = (float)DefaultCrop / (float)ScreenWidth;
-float texCropY = (float)DefaultCrop / (float)ScreenHeight;
 
 int window_width = ScreenWidth - DefaultCrop;
 int window_height = ScreenHeight - DefaultCrop;
@@ -203,9 +201,6 @@ void cropScreen( int dx, int dy )
 	crop_area.y = CLAMP( crop_area.y + dy, 0, MaxCrop );
 	crop_area.w = ScreenWidth - crop_area.x * 2;
 	crop_area.h = ScreenHeight - crop_area.y * 2;
-
-	texCropX = (float)crop_area.x / (float)ScreenWidth;
-	texCropY = (float)crop_area.y / (float)ScreenWidth;
 
 	resizeWindow( crop_area.w * render_scale, crop_area.h * render_scale );
 }
@@ -433,16 +428,7 @@ int main( int argc, char** argv )
 
 	constructMenu();
 
-	glEnable( GL_TEXTURE_2D );
-
-	GLuint nesTexture = 0;
-	glGenTextures( 1, &nesTexture );
-	glBindTexture( GL_TEXTURE_2D, nesTexture );
-	glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, ScreenWidth, ScreenHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, s_nes.getPixelBuffer() );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
-	glBindTexture( GL_TEXTURE_2D, 0 );
-	
+	RGBTexture nesTexture( ScreenWidth, ScreenHeight, s_nes.getPixelBuffer() );
 
 	// initialize NES
 	nes::Cpu::initialize();
@@ -485,33 +471,11 @@ int main( int argc, char** argv )
 		}
 		step_frame = false;
 
-
-
-
-
-
-		// glViewport( 0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y );
-		
 		glClearColor( 0, 0, 0, 1 );
 		glClear( GL_COLOR_BUFFER_BIT );
-		glLoadIdentity();
 
-		glViewport( render_area.x, render_area.y, render_area.w, render_area.h );
-
-		glEnable( GL_TEXTURE_2D );
-		glBindTexture( GL_TEXTURE_2D, nesTexture );
-
-		glTexImage2D( GL_TEXTURE_2D, 0, GL_RGB, ScreenWidth, ScreenHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, s_nes.getPixelBuffer() );
-		
-		glBegin( GL_QUADS );
-		glTexCoord2f( texCropX, 1 - texCropY ); 	glVertex2f( -1, -1 );
-		glTexCoord2f( texCropX, texCropY ); 		glVertex2f( -1, 1 );
-		glTexCoord2f( 1 - texCropX, texCropY ); 	glVertex2f( 1, 1 );
-		glTexCoord2f( 1 - texCropX, 1 - texCropY );	glVertex2f( 1, -1 );
-		glEnd();
-		glBindTexture( GL_TEXTURE_2D, 0 );
-
-
+		nesTexture.updateData( s_nes.getPixelBuffer() );
+		nesTexture.render( render_area, crop_area );
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL2_NewFrame( window );
@@ -556,6 +520,8 @@ int main( int argc, char** argv )
 			frame_number++;
 		}
 	}
+
+	nesTexture.~RGBTexture();
 
     // Cleanup
     ImGui_ImplOpenGL3_Shutdown();

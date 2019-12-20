@@ -10,6 +10,7 @@
 #include "joypad.hpp"
 #include "zapper.hpp"
 #include "Nes.hpp"
+#include "Rect.hpp"
 
 constexpr int DefaultCrop = 8;
 constexpr int MaxCrop = 8;
@@ -46,8 +47,8 @@ extern int window_width;
 extern int window_height;
 extern bool fullscreen;
 extern float render_scale;
-extern SDL_Rect render_area;
-extern SDL_Rect crop_area;
+extern Rect render_area;
+extern Rect crop_area;
 
 // frame timing
 extern const unsigned int TARGET_FPS;
