@@ -1,5 +1,5 @@
-#include "mapper2.hpp"
-#include "debug.hpp"
+#include "mappers/mapper2.hpp"
+#include <stdx/assert.h>
 
 using namespace nes;
 

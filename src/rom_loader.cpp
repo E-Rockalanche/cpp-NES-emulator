@@ -31,7 +31,7 @@ std::unique_ptr<Cartridge> nes::Rom::load( const char* filename )
 
 	// check file size
 	fin.seekg( 0, std::ios::end );
-	size_t dataSize = fin.tellg();
+	size_t dataSize = static_cast<size_t>( fin.tellg() );
 	fin.seekg( 0 );
 
 	if ( dataSize < ( Rom::HeaderSize + 8 * KB ) )

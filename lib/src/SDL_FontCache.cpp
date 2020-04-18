@@ -198,7 +198,7 @@ char* FC_GetStringLatin1(void)
         c = 0xA0;
         while(1)
         {
-            buffer[i] = 0xC2;
+            buffer[i] = (char)0xC2;
             buffer[i+1] = c;
             if(c == 0xBF)
                 break;
@@ -209,7 +209,7 @@ char* FC_GetStringLatin1(void)
         c = 0x80;
         while(1)
         {
-            buffer[i] = 0xC3;
+            buffer[i] = (char)0xC3;
             buffer[i+1] = c;
             if(c == 0xBF)
                 break;
@@ -558,9 +558,9 @@ int U8_strinsert(char* string, int position, const char* source, int max_bytes)
     if(string == NULL || source == NULL)
         return 0;
 
-    len = strlen(string);
-    add_len = strlen(source);
-    ulen = U8_strlen(string);
+    len = (int)strlen(string);
+    add_len = (int)strlen(source);
+    ulen = (int)U8_strlen(string);
 
     if(position == -1)
         position = ulen;
@@ -595,7 +595,7 @@ void U8_strdel(char* string, int position)
         if(position == 0)
         {
             int chars_to_erase = U8_charsize(string);
-            int remaining_bytes = strlen(string) + 1;
+            int remaining_bytes = (int)strlen(string) + 1;
             memmove(string, string + chars_to_erase, remaining_bytes);
             break;
         }

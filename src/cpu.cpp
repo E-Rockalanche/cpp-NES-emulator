@@ -2,6 +2,7 @@
 
 #include "apu.hpp"
 #include "Cartridge.hpp"
+#include "common.hpp"
 #include "controller.hpp"
 #include "Instructions.hpp"
 #include "ppu.hpp"
@@ -200,7 +201,7 @@ void Cpu::power()
 		write( APU_START + i, 0 );
 
 	m_programCounter = readWordTick( RESET_VECTOR );
-	dbLogWord( "PC", m_programCounter );
+	dbLog( "PC: 0x%04", m_programCounter );
 
 	m_halt = false;
 	m_nmi = -1;
@@ -217,7 +218,7 @@ void Cpu::reset()
 	write( APU_STATUS, 0 );
 
 	m_programCounter = readWordTick( RESET_VECTOR );
-	dbLogWord( "PC", m_programCounter );
+	dbLog( "PC: 0x%04", m_programCounter );
 
 	m_halt = false;
 	m_nmi = -1;
@@ -309,68 +310,57 @@ void Cpu::oamDmaTransfer( Byte addressHigh )
 
 Byte Cpu::read( Word address )
 {
-	switch ( address )
+	if ( RAM_START <= address && address <= RAM_END )
+		return m_ram[ address - RAM_START ];
+
+	if ( PPU_START <= address && address <= PPU_END )
+		return m_ppu->readRegister( ( address - PPU_START ) % PPU_SIZE );
+
+	if ( APU_START <= address && address <= APU_END )
 	{
-		case RAM_START ... RAM_END:
-			return m_ram[ address - RAM_START ];
-
-		case PPU_START ... PPU_END:
-			return m_ppu->readRegister( ( address - PPU_START ) % PPU_SIZE );
-
-		case APU_START ... APU_END:
-		{
-			if ( address == OAM_DMA )
-				return 0;
-
-			return m_apu->read( m_cycles, address );
-		}
-
-		case JOY1 ... JOY2:
-		{
-			auto* controller = m_controllerPorts[ address - JOY1 ];
-			return controller ? controller->read() : 0;
-		}
-
-		case CARTRIDGE_START ... CARTRIDGE_END:
-			return m_cartridge->readPRG( address );
-
-		default:
+		if ( address == OAM_DMA )
 			return 0;
+
+		return m_apu->read( m_cycles, address );
 	}
+
+	if ( JOY1 <= address && address <= JOY2 )
+	{
+		auto* controller = m_controllerPorts[ address - JOY1 ];
+		return controller ? controller->read() : 0;
+	}
+
+	if ( CARTRIDGE_START <= address && address <= CARTRIDGE_END )
+		return m_cartridge->readPRG( address );
+
+	return 0;
 }
 
 void Cpu::write( Word address, Byte value )
 {
-	switch ( address )
+	if ( RAM_START <= address && address <= RAM_END )
 	{
-		case RAM_START ... RAM_END:
-			m_ram[ address - RAM_START ] = value;
-			break;
-
-		case PPU_START ... PPU_END:
-			m_ppu->writeRegister( ( address - PPU_START ) % PPU_SIZE, value );
-			break;
-
-		case APU_START ... APU_END:
-		case JOY2:
-		{
-			if ( address == OAM_DMA )
-				oamDmaTransfer( value );
-			else
-				m_apu->write( m_cycles, address, value );
-			break;
-		}
-
-		case JOY1:
-		{
-			for ( auto* controller : m_controllerPorts )
-				controller->write( value );
-			break;
-		}
-
-		case CARTRIDGE_START ... CARTRIDGE_END:
-			m_cartridge->writePRG( address, value );
-			break;
+		m_ram[ address - RAM_START ] = value;
+	}
+	else if ( PPU_START <= address && address <= PPU_END )
+	{
+		m_ppu->writeRegister( ( address - PPU_START ) % PPU_SIZE, value );
+	}
+	else if ( ( APU_START <= address && address <= APU_END ) || address == JOY2 )
+	{
+		if ( address == OAM_DMA )
+			oamDmaTransfer( value );
+		else
+			m_apu->write( m_cycles, address, value );
+	}
+	else if ( address == JOY1 )
+	{
+		for ( auto* controller : m_controllerPorts )
+			controller->write( value );
+	}
+	else if ( CARTRIDGE_START <= address && address <= CARTRIDGE_END )
+	{
+		m_cartridge->writePRG( address, value );
 	}
 }
 
@@ -512,6 +502,9 @@ Word Cpu::getAddress()
 			return address;
 		}
 	}
+
+	dbBreak();
+	return 0;
 }
 
 void Cpu::buggyIndexWrite( Byte index, Byte value )
@@ -868,15 +861,15 @@ void Cpu::rotateLeft()
 	{
 		dummyRead();
 		carry = m_accumulator & 0x80;
-		m_accumulator = ( m_accumulator << 1 ) | testStatus( Carry );
+		m_accumulator = ( m_accumulator << 1 ) | (Byte)testStatus( Carry );
 		result = m_accumulator;
 	}
 	else
 	{
 		Word address = getAddress<Mode>();
 		result = readByteTick( address );
-		carry = result & 0x80;
-		result = ( result << 1 ) | testStatus( Carry );
+		carry = testAnyFlag<Byte>( result, 0x80 );
+		result = ( result << 1 ) | (Byte)testStatus( Carry );
 		tick();
 		writeByteTick( address, result );
 	}
@@ -1123,7 +1116,7 @@ void Cpu::rotateLeftAnd()
 	Byte value = readByteTick( address );
 	tick();
 	bool carry = value & 0x80;
-	value = ( value << 1 ) | testStatus( Carry );
+	value = ( value << 1 ) | (Byte)testStatus( Carry );
 	setStatus( Carry, carry );
 	writeByteTick( address, value );
 	m_accumulator &= value;
@@ -1616,7 +1609,7 @@ enum ByteInterpretation
 
 void Cpu::dump( Word address )
 {
-	std::cout << "DUMP OF " << toHex( address, 2 ) << '\n';
+	std::cout << "DUMP OF " << toHex2( address, 2 ) << '\n';
 
 	// center view of memory on address
 	if ( address >= 128 )
@@ -1631,7 +1624,7 @@ void Cpu::dump( Word address )
 		std::cout << "| ";
 		for ( unsigned int i = 0; i < 0x10; i++ )
 		{
-			std::cout << toHex( i, 0.5, "" );
+			std::cout << toHex3( i, 0.5, "" );
 			std::string spaces;
 			switch ( bi )
 			{
@@ -1654,7 +1647,7 @@ void Cpu::dump( Word address )
 
 	for ( unsigned int high = 0; high < 0x10; high++ )
 	{
-		std::cout << toHex( address + ( high << 4 ), 2 ) << ' ';
+		std::cout << toHex2( address + ( high << 4 ), 2 ) << ' ';
 		for ( int bi = 0; bi < NUM_BYTE_INTERPRETATIONS; bi++ )
 		{
 			std::cout << "| ";
@@ -1665,7 +1658,7 @@ void Cpu::dump( Word address )
 				{
 					case RAW:
 					{
-						std::cout << toHex( value, 1, "" );
+						std::cout << toHex3( value, 1, "" );
 						break;
 					}
 
@@ -1696,7 +1689,7 @@ void Cpu::dumpStack()
 	std::cout << "Stack:\n";
 	for ( int i = ( StackOffset | m_stackPointer ) + 1; i <= ( StackOffset | STACK_START ); i++ )
 	{
-		std::cout << ' ' << toHex( read( i ), 1 ) << '\n';
+		std::cout << ' ' << toHex2( read( i ), 1 ) << '\n';
 	}
 	std::cout << "-----\n";
 }

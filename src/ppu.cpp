@@ -212,7 +212,8 @@ Byte Ppu::readRegister( size_t reg )
 						m_supressVBlank = true;
 						break;
 
-					case 1 ... 2:
+					case 1:
+					case 2:
 						m_cpu->setNMI( false );
 						break;
 				}
@@ -360,57 +361,49 @@ void Ppu::writeToAddress( Byte value )
 
 Byte Ppu::read( Word address )
 {
-	switch( address )
+	if ( CHR_START <= address && address <= CHR_END )
 	{
-		case CHR_START ... CHR_END:
-			dbAssert( m_cartridge );
-			return m_cartridge->readCHR( address );
-
-		case NAMETABLE_START ... NAMETABLE_END:
-			return m_nametable[ nametableMirror( address ) ];
-
-		case PALETTE_START ... PALETTE_END:
-		{
-			if ( ( address & 0x0013 ) == 0x0010 )
-				address &= ~0x0010;
-
-			return m_palette[ address ]
-				& ( testFlag( m_mask, GreyScale ) ? 0x30 : 0xff );
-		}
-
-		default:
-			dbBreakMessage( "reading outside PPU memory");
-			return 0;
+		dbAssert( m_cartridge );
+		return m_cartridge->readCHR( address );
 	}
+
+	if ( NAMETABLE_START <= address && address <= NAMETABLE_END )
+		return m_nametable[ nametableMirror( address ) ];
+
+	if ( PALETTE_START <= address && address <= PALETTE_END )
+	{
+		if ( ( address & 0x0013 ) == 0x0010 )
+			address &= ~0x0010;
+
+		return m_palette[ address ]
+			& ( testFlag( m_mask, GreyScale ) ? 0x30 : 0xff );
+	}
+
+	dbBreakMessage( "reading outside PPU memory" );
+	return 0;
 }
 
 void Ppu::write( Word address, Byte value )
 {
-	switch( address )
+	if ( CHR_START <= address && address <= CHR_END )
 	{
-		case CHR_START ... CHR_END:
-			dbAssert( m_cartridge );
-			m_cartridge->writeCHR( address, value );
-			break;
+		dbAssert( m_cartridge );
+		m_cartridge->writeCHR( address, value );
+	}
+	else if ( NAMETABLE_START <= address && address <= NAMETABLE_END )
+	{
+		m_nametable[ nametableMirror( address ) ] = value;
+	}
+	else if ( PALETTE_START <= address && address <= PALETTE_END )
+	{
+		if ( ( address & 0x13 ) == 0x10 )
+			address &= ~0x10;
 
-		case NAMETABLE_START ... NAMETABLE_END:
-		{
-			m_nametable[ nametableMirror( address ) ] = value;
-			break;
-		}
-
-		case PALETTE_START ... PALETTE_END:
-		{
-			if ( ( address & 0x13 ) == 0x10 )
-				address &= ~0x10;
-
-			m_palette[ address ] = value;
-			break;
-		}
-
-		default:
-			dbBreakMessage( "writing outside PPU memory" );
-			break;
+		m_palette[ address ] = value;
+	}
+	else
+	{
+		dbBreakMessage( "writing outside PPU memory" );
 	}
 }
 
@@ -455,30 +448,35 @@ void Ppu::tick()
 	}
 
 	constexpr auto LastVisibleScanline = ScreenHeight - 1;
-	switch( m_scanline )
+	if ( 0 <= m_scanline && m_scanline <= LastVisibleScanline )
 	{
-		case 0 ... LastVisibleScanline:
-			scanlineCycle<Scanline::Visible>();
-			break;
+		scanlineCycle<Scanline::Visible>();
+	}
+	else if ( 242 <= m_scanline && m_scanline <= 260 )
+	{
+		return;
+	}
+	else
+	{
+		switch ( m_scanline )
+		{
 
-		case POSTRENDER_SCANLINE:
-			scanlineCycle<Scanline::PostRender>();
-			break;
+			case POSTRENDER_SCANLINE:
+				scanlineCycle<Scanline::PostRender>();
+				break;
 
-		case VBLANK_SCANLINE:
-			scanlineCycle<Scanline::VBlankLine>();
-			break;
+			case VBLANK_SCANLINE:
+				scanlineCycle<Scanline::VBlankLine>();
+				break;
 
-		case 242 ... 260:
-			break;
+			case PRERENDER_SCANLINE:
+				scanlineCycle<Scanline::PreRender>();
+				break;
 
-		case PRERENDER_SCANLINE:
-			scanlineCycle<Scanline::PreRender>();
-			break;
-
-		default:
-			dbBreak();
-			break;
+			default:
+				dbBreak();
+				break;
+		}
 	}
 }
 
@@ -520,109 +518,110 @@ void Ppu::scanlineCycle()
 		}
 
 		// background:
-		switch( m_cycle )
+		if ( ( 2 <= m_cycle && m_cycle <= 255 ) || ( 322 <= m_cycle && m_cycle <= 337 ) )
 		{
-			case 2 ... 255:
-			case 322 ... 337:
+			renderPixel();
+			switch ( m_cycle % 8 )
 			{
-				renderPixel();
-				switch( m_cycle % 8 )
+				// nametable:
+				case 1:
 				{
-					// nametable:
-					case 1:
-					{
-						m_renderAddress = getNametableAddress();
-						loadShiftRegisters();
-						break;
-					}
+					m_renderAddress = getNametableAddress();
+					loadShiftRegisters();
+					break;
+				}
 
-					case 2:
-						m_nametableLatch = read( m_renderAddress );
-						break;
+				case 2:
+					m_nametableLatch = read( m_renderAddress );
+					break;
 
 					// attribute:
-					case 3:
-						m_renderAddress = getAttributeAddress();
-						break;
+				case 3:
+					m_renderAddress = getAttributeAddress();
+					break;
 
-					case 4:
+				case 4:
+				{
+					m_attributeLatch = read( m_renderAddress );
+					switch ( m_vramAddress & 0x42 )
 					{
-						m_attributeLatch = read( m_renderAddress );
-						switch( m_vramAddress & 0x42 )
-						{
-							case 0x02:
-								m_attributeLatch >>= 2;
-								break;
+						case 0x02:
+							m_attributeLatch >>= 2;
+							break;
 
-							case 0x40:
-								m_attributeLatch >>= 4;
-								break;
+						case 0x40:
+							m_attributeLatch >>= 4;
+							break;
 
-							case 0x42:
-								m_attributeLatch >>= 6;
-								break;
-						}
-						break;
+						case 0x42:
+							m_attributeLatch >>= 6;
+							break;
 					}
-
-					// background
-					case 5:
-						m_renderAddress = getBackgroundAddress();
-						break;
-
-					case 6:
-						m_bgLatchLow = read( m_renderAddress );
-						break;
-
-					case 7:
-						m_renderAddress += 8;
-						break;
-
-					case 0:
-					{
-						m_bgLatchHigh = read( m_renderAddress );
-						incrementXComponent();
-						break;
-					}
+					break;
 				}
-				break;
-			}
 
-			case 256:
+				// background
+				case 5:
+					m_renderAddress = getBackgroundAddress();
+					break;
+
+				case 6:
+					m_bgLatchLow = read( m_renderAddress );
+					break;
+
+				case 7:
+					m_renderAddress += 8;
+					break;
+
+				case 0:
+				{
+					m_bgLatchHigh = read( m_renderAddress );
+					incrementXComponent();
+					break;
+				}
+			}
+		}
+		else if ( 280 <= m_cycle && m_cycle <= 304 )
+		{
+			if constexpr ( s == Scanline::PreRender )
+				updateVRAMY();
+		}
+		else
+		{
+			switch ( m_cycle )
 			{
-				renderPixel();
-				m_bgLatchHigh = read( m_renderAddress );
-				incrementYComponent();
-				break;
+				case 256:
+				{
+					renderPixel();
+					m_bgLatchHigh = read( m_renderAddress );
+					incrementYComponent();
+					break;
+				}
+
+				case 257:
+				{
+					renderPixel();
+					loadShiftRegisters();
+					updateVRAMX();
+					break;
+				}
+
+				// no shift loading:
+				case 1:
+				case 321:
+				case 339:
+					m_renderAddress = getNametableAddress();
+					break;
+
+					// nametable fetch instead of attribute
+				case 338:
+				case 340:
+					m_nametableLatch = read( m_renderAddress );
+					break;
+
+				default:
+					break;
 			}
-
-			case 257:
-			{
-				renderPixel();
-				loadShiftRegisters();
-				updateVRAMX();
-				break;
-			}
-
-			case 280 ... 304:
-			{
-				if constexpr ( s == Scanline::PreRender )
-					updateVRAMY();
-				break;
-			}
-
-			// no shift loading:
-			case 1:
-			case 321:
-			case 339:
-				m_renderAddress = getNametableAddress();
-				break;
-
-			// nametable fetch instead of attribute
-			case 338:
-			case 340:
-				m_nametableLatch = read( m_renderAddress );
-				break;
 		}
 
 		// signal scanline to MMC3 cartridge
@@ -812,7 +811,7 @@ void Ppu::loadSpriteRegisters()
 	const auto spriteHeight = getSpriteHeight();
 	const bool tallSprites = ( spriteHeight == 16 );
 
-	for( size_t i = 0; i < m_spritesOnThisScanline; ++i )
+	for( Word i = 0; i < m_spritesOnThisScanline; ++i )
 	{
 		Byte* object = m_secondaryOAM.data() + i * OBJECT_SIZE;
 		const Byte tile = object[ ObjectVariable::TileIndex ];
@@ -856,8 +855,8 @@ void Ppu::renderPixel()
 	m_bgShiftLow <<= 1;
 	m_bgShiftHigh <<= 1;
 
-	m_attributeShiftLow = ( m_attributeShiftLow << 1 ) | m_attributeLatchLow;
-	m_attributeShiftHigh = ( m_attributeShiftHigh << 1 ) | m_attributeLatchHigh;
+	m_attributeShiftLow = ( m_attributeShiftLow << 1 ) | (Byte)m_attributeLatchLow;
+	m_attributeShiftHigh = ( m_attributeShiftHigh << 1 ) | (Byte)m_attributeLatchHigh;
 }
 
 void Ppu::renderPixelInternal()
@@ -878,13 +877,13 @@ void Ppu::renderPixelInternal()
 		&& ( testFlag( m_mask, ShowBackgroundLeft8 ) || ( x >= 8 ) ) )
 	{
 		size_t bgBit = 15 - m_fineXScroll;
-		palette = ( getBit( m_bgShiftHigh, bgBit ) << 1 )
-			| getBit( m_bgShiftLow, bgBit );
+		palette = ( (Byte)getBit( m_bgShiftHigh, bgBit ) << 1 )
+			| (Byte)getBit( m_bgShiftLow, bgBit );
 
 		if ( palette != 0 )
 		{
-			palette |= ( getBit( m_attributeShiftHigh, 7 - m_fineXScroll ) << 3 )
-				| ( getBit( m_attributeShiftLow, 7 - m_fineXScroll ) << 2 );
+			palette |= ( (Byte)getBit( m_attributeShiftHigh, 7 - m_fineXScroll ) << 3 )
+				| ( (Byte)getBit( m_attributeShiftLow, 7 - m_fineXScroll ) << 2 );
 		}
 	}
 
@@ -893,7 +892,7 @@ void Ppu::renderPixelInternal()
 		&& ( testFlag( m_mask, ShowSpriteLeft8 ) || ( x >= 8 ) )
 		&& ( x < 255 ) )
 	{
-		for( size_t i = m_spritesOnThisScanline; i-- > 0; )
+		for( Word i = m_spritesOnThisScanline; i-- > 0; )
 		{
 			Byte attributes = m_spriteAttributeLatch[ i ];
 
@@ -906,8 +905,8 @@ void Ppu::renderPixelInternal()
 				spriteX ^= 0x07;
 			}
 
-			Byte spritePalette = ( getBit( m_spriteShiftHigh[ i ], 7 - spriteX ) << 1 )
-				| getBit( m_spriteShiftLow[ i ], 7 - spriteX );
+			Byte spritePalette = ( (Byte)getBit( m_spriteShiftHigh[ i ], 7 - spriteX ) << 1 )
+				| (Byte)getBit( m_spriteShiftLow[ i ], 7 - spriteX );
 
 			// continue if transparent
 			if ( spritePalette == 0 )

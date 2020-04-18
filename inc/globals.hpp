@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include "SDL2/SDL.h"
+#include "SDL.h"
 #include "filesystem.hpp"
 
 #include "pixel.hpp"
@@ -51,10 +51,10 @@ extern SDL_Rect crop_area;
 
 // frame timing
 extern const unsigned int TARGET_FPS;
-extern const double TIME_PER_FRAME;
+extern const float TIME_PER_FRAME;
 extern int last_time;
 extern int last_render_time;
-extern double last_wait_time;
+extern float last_wait_time;
 
 // frame rate
 extern int frame_number;

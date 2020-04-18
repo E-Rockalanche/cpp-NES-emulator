@@ -1,7 +1,7 @@
 #ifndef BYTE_IO_HPP
 #define BYTE_IO_HPP
 
-#include "debug.hpp"
+#include <stdx/assert.h>
 
 #include <iostream>
 #include <memory>

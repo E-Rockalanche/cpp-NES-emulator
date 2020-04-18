@@ -2,17 +2,17 @@
 
 #include "menu_elements.hpp"
 #include "api.hpp"
-#include "debug.hpp"
+#include <stdx/assert.h>
 
 #include <string>
 #include <vector>
 
 #ifdef _WIN32
 	#include <windows.h>
-	#include "SDL2/SDL_syswm.h"
+	#include "SDL_syswm.h"
 #endif
 
-#include "SDL2/SDL.h"
+#include "SDL.h"
 
 #define setFlag(mask) (flags) |= (mask)
 #define clearFlag(mask) (flags) &= ~(mask)

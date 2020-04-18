@@ -1,7 +1,7 @@
 #ifndef NES_MEMORY_HPP
 #define NES_MEMORY_HPP
 
-#include "debug.hpp"
+#include <stdx/assert.h>
 #include "types.hpp"
 
 #include <memory>
@@ -26,12 +26,12 @@ namespace nes
 
 		Byte& operator[]( size_t index )
 		{
-			dbAssertMessage( index < m_size, "index (%u) out of bounds (%u)", index, m_size );
+			dbAssertMessage( index < m_size, "index (%zu) out of bounds (%zu)", index, m_size );
 			return m_data[ index ];
 		}
 		Byte operator[]( size_t index ) const
 		{
-			dbAssertMessage( index < m_size, "index (%u) out of bounds (%u)", index, m_size );
+			dbAssertMessage( index < m_size, "index (%zu) out of bounds (%zu)", index, m_size );
 			return m_data[ index ];
 		}
 

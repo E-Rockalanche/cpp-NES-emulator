@@ -37,7 +37,7 @@ namespace API {
 
 	private:
 #ifdef _WIN32
-		OPENFILENAME ofn;
+		OPENFILENAMEA ofn;
 		char filename_buffer[MAX_PATH];
 #endif
 	};

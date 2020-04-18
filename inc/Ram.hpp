@@ -1,7 +1,7 @@
 #ifndef NES_RAM_HPP
 #define NES_RAM_HPP
 
-#include "debug.hpp"
+#include <stdx/assert.h>
 #include "types.hpp"
 
 namespace nes

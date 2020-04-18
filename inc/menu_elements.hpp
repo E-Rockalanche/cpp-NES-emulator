@@ -7,7 +7,7 @@
 	#include <windows.h>
 #endif
 
-#include "SDL2/SDL.h"
+#include "SDL.h"
 
 #ifdef _WIN32
 	#define SDL_MENU_EVENT SDL_SYSWMEVENT

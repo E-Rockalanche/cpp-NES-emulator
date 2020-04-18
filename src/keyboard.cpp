@@ -1,7 +1,7 @@
 #include <string>
 #include <map>
 #include <cctype>
-#include "SDL2/SDL.h"
+#include "SDL.h"
 
 #define KEY(name) { #name, SDLK_##name }
 

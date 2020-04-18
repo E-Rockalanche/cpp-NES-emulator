@@ -1,7 +1,7 @@
 
 #include "movie.hpp"
 
-#include "debug.hpp"
+#include <stdx/assert.h>
 #include "globals.hpp"
 #include "menu_bar.hpp"
 

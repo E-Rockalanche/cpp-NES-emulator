@@ -2,7 +2,7 @@
 #define MESSAGE_HPP
 
 #include <string>
-#include "SDL2/SDL.h"
+#include "SDL.h"
 
 #define ERROR_ICON SDL_MESSAGEBOX_ERROR
 #define WARNING_ICON SDL_MESSAGEBOX_WARNING

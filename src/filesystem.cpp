@@ -382,7 +382,7 @@ namespace fs
 
 	bool path::is_relative() const
 	{
-		return !is_relative();
+		return !is_absolute();
 	}
 
 	void swap( path& left, path& right ) noexcept
