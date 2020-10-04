@@ -1,0 +1,294 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="inc">
+      <UniqueIdentifier>{6063ef06-c106-4bb4-b671-b2c6ce37c1c1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{e7b57cba-f198-409a-8f44-70b64b896524}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="external">
+      <UniqueIdentifier>{3b917ce3-b01b-4ccd-a14b-da78811a1836}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="inc\mappers">
+      <UniqueIdentifier>{4a912607-96f4-4b17-ac20-76390a257d0a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\mappers">
+      <UniqueIdentifier>{0f1a9b02-b302-493e-9c26-0a092fbbc0b0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="external\inc">
+      <UniqueIdentifier>{f87c3ad6-5620-4b8f-aab2-a16ed5981e47}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="external\src">
+      <UniqueIdentifier>{084f862d-ead3-4439-a9c0-06ab43fadc4b}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="inc\api.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\apu.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\BankMapper.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\ByteIO.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\cartridge.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\common.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\config.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\controller.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\cpu.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\crc32.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\enum_iterator.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\filesystem.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\globals.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Header.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\History.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\hotkeys.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Instructions.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\joypad.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\keyboard.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Logger.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\main.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Memory.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\menu_bar.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\menu_elements.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\message.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\movie.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Nes.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\pixel.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\ppu.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\ppu_defs.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\program_end.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\Ram.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\rom_loader.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\types.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\zapper.hpp">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\mappers\mapper1.hpp">
+      <Filter>inc\mappers</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\mappers\mapper2.hpp">
+      <Filter>inc\mappers</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\mappers\mapper3.hpp">
+      <Filter>inc\mappers</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\mappers\mapper4.hpp">
+      <Filter>inc\mappers</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\inc\apu_snapshot.h">
+      <Filter>external\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\inc\blargg_common.h">
+      <Filter>external\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\inc\blargg_source.h">
+      <Filter>external\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\inc\Blip_Buffer.h">
+      <Filter>external\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\inc\Blip_Synth.h">
+      <Filter>external\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\inc\boost\config.hpp">
+      <Filter>external\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\inc\boost\static_assert.hpp">
+      <Filter>external\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\inc\json.hpp">
+      <Filter>external\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\inc\Multi_Buffer.h">
+      <Filter>external\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\inc\Nes_Apu.h">
+      <Filter>external\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\inc\Nes_Namco.h">
+      <Filter>external\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\inc\Nes_Oscs.h">
+      <Filter>external\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\inc\Nes_Vrc6.h">
+      <Filter>external\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\inc\Nonlinear_Buffer.h">
+      <Filter>external\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\inc\SDL_FontCache.h">
+      <Filter>external\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\inc\Sound_Queue.h">
+      <Filter>external\inc</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\api.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\apu.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\cartridge.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\config.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\cpu.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\crc32.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\filesystem.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Header.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\hotkeys.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Instructions.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\joypad.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\keyboard.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\main.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\menu_bar.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\menu_elements.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\message.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\movie.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ppu.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\rom_loader.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mappers\mapper1.cpp">
+      <Filter>src\mappers</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mappers\mapper2.cpp">
+      <Filter>src\mappers</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mappers\mapper3.cpp">
+      <Filter>src\mappers</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mappers\mapper4.cpp">
+      <Filter>src\mappers</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\src\apu_snapshot.cpp">
+      <Filter>external\src</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\src\Blip_Buffer.cpp">
+      <Filter>external\src</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\src\Multi_Buffer.cpp">
+      <Filter>external\src</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\src\Nes_Apu.cpp">
+      <Filter>external\src</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\src\Nes_Namco.cpp">
+      <Filter>external\src</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\src\Nes_Oscs.cpp">
+      <Filter>external\src</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\src\Nes_Vrc6.cpp">
+      <Filter>external\src</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\src\Nonlinear_Buffer.cpp">
+      <Filter>external\src</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\src\SDL_FontCache.cpp">
+      <Filter>external\src</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\src\Sound_Queue.cpp">
+      <Filter>external\src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

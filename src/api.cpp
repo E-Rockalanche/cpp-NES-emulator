@@ -1,7 +1,7 @@
 
 #include "api.hpp"
 
-#include "debug.hpp"
+#include "stdx/assert.h"
 #include "globals.hpp"
 #include "common.hpp"
 
@@ -11,10 +11,10 @@
 #ifdef _WIN32
 	#include <windows.h>
 	#include <commdlg.h>
-	#include "SDL2/SDL_syswm.h"
+	#include "SDL_syswm.h"
 #endif
 
-#include "SDL2/SDL.h"
+#include "SDL.h"
 
 namespace
 {
@@ -92,7 +92,7 @@ namespace API {
 		bool ok = false;
 		
 	#ifdef _WIN32
-		if (CreateDirectory(name.c_str(), NULL)) {
+		if (CreateDirectoryA(name.c_str(), NULL)) {
 		    ok = true;
 		} else if (ERROR_ALREADY_EXISTS != GetLastError()) {
 			dbLogError( "could not create directory: %s", name.c_str() );
@@ -121,7 +121,7 @@ namespace API {
 
 	#ifdef _WIN32
 		ok = true;
-		if(INVALID_FILE_ATTRIBUTES == GetFileAttributes(filename.c_str())
+		if(INVALID_FILE_ATTRIBUTES == GetFileAttributesA(filename.c_str())
 				&& GetLastError() == ERROR_FILE_NOT_FOUND) {
 		    ok = false;
 		}

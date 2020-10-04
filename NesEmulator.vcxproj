@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="inc\api.hpp" />
+    <ClInclude Include="inc\apu.hpp" />
+    <ClInclude Include="inc\BankMapper.hpp" />
+    <ClInclude Include="inc\ByteIO.hpp" />
+    <ClInclude Include="inc\cartridge.hpp" />
+    <ClInclude Include="inc\common.hpp" />
+    <ClInclude Include="inc\config.hpp" />
+    <ClInclude Include="inc\controller.hpp" />
+    <ClInclude Include="inc\cpu.hpp" />
+    <ClInclude Include="inc\crc32.hpp" />
+    <ClInclude Include="inc\enum_iterator.hpp" />
+    <ClInclude Include="inc\filesystem.hpp" />
+    <ClInclude Include="inc\globals.hpp" />
+    <ClInclude Include="inc\Header.hpp" />
+    <ClInclude Include="inc\History.hpp" />
+    <ClInclude Include="inc\hotkeys.hpp" />
+    <ClInclude Include="inc\Instructions.hpp" />
+    <ClInclude Include="inc\joypad.hpp" />
+    <ClInclude Include="inc\keyboard.hpp" />
+    <ClInclude Include="inc\Logger.hpp" />
+    <ClInclude Include="inc\main.hpp" />
+    <ClInclude Include="inc\mappers\mapper1.hpp" />
+    <ClInclude Include="inc\mappers\mapper2.hpp" />
+    <ClInclude Include="inc\mappers\mapper3.hpp" />
+    <ClInclude Include="inc\mappers\mapper4.hpp" />
+    <ClInclude Include="inc\Memory.hpp" />
+    <ClInclude Include="inc\menu_bar.hpp" />
+    <ClInclude Include="inc\menu_elements.hpp" />
+    <ClInclude Include="inc\message.hpp" />
+    <ClInclude Include="inc\movie.hpp" />
+    <ClInclude Include="inc\Nes.hpp" />
+    <ClInclude Include="inc\pixel.hpp" />
+    <ClInclude Include="inc\ppu.hpp" />
+    <ClInclude Include="inc\ppu_defs.hpp" />
+    <ClInclude Include="inc\program_end.hpp" />
+    <ClInclude Include="inc\Ram.hpp" />
+    <ClInclude Include="inc\rom_loader.hpp" />
+    <ClInclude Include="inc\types.hpp" />
+    <ClInclude Include="inc\zapper.hpp" />
+    <ClInclude Include="lib\inc\apu_snapshot.h" />
+    <ClInclude Include="lib\inc\blargg_common.h" />
+    <ClInclude Include="lib\inc\blargg_source.h" />
+    <ClInclude Include="lib\inc\Blip_Buffer.h" />
+    <ClInclude Include="lib\inc\Blip_Synth.h" />
+    <ClInclude Include="lib\inc\boost\config.hpp" />
+    <ClInclude Include="lib\inc\boost\static_assert.hpp" />
+    <ClInclude Include="lib\inc\json.hpp" />
+    <ClInclude Include="lib\inc\Multi_Buffer.h" />
+    <ClInclude Include="lib\inc\Nes_Apu.h" />
+    <ClInclude Include="lib\inc\Nes_Namco.h" />
+    <ClInclude Include="lib\inc\Nes_Oscs.h" />
+    <ClInclude Include="lib\inc\Nes_Vrc6.h" />
+    <ClInclude Include="lib\inc\Nonlinear_Buffer.h" />
+    <ClInclude Include="lib\inc\SDL_FontCache.h" />
+    <ClInclude Include="lib\inc\Sound_Queue.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="lib\src\apu_snapshot.cpp" />
+    <ClCompile Include="lib\src\Blip_Buffer.cpp" />
+    <ClCompile Include="lib\src\Multi_Buffer.cpp" />
+    <ClCompile Include="lib\src\Nes_Apu.cpp" />
+    <ClCompile Include="lib\src\Nes_Namco.cpp" />
+    <ClCompile Include="lib\src\Nes_Oscs.cpp" />
+    <ClCompile Include="lib\src\Nes_Vrc6.cpp" />
+    <ClCompile Include="lib\src\Nonlinear_Buffer.cpp" />
+    <ClCompile Include="lib\src\SDL_FontCache.cpp" />
+    <ClCompile Include="lib\src\Sound_Queue.cpp" />
+    <ClCompile Include="src\api.cpp" />
+    <ClCompile Include="src\apu.cpp" />
+    <ClCompile Include="src\cartridge.cpp" />
+    <ClCompile Include="src\config.cpp" />
+    <ClCompile Include="src\cpu.cpp" />
+    <ClCompile Include="src\crc32.cpp" />
+    <ClCompile Include="src\filesystem.cpp" />
+    <ClCompile Include="src\Header.cpp" />
+    <ClCompile Include="src\hotkeys.cpp" />
+    <ClCompile Include="src\Instructions.cpp" />
+    <ClCompile Include="src\joypad.cpp" />
+    <ClCompile Include="src\keyboard.cpp" />
+    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\mappers\mapper1.cpp" />
+    <ClCompile Include="src\mappers\mapper2.cpp" />
+    <ClCompile Include="src\mappers\mapper3.cpp" />
+    <ClCompile Include="src\mappers\mapper4.cpp" />
+    <ClCompile Include="src\menu_bar.cpp" />
+    <ClCompile Include="src\menu_elements.cpp" />
+    <ClCompile Include="src\message.cpp" />
+    <ClCompile Include="src\movie.cpp" />
+    <ClCompile Include="src\ppu.cpp" />
+    <ClCompile Include="src\rom_loader.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Core\Core.vcxproj">
+      <Project>{1c92be46-2197-49f2-bc95-4a67701b7f39}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{2BC96208-B39C-4593-BBFF-E472EF6F93E1}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>NesEmulator</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+      <AdditionalIncludeDirectories>inc;lib\inc;..\Core\inc;external\SDL2\include</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>external/SDL2/lib/x86/</AdditionalLibraryDirectories>
+      <AdditionalDependencies>SDL2.lib;SDL2_image.lib;SDL2_ttf.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+      <AdditionalIncludeDirectories>inc;lib\inc;..\Core\inc;external\SDL2\include</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>external/SDL2/lib/x64/</AdditionalLibraryDirectories>
+      <AdditionalDependencies>SDL2.lib;SDL2_image.lib;SDL2_ttf.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>inc;lib\inc;..\Core\inc;external\SDL2\include</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>external/SDL2/lib/x86/</AdditionalLibraryDirectories>
+      <AdditionalDependencies>SDL2.lib;SDL2_image.lib;SDL2_ttf.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>inc;lib\inc;..\Core\inc;external\SDL2\include</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>external/SDL2/lib/x64/</AdditionalLibraryDirectories>
+      <AdditionalDependencies>SDL2.lib;SDL2_image.lib;SDL2_ttf.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

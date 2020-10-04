@@ -1,7 +1,7 @@
 #include "Instructions.hpp"
 
 #include "enum_iterator.hpp"
-#include "debug.hpp"
+#include <stdx/assert.h>
 
 #include <iterator>
 

@@ -27,8 +27,8 @@ struct Pixel
 
 	uint8_t* data() { return (uint8_t*)(char*)this; }
 	const uint8_t* data() const { return (const uint8_t*)(const char*)this; }
-	uint8_t& operator[]( std::size_t index ) { return data()[ index ]; }
-	const uint8_t& operator[]( std::size_t index ) const { return data()[ index ]; }
+	uint8_t& operator[]( size_t index ) { return data()[ index ]; }
+	const uint8_t& operator[]( size_t index ) const { return data()[ index ]; }
 
 	uint8_t r;
 	uint8_t g;

@@ -1,8 +1,8 @@
 
-#include "mapper4.hpp"
+#include "mappers/mapper4.hpp"
 
 #include "Cpu.hpp"
-#include "debug.hpp"
+#include <stdx/assert.h>
 #include "main.hpp" // temp
 
 #include <cstring>

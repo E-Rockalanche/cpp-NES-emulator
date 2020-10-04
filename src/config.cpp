@@ -1,6 +1,6 @@
 
 
-#include "debug.hpp"
+#include <stdx/assert.h>
 #include "globals.hpp"
 #include "joypad.hpp"
 #include "keyboard.hpp"
@@ -127,12 +127,12 @@ void loadConfig()
 		crop_area.x = general["crop x"].get<int>();
 		crop_area.y = general["crop y"].get<int>();
 
-		crop_area.x = CLAMP( crop_area.x, 0, MaxCrop );
-		crop_area.y = CLAMP( crop_area.y, 0, MaxCrop );
+		crop_area.x = std::clamp( crop_area.x, 0, MaxCrop );
+		crop_area.y = std::clamp( crop_area.y, 0, MaxCrop );
 		crop_area.w = nes::Ppu::ScreenWidth - 2 * crop_area.x;
 		crop_area.h = nes::Ppu::ScreenHeight - 2 * crop_area.y;
-		window_width = render_scale * crop_area.w;
-		window_height = render_scale * crop_area.h;
+		window_width = static_cast<int>( std::round( render_scale * crop_area.w ) );
+		window_height = static_cast<int>( std::round( render_scale * crop_area.h ) );
 
 		const json& paths = config["paths"];
 		rom_folder = paths["rom folder"].get<std::string>();

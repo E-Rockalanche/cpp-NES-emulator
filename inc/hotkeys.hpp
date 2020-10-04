@@ -2,7 +2,7 @@
 #define HOTKEYS_HPP
 
 #include <vector>
-#include "SDL2/SDL.h"
+#include "SDL.h"
 #include "common.hpp"
 
 typedef void(*Callback)(void);

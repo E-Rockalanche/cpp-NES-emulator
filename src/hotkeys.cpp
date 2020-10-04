@@ -12,8 +12,8 @@
 
 #include <fstream>
 
-#include "SDL2/SDL.h"
-#include "SDL2/SDL_image.h"
+#include "SDL.h"
+#include "SDL_image.h"
 
 void quit()
 {
@@ -67,7 +67,9 @@ void toggleFullscreen()
 void setResolutionScale( float scale )
 {
 	setFullscreen( false );
-	resizeWindow( crop_area.w * scale, crop_area.h * scale );
+	int w = static_cast<int>( std::round( crop_area.w * scale ) );
+	int h = static_cast<int>( std::round( crop_area.h * scale ) );
+	resizeWindow( w, h );
 }
 void setResolutionScale1()
 {
@@ -224,7 +226,7 @@ void takeScreenshot()
 						   24, Pixel::r_mask, Pixel::g_mask, Pixel::b_mask, Pixel::a_mask );
 	surface->pixels = const_cast<Pixel*>( s_nes.getPixelBuffer() );
 
-	int timestamp = std::time( NULL );
+	int timestamp = (int)std::time( NULL );
 	std::string name = "screenshot_" + std::to_string( timestamp ) + ".png";
 	fs::path filename = screenshot_folder / name;
 	IMG_SavePNG( surface, filename.c_str() );

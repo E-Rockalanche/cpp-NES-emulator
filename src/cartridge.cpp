@@ -1,7 +1,7 @@
 #include "Cartridge.hpp"
 
 #include "crc32.hpp"
-#include "debug.hpp"
+#include <stdx/assert.h>
 #include "Header.hpp"
 
 #include <fstream>
@@ -16,7 +16,7 @@ Cartridge::Cartridge( Memory data )
 
 	dbAssert( Rom::HeaderSize + m_prgSize + m_chrSize <= m_data.size() );
 
-	dbLogHex( "PRG size", m_prgSize );
+	dbLog( "PRG size: 0x%08", m_prgSize );
 
 	m_prg = m_data.data() + Rom::HeaderSize;
 
@@ -26,19 +26,18 @@ Cartridge::Cartridge( Memory data )
 		m_chrRam = Memory( Rom::ChrSizeUnit );
 		m_chr = m_chrRam.data();
 		m_chrSize = m_chrRam.size();
-
-		dbLogHex( "CHR RAM size", m_chrSize );
+		dbLog( "CHR RAM size: 0x%08", m_chrSize );
 	}
 	else
 	{
 		m_chr = m_prg + m_prgSize;
-		dbLogHex( "CHR size", m_chrSize );
+		dbLog( "CHR size: 0x%08", m_chrSize );
 	}
 
 	size_t ramSize = Rom::getRamSize( m_data.data() );
 	m_ram = Memory( ramSize );
 
-	dbLogHex( "RAM size", ramSize );
+	dbLog( "RAM size: 0x%08", ramSize );
 
 	m_checksum = crc32( m_data.data(), m_data.size() );
 

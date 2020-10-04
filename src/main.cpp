@@ -3,7 +3,7 @@
 #include "Cartridge.hpp"
 #include "config.hpp"
 #include "common.hpp"
-#include "debug.hpp"
+#include <stdx/assert.h>
 #include "filesystem.hpp"
 #include "globals.hpp"
 #include "hotkeys.hpp"
@@ -25,6 +25,11 @@
 #include <SDL2/SDL.h>
 #include <glad/glad.h>
 
+#include <algorithm>
+#include <iostream>
+#include <iomanip>
+#include <string>
+#include <ctime>
 #include <cstdlib>
 #include <ctime>
 #include <fstream>
@@ -90,10 +95,10 @@ int window_height = ScreenHeight - DefaultCrop;
 
 // frame timing
 const unsigned int TARGET_FPS = 60;
-const double TIME_PER_FRAME = 1000.0 / TARGET_FPS;
+const float TIME_PER_FRAME = 1000.0f / TARGET_FPS;
 int last_time = 0;
 int last_render_time = 0;
-double last_wait_time = 0;
+float last_wait_time = 0;
 
 // frame rate
 int frame_number = 0;
@@ -171,20 +176,20 @@ void resizeRenderArea( bool round_scale )
 	SDL_GetWindowSize( window, &window_width, &window_height );
 
 	// set viewport to entire window
-	SDL_RenderSetViewport( renderer, NULL );
+	SDL_RenderSetViewport( renderer, nullptr );
 
-	float x_scale = ( float )window_width / crop_area.w;
-	float y_scale = ( float )window_height / crop_area.h;
-	render_scale = MIN( x_scale, y_scale );
+	float x_scale = ( float )window_width / (float)crop_area.w;
+	float y_scale = ( float )window_height / (float)crop_area.h;
+	render_scale = (std::min)( x_scale, y_scale );
 
 	if ( round_scale )
 	{
 		// round down
-		render_scale = MAX( ( int )render_scale, 1 );
+		render_scale = ( std::max )( std::floor( render_scale ), 1.0f );
 	}
 
-	render_area.w = crop_area.w * render_scale;
-	render_area.h = crop_area.h * render_scale;
+	render_area.w = static_cast<int>( std::round( crop_area.w * render_scale ) );
+	render_area.h = static_cast<int>( std::round( crop_area.h * render_scale ) );
 	render_area.x = ( window_width - render_area.w ) / 2;
 	render_area.y = ( window_height - render_area.h ) / 2;
 }
@@ -197,12 +202,14 @@ void resizeWindow( int width, int height )
 
 void cropScreen( int dx, int dy )
 {
-	crop_area.x = CLAMP( crop_area.x + dx, 0, MaxCrop );
-	crop_area.y = CLAMP( crop_area.y + dy, 0, MaxCrop );
+	crop_area.x = std::clamp( crop_area.x + dx, 0, MaxCrop );
+	crop_area.y = std::clamp( crop_area.y + dy, 0, MaxCrop );
 	crop_area.w = ScreenWidth - crop_area.x * 2;
 	crop_area.h = ScreenHeight - crop_area.y * 2;
-
-	resizeWindow( crop_area.w * render_scale, crop_area.h * render_scale );
+	
+	int w = static_cast<int>( std::round( crop_area.w * render_scale ) );
+	int h = static_cast<int>( std::round( crop_area.h * render_scale ) );
+	resizeWindow( w, h );
 }
 
 // guaranteed close program callback
@@ -284,8 +291,8 @@ void windowEvent( const SDL_Event& event )
 
 void mouseMotionEvent( const SDL_Event& event )
 {
-	int tv_x = ( event.motion.x - render_area.x ) / render_scale;
-	int tv_y = ( event.motion.y - render_area.y ) / render_scale;
+	int tv_x = static_cast<int>( std::round( ( event.motion.x - render_area.x ) / render_scale ) );
+	int tv_y = static_cast<int>( std::round( ( event.motion.y - render_area.y ) / render_scale ) );
 	zapper.aim( tv_x, tv_y );
 }
 
@@ -379,7 +386,7 @@ void pollEvents()
 
 int main( int argc, char** argv )
 {
-	srand( time( NULL ) );
+	srand( (unsigned int)time( NULL ) );
 
 	dbAssertMessage( SDL_Init( SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER ) == 0, "failed to initialize SDL" );
 
@@ -468,6 +475,12 @@ int main( int argc, char** argv )
 				s_nes.dump();
 				paused = true;
 			}
+			else
+			{
+				frame_number++;
+				float elapsed = static_cast<float>( SDL_GetTicks() - last_time );
+				total_real_fps += 1000.0f / elapsed;
+			}
 		}
 		step_frame = false;
 
@@ -502,22 +515,14 @@ int main( int argc, char** argv )
 
 		if ( !paused )
 		{
-			real_fps = 1000.0 / elapsed;
-			total_real_fps += real_fps;
-		}
+			float elapsed = static_cast<float>( now - last_time );
+			float current_fps = 1000.0f / elapsed;
+			total_fps += current_fps;
+			addFPS( current_fps );
 
-		if ( elapsed < targetMPF )
-		{
-			SDL_Delay( targetMPF - elapsed );
-		}
-
-		if ( !paused )
-		{
-			auto elapsed = SDL_GetTicks() - frameStart;
-			fps = 1000.0 / elapsed;
-			total_fps += fps;
-
-			frame_number++;
+			std::stringstream stream;
+			stream << std::fixed << std::setprecision( 1 ) << currentFPS();
+			fps_text = "fps: " + stream.str();
 		}
 	}
 

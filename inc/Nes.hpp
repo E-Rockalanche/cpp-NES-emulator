@@ -4,12 +4,12 @@
 #include "apu.hpp"
 #include "Cartridge.hpp"
 #include "Cpu.hpp"
-#include "debug.hpp"
+#include <stdx/assert.h>
 #include "Ppu.hpp"
 
 #include <iostream>
 
-class Pixel;
+struct Pixel;
 
 namespace nes
 {

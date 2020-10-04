@@ -1,7 +1,7 @@
 #ifndef BANK_MAPPER_HPP
 #define BANK_MAPPER_HPP
 
-#include "debug.hpp"
+#include <stdx/assert.h>
 #include "types.hpp"
 
 using size_t = std::size_t;
@@ -43,7 +43,7 @@ namespace nes
 
 			// wrap bank number
 			if ( bank < 0 )
-				bank += m_memorySize / bankSize;
+				bank += static_cast<int>( m_memorySize / bankSize );
 
 			size_t numSlots = bankSize / MIN_BANK_SIZE;
 			for( size_t i = 0; i < numSlots; ++i )
