@@ -1,7 +1,9 @@
 #include "RGBTexture.hpp"
 
-#include "debug.hpp"
+#include <stdx/assert.h>
+
 #include <glad/glad.h>
+
 #include <utility>
 
 RGBTexture::RGBTexture( uint width, uint height, const void* data )

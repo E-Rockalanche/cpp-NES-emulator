@@ -16,7 +16,7 @@ Cartridge::Cartridge( Memory data )
 
 	dbAssert( Rom::HeaderSize + m_prgSize + m_chrSize <= m_data.size() );
 
-	dbLog( "PRG size: 0x%08", m_prgSize );
+	dbLog( "PRG size: 0x%08zu", m_prgSize );
 
 	m_prg = m_data.data() + Rom::HeaderSize;
 
@@ -26,18 +26,18 @@ Cartridge::Cartridge( Memory data )
 		m_chrRam = Memory( Rom::ChrSizeUnit );
 		m_chr = m_chrRam.data();
 		m_chrSize = m_chrRam.size();
-		dbLog( "CHR RAM size: 0x%08", m_chrSize );
+		dbLog( "CHR RAM size: 0x%08zu", m_chrSize );
 	}
 	else
 	{
 		m_chr = m_prg + m_prgSize;
-		dbLog( "CHR size: 0x%08", m_chrSize );
+		dbLog( "CHR size: 0x%08zu", m_chrSize );
 	}
 
 	size_t ramSize = Rom::getRamSize( m_data.data() );
 	m_ram = Memory( ramSize );
 
-	dbLog( "RAM size: 0x%08", ramSize );
+	dbLog( "RAM size: 0x%08zu", ramSize );
 
 	m_checksum = crc32( m_data.data(), m_data.size() );
 

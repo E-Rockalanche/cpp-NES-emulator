@@ -19,6 +19,14 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="imgui\examples\imgui_impl_opengl3.h" />
+    <ClInclude Include="imgui\examples\imgui_impl_sdl.h" />
+    <ClInclude Include="imgui\imconfig.h" />
+    <ClInclude Include="imgui\imgui.h" />
+    <ClInclude Include="imgui\imgui_internal.h" />
+    <ClInclude Include="imgui\imstb_rectpack.h" />
+    <ClInclude Include="imgui\imstb_textedit.h" />
+    <ClInclude Include="imgui\imstb_truetype.h" />
     <ClInclude Include="inc\api.hpp" />
     <ClInclude Include="inc\apu.hpp" />
     <ClInclude Include="inc\BankMapper.hpp" />
@@ -55,6 +63,7 @@
     <ClInclude Include="inc\ppu_defs.hpp" />
     <ClInclude Include="inc\program_end.hpp" />
     <ClInclude Include="inc\Ram.hpp" />
+    <ClInclude Include="inc\RGBTexture.hpp" />
     <ClInclude Include="inc\rom_loader.hpp" />
     <ClInclude Include="inc\types.hpp" />
     <ClInclude Include="inc\zapper.hpp" />
@@ -65,7 +74,9 @@
     <ClInclude Include="lib\inc\Blip_Synth.h" />
     <ClInclude Include="lib\inc\boost\config.hpp" />
     <ClInclude Include="lib\inc\boost\static_assert.hpp" />
+    <ClInclude Include="lib\inc\glad\glad.h" />
     <ClInclude Include="lib\inc\json.hpp" />
+    <ClInclude Include="lib\inc\KHR\khrplatform.h" />
     <ClInclude Include="lib\inc\Multi_Buffer.h" />
     <ClInclude Include="lib\inc\Nes_Apu.h" />
     <ClInclude Include="lib\inc\Nes_Namco.h" />
@@ -76,8 +87,15 @@
     <ClInclude Include="lib\inc\Sound_Queue.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="imgui\examples\imgui_impl_opengl3.cpp" />
+    <ClCompile Include="imgui\examples\imgui_impl_sdl.cpp" />
+    <ClCompile Include="imgui\imgui.cpp" />
+    <ClCompile Include="imgui\imgui_demo.cpp" />
+    <ClCompile Include="imgui\imgui_draw.cpp" />
+    <ClCompile Include="imgui\imgui_widgets.cpp" />
     <ClCompile Include="lib\src\apu_snapshot.cpp" />
     <ClCompile Include="lib\src\Blip_Buffer.cpp" />
+    <ClCompile Include="lib\src\glad.c" />
     <ClCompile Include="lib\src\Multi_Buffer.cpp" />
     <ClCompile Include="lib\src\Nes_Apu.cpp" />
     <ClCompile Include="lib\src\Nes_Namco.cpp" />
@@ -108,12 +126,8 @@
     <ClCompile Include="src\message.cpp" />
     <ClCompile Include="src\movie.cpp" />
     <ClCompile Include="src\ppu.cpp" />
+    <ClCompile Include="src\RGBTexture.cpp" />
     <ClCompile Include="src\rom_loader.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Core\Core.vcxproj">
-      <Project>{1c92be46-2197-49f2-bc95-4a67701b7f39}</Project>
-    </ProjectReference>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
@@ -190,12 +204,12 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
-      <AdditionalIncludeDirectories>inc;lib\inc;..\Core\inc;external\SDL2\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>inc;lib\inc;..\Core\Core\inc;../SDL2/include;imgui</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>external/SDL2/lib/x86/</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>../SDL2/lib/x86/</AdditionalLibraryDirectories>
       <AdditionalDependencies>SDL2.lib;SDL2_image.lib;SDL2_ttf.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -210,12 +224,12 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
-      <AdditionalIncludeDirectories>inc;lib\inc;..\Core\inc;external\SDL2\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>inc;lib\inc;..\Core\Core\inc;../SDL2/include;imgui</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>external/SDL2/lib/x64/</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>../SDL2/lib/x64/</AdditionalLibraryDirectories>
       <AdditionalDependencies>SDL2.lib;SDL2_image.lib;SDL2_ttf.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -230,7 +244,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>inc;lib\inc;..\Core\inc;external\SDL2\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>inc;lib\inc;..\Core\Core\inc;../SDL2/include;imgui</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
     </ClCompile>
@@ -239,7 +253,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>external/SDL2/lib/x86/</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>../SDL2/lib/x86/</AdditionalLibraryDirectories>
       <AdditionalDependencies>SDL2.lib;SDL2_image.lib;SDL2_ttf.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -254,7 +268,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>inc;lib\inc;..\Core\inc;external\SDL2\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>inc;lib\inc;..\Core\Core\inc;../SDL2/include;imgui</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
     </ClCompile>
@@ -263,7 +277,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>external/SDL2/lib/x64/</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>../SDL2/lib/x64/</AdditionalLibraryDirectories>
       <AdditionalDependencies>SDL2.lib;SDL2_image.lib;SDL2_ttf.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>

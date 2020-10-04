@@ -1,27 +1,28 @@
 #ifndef BANK_MAPPER_HPP
 #define BANK_MAPPER_HPP
 
-#include <stdx/assert.h>
 #include "types.hpp"
+
+#include <stdx/assert.h>
 
 using size_t = std::size_t;
 
 namespace nes
 {
 
-	template <size_t NUM_SLOTS, size_t MIN_BANK_SIZE>
+	template <size_t NumSlots, size_t MinBankSize>
 	class BankMapper
 	{
 	public:
 
-		static_assert( NUM_SLOTS > 0 );
-		static_assert( MIN_BANK_SIZE > 0 );
+		static_assert( NumSlots > 0 );
+		static_assert( MinBankSize > 0 );
 
 		BankMapper() = default;
 		BankMapper( size_t memorySize ) : m_memorySize( memorySize )
 		{
-			dbAssert( m_memorySize >= NUM_SLOTS * MIN_BANK_SIZE );
-			dbAssert( m_memorySize % MIN_BANK_SIZE == 0 );
+			dbAssert( m_memorySize >= NumSlots * MinBankSize );
+			dbAssert( m_memorySize % MinBankSize == 0 );
 
 			reset();
 		}
@@ -30,44 +31,44 @@ namespace nes
 		{
 			// wrap bank number
 			if ( bank < 0 )
-				bank += m_memorySize / MIN_BANK_SIZE;
+				bank += m_memorySize / MinBankSize;
 
-			m_bankOffsets[ slot ] = ( bank * MIN_BANK_SIZE ) % m_memorySize;
+			m_bankOffsets[ slot ] = ( bank * MinBankSize ) % m_memorySize;
 		}
 
 		// for sizes larger than min bank size
 		void setBank( size_t slot, int bank, size_t bankSize )
 		{
-			dbAssert( bankSize >= MIN_BANK_SIZE );
-			dbAssertMessage( bankSize % MIN_BANK_SIZE == 0, "bank size must be multiple of minimum bank size" );
+			dbAssert( bankSize >= MinBankSize );
+			dbAssertMessage( ( ( bankSize % MinBankSize ) == 0 ), "bank size must be multiple of minimum bank size" );
 
 			// wrap bank number
 			if ( bank < 0 )
 				bank += static_cast<int>( m_memorySize / bankSize );
 
-			size_t numSlots = bankSize / MIN_BANK_SIZE;
+			size_t numSlots = bankSize / MinBankSize;
 			for( size_t i = 0; i < numSlots; ++i )
 			{
-				size_t offset = ( bank * bankSize ) + ( i * MIN_BANK_SIZE );
+				size_t offset = ( bank * bankSize ) + ( i * MinBankSize );
 				m_bankOffsets[ i + slot * numSlots ] = offset % m_memorySize;
 			}
 		}
 
-		constexpr size_t bankSize() const { return MIN_BANK_SIZE; }
-		constexpr size_t numSlots() const { return NUM_SLOTS; }
+		constexpr size_t bankSize() const { return MinBankSize; }
+		constexpr size_t numSlots() const { return NumSlots; }
 
 		size_t operator[]( Word address )
 		{
-			size_t slot = address / MIN_BANK_SIZE;
-			dbAssert( slot < NUM_SLOTS );
-			return ( address % MIN_BANK_SIZE ) + m_bankOffsets[ slot ];
+			size_t slot = address / MinBankSize;
+			dbAssert( slot < NumSlots );
+			return ( address % MinBankSize ) + m_bankOffsets[ slot ];
 		}
 
 		void reset()
 		{
-			for( size_t i = 0; i < NUM_SLOTS; ++i )
+			for( size_t i = 0; i < NumSlots; ++i )
 			{
-				m_bankOffsets[ i ] = ( i * MIN_BANK_SIZE ) % m_memorySize;
+				m_bankOffsets[ i ] = ( i * MinBankSize ) % m_memorySize;
 			}
 		}
 
@@ -78,7 +79,7 @@ namespace nes
 
 	private:
 
-		size_t m_bankOffsets[ NUM_SLOTS ];
+		size_t m_bankOffsets[ NumSlots ];
 		size_t m_memorySize = 0;
 	};
 

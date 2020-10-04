@@ -277,7 +277,7 @@ namespace fs
 	path path::parent_path() const
 	{
 		int end;
-		for ( end = pathname.size() - 1; end >= 0; end-- )
+		for ( end = (int)pathname.size() - 1; end >= 0; end-- )
 		{
 			char c = pathname[end];
 			if ( isslash( c ) )
@@ -291,7 +291,7 @@ namespace fs
 	path path::filename() const
 	{
 		int start;
-		for ( start = pathname.size() - 1; start >= 0; start-- )
+		for ( start = (int)pathname.size() - 1; start >= 0; start-- )
 		{
 			char c = pathname[start];
 			if ( isslash( c ) )
@@ -306,9 +306,9 @@ namespace fs
 	path path::stem() const
 	{
 		int start;
-		int end = pathname.size();
+		int end = (int)pathname.size();
 		bool found_ext = false;
-		for ( start = pathname.size() - 1; start >= 0; start-- )
+		for ( start = (int)pathname.size() - 1; start >= 0; start-- )
 		{
 			char c = pathname[start];
 			if ( c == '.' && !found_ext )
@@ -328,7 +328,7 @@ namespace fs
 	path path::extension() const
 	{
 		int start;
-		for ( start = pathname.size() - 1; start >= 0; start-- )
+		for ( start = (int)pathname.size() - 1; start >= 0; start-- )
 		{
 			if ( pathname[start] == '.' )
 			{

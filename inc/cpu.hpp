@@ -1,10 +1,11 @@
 #ifndef NES_CPU_HPP
 #define NES_CPU_HPP
 
-#include "debug.hpp"
 #include "Instructions.hpp"
 #include "Ram.hpp"
 #include "types.hpp"
+
+#include <stdx/assert.h>
 
 #include <iostream>
 #include <iterator>

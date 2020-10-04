@@ -205,7 +205,7 @@ void Cpu::reset()
 	write( APU_STATUS, 0 );
 
 	m_programCounter = readWordTick( RESET_VECTOR );
-	dbLog( "PC: 0x%04", m_programCounter );
+	dbLog( "PC: 0x%04u", (unsigned int)m_programCounter );
 
 	m_halt = false;
 	m_nmi = -1;

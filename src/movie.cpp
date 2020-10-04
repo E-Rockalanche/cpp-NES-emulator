@@ -59,7 +59,7 @@ namespace Movie
 		unsigned int checksum = s_nes.getCartridge()->getChecksum();
 		writeBinary(fout, checksum);
 
-		int size = button_presses.size();
+		int size = (int)button_presses.size();
 		fout.write( ( char* )&size, sizeof( size ) );
 
 		for ( int i = 0; i < size; i++ )

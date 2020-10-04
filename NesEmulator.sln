@@ -8,7 +8,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NesEmulator", "NesEmulator.
 		{1C92BE46-2197-49F2-BC95-4A67701B7F39} = {1C92BE46-2197-49F2-BC95-4A67701B7F39}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Core", "..\Core\Core.vcxproj", "{1C92BE46-2197-49F2-BC95-4A67701B7F39}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Core", "..\Core\Core\Core.vcxproj", "{1C92BE46-2197-49F2-BC95-4A67701B7F39}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

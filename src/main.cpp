@@ -20,9 +20,9 @@
 #include "RGBTexture.hpp"
 
 #include "imgui.h"
-#include "imgui_impl_sdl.h"
-#include "imgui_impl_opengl3.h"
-#include <SDL2/SDL.h>
+#include "examples/imgui_impl_sdl.h"
+#include "examples/imgui_impl_opengl3.h"
+#include <SDL.h>
 #include <glad/glad.h>
 
 #include <algorithm>
@@ -38,8 +38,8 @@
 #include <sstream>
 #include <string>
 
-const double targetFPS = 60.0;
-const double targetMPF = 1000.0 / targetFPS;
+constexpr double targetFPS = 60.0;
+constexpr double targetMPF = 1000.0 / targetFPS;
 
 // SDL
 SDL_Window* window = nullptr;
@@ -94,8 +94,6 @@ int window_width = ScreenWidth - DefaultCrop;
 int window_height = ScreenHeight - DefaultCrop;
 
 // frame timing
-const unsigned int TARGET_FPS = 60;
-const float TIME_PER_FRAME = 1000.0f / TARGET_FPS;
 int last_time = 0;
 int last_render_time = 0;
 float last_wait_time = 0;
@@ -426,7 +424,7 @@ int main( int argc, char** argv )
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     auto& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_ViewportsEnable;
+    // io.ConfigFlags |= ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_ViewportsEnable;
 
     ImGui::StyleColorsDark();
 
@@ -438,9 +436,8 @@ int main( int argc, char** argv )
 	RGBTexture nesTexture( ScreenWidth, ScreenHeight, s_nes.getPixelBuffer() );
 
 	// initialize NES
-	nes::Cpu::initialize();
-	s_nes.setController( &joypad[ 0 ], 0 );
-	s_nes.setController( &zapper, 1 );
+	s_nes.setController( 0, &joypad[ 0 ] );
+	s_nes.setController( 1, &zapper );
 
 	// load ROM from command line
 	if ( argc > 1 )
@@ -503,8 +500,8 @@ int main( int argc, char** argv )
 
 		SDL_Window* backup_current_window = SDL_GL_GetCurrentWindow();
 		SDL_GLContext backup_current_context = SDL_GL_GetCurrentContext();
-		ImGui::UpdatePlatformWindows();
-		ImGui::RenderPlatformWindowsDefault();
+		// ImGui::UpdatePlatformWindows();
+		// ImGui::RenderPlatformWindowsDefault();
 		SDL_GL_MakeCurrent( backup_current_window, backup_current_context );
 
 		// present screen
@@ -515,14 +512,22 @@ int main( int argc, char** argv )
 
 		if ( !paused )
 		{
-			float elapsed = static_cast<float>( now - last_time );
-			float current_fps = 1000.0f / elapsed;
-			total_fps += current_fps;
-			addFPS( current_fps );
+			real_fps = 1000.0f / elapsed;
+			total_real_fps += real_fps;
+		}
 
-			std::stringstream stream;
-			stream << std::fixed << std::setprecision( 1 ) << currentFPS();
-			fps_text = "fps: " + stream.str();
+		if ( elapsed < targetMPF )
+		{
+			SDL_Delay( static_cast<uint32_t>( targetMPF - elapsed ) );
+		}
+
+		if ( !paused )
+		{
+			auto elapsed = SDL_GetTicks() - frameStart;
+			fps = 1000.0f / elapsed;
+			total_fps += fps;
+
+			frame_number++;
 		}
 	}
 
