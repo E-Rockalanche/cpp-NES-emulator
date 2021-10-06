@@ -204,12 +204,12 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
-      <AdditionalIncludeDirectories>inc;lib\inc;..\Core\Core\inc;../SDL2/include;imgui</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>inc;lib\inc;..\Core\Core\inc;imgui;E:\vclib\SDL2-2.0.14\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>../SDL2/lib/x86/</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>E:\vclib\SDL2-2.0.14\lib\x86</AdditionalLibraryDirectories>
       <AdditionalDependencies>SDL2.lib;SDL2_image.lib;SDL2_ttf.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -224,12 +224,12 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
-      <AdditionalIncludeDirectories>inc;lib\inc;..\Core\Core\inc;../SDL2/include;imgui</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>inc;lib\inc;..\Core\Core\inc;imgui;E:\vclib\SDL2-2.0.14\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>../SDL2/lib/x64/</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>E:\vclib\SDL2-2.0.14\lib\x64</AdditionalLibraryDirectories>
       <AdditionalDependencies>SDL2.lib;SDL2_image.lib;SDL2_ttf.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -244,7 +244,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>inc;lib\inc;..\Core\Core\inc;../SDL2/include;imgui</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>inc;lib\inc;..\Core\Core\inc;imgui;E:\vclib\SDL2-2.0.14\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
     </ClCompile>
@@ -253,7 +253,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>../SDL2/lib/x86/</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>E:\vclib\SDL2-2.0.14\lib\x86</AdditionalLibraryDirectories>
       <AdditionalDependencies>SDL2.lib;SDL2_image.lib;SDL2_ttf.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -268,7 +268,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>inc;lib\inc;..\Core\Core\inc;../SDL2/include;imgui</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>inc;lib\inc;..\Core\Core\inc;imgui;E:\vclib\SDL2-2.0.14\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <DisableSpecificWarnings>4996</DisableSpecificWarnings>
     </ClCompile>
@@ -277,7 +277,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>../SDL2/lib/x64/</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>E:\vclib\SDL2-2.0.14\lib\x64</AdditionalLibraryDirectories>
       <AdditionalDependencies>SDL2.lib;SDL2_image.lib;SDL2_ttf.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
